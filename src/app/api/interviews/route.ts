@@ -138,19 +138,22 @@ export async function POST(request: Request) {
   const derived =
     utmValid && utmPayload?.datumEpsg === "4326" ? utmToLatLng(utmPayload) : null;
 
-  await db.insert(territory).values({
-    id: body.id as string,
-    interviewer: body.interviewer as string,
-    candidate: body.candidate as string,
-    signature: body.signature as string,
-    name: body.name as string,
-    phone: body.phone as string,
-    location: locationValue,
-    createdAt: new Date(body.createdAt as string),
-    latitude: body.latitude ?? derived?.latitude ?? null,
-    longitude: body.longitude ?? derived?.longitude ?? null,
-    srid: 4326,
-  });
+  await db
+    .insert(territory)
+    .values({
+      id: body.id as string,
+      interviewer: body.interviewer as string,
+      candidate: body.candidate as string,
+      signature: body.signature as string,
+      name: body.name as string,
+      phone: body.phone as string,
+      location: locationValue,
+      createdAt: new Date(body.createdAt as string),
+      latitude: body.latitude ?? derived?.latitude ?? null,
+      longitude: body.longitude ?? derived?.longitude ?? null,
+      srid: 4326,
+    })
+    .onConflictDoNothing();
 
   return NextResponse.json({ ok: true }, { status: 201 });
 }
