@@ -113,16 +113,16 @@ export default function EventMapDashboardPage() {
 
 
   return (
-    <div className="h-screen w-screen bg-[#f5f6f8] text-foreground">
+    <div className="h-screen w-screen bg-background text-foreground">
       <div className="grid h-full grid-cols-[minmax(0,1fr)_320px]">
         <div className="h-full p-4">
           <div className="h-full rounded-2xl border border-border/60 bg-card/70 p-0 shadow-[0_20px_60px_rgba(15,23,42,0.12)]">
             <MapPanel height={null} className="h-full w-full rounded-2xl" points={points} />
           </div>
         </div>
-        <aside className="h-full border-l border-border/60 bg-white/90 p-4">
+        <aside className="h-full border-l border-border/60 bg-card/70 p-4">
           <div className="space-y-4">
-            <Card className="border-border/60 bg-white p-4">
+            <Card className="border-border/60 bg-card/70 p-4">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                 Evento
               </p>
@@ -132,7 +132,7 @@ export default function EventMapDashboardPage() {
               <p className="mt-1 text-xs text-muted-foreground">Actualizacion en tiempo real</p>
             </Card>
 
-            <Card className="border-border/60 bg-white p-4">
+            <Card className="border-border/60 bg-card/70 p-4">
               <div className="flex items-center justify-between">
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   Contactos obtenidos
@@ -151,11 +151,11 @@ export default function EventMapDashboardPage() {
                   }}
                 >
                   <DialogTrigger asChild>
-                    <Button size="sm" variant="outline">
+                    <Button size="sm" variant="outline" className="focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
                       Ver mas
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="max-w-3xl">
+                  <DialogContent className="max-w-3xl bg-background text-foreground">
                     <DialogHeader>
                       <DialogTitle>Registros en campo</DialogTitle>
                     </DialogHeader>
@@ -176,6 +176,7 @@ export default function EventMapDashboardPage() {
                               setPage(1);
                             }}
                             placeholder="Nombre, telefono o candidato"
+                            className="focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                           />
                         </div>
                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -189,7 +190,7 @@ export default function EventMapDashboardPage() {
                       </div>
                       <div className="max-h-[60vh] overflow-y-auto rounded-xl border border-border/60">
                       <Table>
-                        <TableHeader className="sticky top-0 bg-white/95 backdrop-blur">
+                        <TableHeader className="sticky top-0 bg-background/90 backdrop-blur">
                           <TableRow>
                             <TableHead>Candidato</TableHead>
                             <TableHead>Nombre</TableHead>
@@ -235,6 +236,7 @@ export default function EventMapDashboardPage() {
                             variant="ghost"
                             disabled={currentPage <= 1}
                             onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+                            className="focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                           >
                             Anterior
                           </Button>
@@ -246,6 +248,7 @@ export default function EventMapDashboardPage() {
                             variant="ghost"
                             disabled={currentPage >= totalPages}
                             onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+                            className="focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                           >
                             Siguiente
                           </Button>
@@ -260,7 +263,7 @@ export default function EventMapDashboardPage() {
 
             <div className="space-y-3">
               {candidateLabels.map((candidate) => (
-                <Card key={candidate} className="border-border/60 bg-white p-4">
+                <Card key={candidate} className="border-border/60 bg-card/70 p-4">
                   <div className="flex items-center justify-between">
                     <p className="text-sm font-semibold text-foreground">{candidate}</p>
                     <span className="text-sm font-semibold text-foreground">
@@ -279,11 +282,11 @@ export default function EventMapDashboardPage() {
                       }}
                     >
                       <DialogTrigger asChild>
-                        <Button size="sm" variant="ghost">
+                      <Button size="sm" variant="ghost" className="focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
                           Ver mas
                         </Button>
                       </DialogTrigger>
-                      <DialogContent className="max-w-3xl">
+                    <DialogContent className="max-w-3xl bg-background text-foreground">
                         <DialogHeader>
                           <DialogTitle>Registros en campo</DialogTitle>
                         </DialogHeader>
@@ -304,6 +307,7 @@ export default function EventMapDashboardPage() {
                                   setPage(1);
                                 }}
                                 placeholder="Nombre, telefono o candidato"
+                                className="focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                               />
                             </div>
                             <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -315,7 +319,7 @@ export default function EventMapDashboardPage() {
                           </div>
                           <div className="max-h-[60vh] overflow-y-auto rounded-xl border border-border/60">
                           <Table>
-                            <TableHeader className="sticky top-0 bg-white/95 backdrop-blur">
+                            <TableHeader className="sticky top-0 bg-background/90 backdrop-blur">
                               <TableRow>
                                 <TableHead>Candidato</TableHead>
                                 <TableHead>Nombre</TableHead>
@@ -361,6 +365,7 @@ export default function EventMapDashboardPage() {
                                 variant="ghost"
                                 disabled={currentPage <= 1}
                                 onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+                                className="focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                               >
                                 Anterior
                               </Button>
@@ -372,6 +377,7 @@ export default function EventMapDashboardPage() {
                                 variant="ghost"
                                 disabled={currentPage >= totalPages}
                                 onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+                                className="focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                               >
                                 Siguiente
                               </Button>
