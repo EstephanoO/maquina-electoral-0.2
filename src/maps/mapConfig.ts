@@ -1,7 +1,7 @@
 export const defaultMapView = {
-  longitude: -100,
-  latitude: 40,
-  zoom: 3.5,
+  longitude: -75.02,
+  latitude: -9.19,
+  zoom: 5.2,
 };
 
 export const mapStyleLight =

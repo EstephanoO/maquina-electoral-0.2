@@ -164,6 +164,9 @@ export async function GET() {
       latitude: territory.latitude,
       longitude: territory.longitude,
       candidate: territory.candidate,
+      name: territory.name,
+      phone: territory.phone,
+      createdAt: territory.createdAt,
     })
     .from(territory)
     .where(and(isNotNull(territory.latitude), isNotNull(territory.longitude)));
