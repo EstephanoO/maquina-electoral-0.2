@@ -88,6 +88,12 @@ Comprehensive performance optimization guide for React and Next.js applications,
 
 ---
 
+## Key files
+- `SKILL.md`
+
+## Key files
+- `SKILL.md`
+
 ## 1. Eliminating Waterfalls
 
 **Impact: CRITICAL**

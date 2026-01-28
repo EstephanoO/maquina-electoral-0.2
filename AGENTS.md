@@ -24,15 +24,27 @@ The app focuses on managing dashboards, data, and campaign operations (“war ro
 - GeoJSON
 - Google Sheets API
 
+### Data sources (current)
+- Neon `territory` table for tierra interview intake (event_id supported).
+- Neon `events` table for persistent event definitions and ranges.
+
 ## UI layout strategy
 - Admin/consultor use console shell; candidates use dashboard shell.
 - Candidate panel sits at top with photo, metadata, and vote goal.
 - Candidate navigation sidebar lists enabled dashboards.
 - Tierra dashboards include MapLibre + right sidebar; other templates are card-based.
+- Event overview dashboards can be mapless when needed.
+
+## Design system
+- Source of truth: `design-system/MASTER.md`.
+- Typography: Manrope for UI, Fraunces for display.
+- Panels and shells rely on `globals.css` tokens and utility classes.
+- States (empty/error/loading) must use shared components with centered layout.
 
 ## Event flow
 - Events can exist without dashboards (agenda-only).
 - Tierra dashboards require a linked event and a form with required location.
+- Event auto-assignment can be resolved server-side by event date ranges.
 
 ## Modular architecture
 The project is organized under `src/modules/*` by domain. Each module has its own `AGENTS.md` with responsibilities and boundaries.
@@ -51,6 +63,22 @@ The project is organized under `src/modules/*` by domain. Each module has its ow
 
 ## Code style guidelines
 TBD. Keep modules isolated, prefer explicit interfaces, and avoid implicit cross-module dependencies.
+
+## Data fetching and performance
+- UI polling uses SWR with refresh intervals and deduplication.
+- Heavy client libraries (MapLibre, Recharts) are lazy-loaded via `next/dynamic`.
+- Avoid client waterfall on initial render; prefer server fetches where possible.
+
+## Key routes and services
+- Fullscreen tierra dashboard: `src/app/(fullscreen)/eventos/[eventId]/dashboard/page.tsx`
+- Console event dashboard: `src/app/console/events/[eventId]/page.tsx`
+- Events API: `src/app/api/events/route.ts`
+- Interviews API: `src/app/api/interviews/route.ts`
+
+## Key files
+- `src/modules/dashboards/events/EventMapDashboard.tsx`
+- `src/modules/maps/PeruMapPanel.tsx`
+- `src/db/schema.ts`
 
 ## Testing instructions
 TBD. No automated tests defined yet.

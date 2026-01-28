@@ -8,6 +8,7 @@ export const events: CampaignEvent[] = [
     status: "ACTIVE",
     startDate: "2026-01-28",
     dashboardTemplate: "tierra",
+    clients: ["Rocio Porras"],
     contactName: "Andrea Pacheco",
     contactPhone: "+51 987 221 445",
     location: "Lima Centro · Plaza San Martin",
@@ -19,6 +20,7 @@ export const events: CampaignEvent[] = [
     status: "ACTIVE",
     startDate: "2026-01-28",
     dashboardTemplate: "tierra",
+    clients: ["Giovanna Castagnino"],
   },
   {
     id: "event-guillermo-01",
@@ -27,5 +29,6 @@ export const events: CampaignEvent[] = [
     status: "ACTIVE",
     startDate: "2026-01-28",
     dashboardTemplate: "tierra",
+    clients: ["Guillermo Aliaga"],
   },
 ];

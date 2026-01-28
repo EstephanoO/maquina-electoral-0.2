@@ -35,6 +35,7 @@ export type CampaignEvent = {
   contactName?: string;
   contactPhone?: string;
   location?: string;
+  clients?: string[];
 };
 
 export type FormFieldType =

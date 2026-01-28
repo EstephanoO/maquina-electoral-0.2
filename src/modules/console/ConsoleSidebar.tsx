@@ -41,7 +41,7 @@ export const ConsoleSidebar = ({ collapsed = false }: { collapsed?: boolean }) =
       <Card className="panel fade-rise h-full p-3">
         <div
           className={cn(
-            "flex items-center gap-2 px-2 text-[0.6rem] font-semibold uppercase tracking-[0.35em] text-muted-foreground",
+            "flex items-center gap-2 px-2 text-[0.7rem] font-semibold uppercase tracking-[0.22em] text-muted-foreground",
             collapsed && "justify-center px-0",
           )}
         >
@@ -61,6 +61,7 @@ export const ConsoleSidebar = ({ collapsed = false }: { collapsed?: boolean }) =
                   key={item.href}
                   href={item.href}
                   title={collapsed ? item.label : undefined}
+                  aria-current={isActive ? "page" : undefined}
                   className={cn(
                     "group flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors",
                     isActive
@@ -84,6 +85,7 @@ export const ConsoleSidebar = ({ collapsed = false }: { collapsed?: boolean }) =
                   key={item.href}
                   href={item.href}
                   title={collapsed ? item.label : undefined}
+                  aria-current={isActive ? "page" : undefined}
                   className={cn(
                     "group flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors",
                     isActive

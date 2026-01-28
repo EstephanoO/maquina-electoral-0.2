@@ -9,7 +9,12 @@ Event domain state: agenda, forms, and response points.
 
 ## Boundaries
 - No UI rendering.
-- No backend integration (UI-only).
+- No UI rendering. Store layer only.
+
+## Key files
+- `src/modules/events/events.store.ts`
+- `src/modules/events/forms.store.ts`
+- `src/modules/events/responses.store.ts`
 
 ## Skills
 - .agents/skills/zustand-state-management/SKILL.md

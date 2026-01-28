@@ -5,10 +5,13 @@ import { createId } from "@/db/mock-helpers";
 
 type EventsState = {
   events: CampaignEvent[];
+  loaded: boolean;
 };
 
 type EventsActions = {
-  createEvent: (payload: Omit<CampaignEvent, "id">) => string;
+  createEvent: (payload: Omit<CampaignEvent, "id"> & { id?: string }) => string;
+  setEvents: (events: CampaignEvent[]) => void;
+  loadEvents: (options?: { campaignId?: string; eventId?: string }) => Promise<boolean>;
   updateEvent: (eventId: string, updates: Partial<CampaignEvent>) => void;
   closeEvent: (eventId: string) => void;
   removeEvent: (eventId: string) => void;
@@ -19,8 +22,9 @@ type EventsActions = {
 export const useEventsStore = create<EventsState & EventsActions>()(
   (set, get) => ({
     events: seedEvents,
+    loaded: false,
     createEvent: (payload) => {
-      const id = createId("event");
+      const id = payload.id ?? createId("event");
       set((state) => ({
         events: [
           ...state.events,
@@ -31,6 +35,28 @@ export const useEventsStore = create<EventsState & EventsActions>()(
         ],
       }));
       return id;
+    },
+    setEvents: (events) => set({ events }),
+    loadEvents: async (options) => {
+      const params = new URLSearchParams();
+      if (options?.campaignId) {
+        params.set("campaignId", options.campaignId);
+      }
+      if (options?.eventId) {
+        params.set("id", options.eventId);
+      }
+      const url = params.toString() ? `/api/events?${params.toString()}` : "/api/events";
+      try {
+        const response = await fetch(url);
+        if (!response.ok) {
+          return false;
+        }
+        const data = (await response.json()) as { events?: CampaignEvent[] };
+        set({ events: data.events ?? [], loaded: true });
+        return true;
+      } catch {
+        return false;
+      }
     },
     updateEvent: (eventId, updates) =>
       set((state) => ({

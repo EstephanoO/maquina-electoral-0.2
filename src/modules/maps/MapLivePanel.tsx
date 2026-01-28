@@ -1,40 +1,68 @@
 "use client";
 
 import * as React from "react";
-import { MapPanel } from "@/modules/maps/MapPanel";
+import useSWR from "swr";
+import { PeruMapPanel } from "@/modules/maps/PeruMapPanel";
 
 type MapPoint = {
   latitude: number | null;
   longitude: number | null;
 };
 
-export const MapLivePanel = ({ className }: { className?: string }) => {
-  const [points, setPoints] = React.useState<Array<{ lat: number; lng: number }>>([]);
+export const MapLivePanel = ({
+  className,
+  client,
+  candidate,
+}: {
+  className?: string;
+  client?: string;
+  candidate?: string;
+}) => {
+  const params = React.useMemo(() => {
+    const query = new URLSearchParams();
+    if (client) query.set("client", client);
+    if (candidate) query.set("candidate", candidate);
+    return query.toString();
+  }, [client, candidate]);
 
-  React.useEffect(() => {
-    let isMounted = true;
+  const key = params ? `/api/interviews?${params}` : "/api/interviews";
 
-    const loadPoints = async () => {
-      const response = await fetch("/api/interviews", { cache: "no-store" });
-      if (!response.ok) return;
-      const data = (await response.json()) as { points: MapPoint[] };
-      const next = (data.points ?? [])
-        .filter((point) => point.latitude !== null && point.longitude !== null)
-        .map((point) => ({
-          lat: point.latitude as number,
-          lng: point.longitude as number,
-        }));
-      if (isMounted) {
-        setPoints(next);
-      }
-    };
-
-    loadPoints();
-
-    return () => {
-      isMounted = false;
-    };
+  const fetcher = React.useCallback(async (url: string) => {
+    const response = await fetch(url, { cache: "no-store" });
+    if (!response.ok) throw new Error("points-failed");
+    return response.json() as Promise<{ points: MapPoint[] }>;
   }, []);
 
-  return <MapPanel height={null} className={className} points={points} />;
+  const { data, error, isLoading } = useSWR<{ points: MapPoint[] }>(key, fetcher, {
+    refreshInterval: 10000,
+    revalidateOnFocus: false,
+  });
+
+  const points = React.useMemo(
+    () =>
+      (data?.points ?? [])
+        .filter((point: MapPoint) => point.latitude !== null && point.longitude !== null)
+        .map((point: MapPoint) => ({
+          lat: point.latitude as number,
+          lng: point.longitude as number,
+        })),
+    [data],
+  );
+
+  const status = isLoading
+    ? "loading"
+    : error
+      ? "error"
+      : points.length > 0
+        ? "ready"
+        : "empty";
+
+  return (
+    <PeruMapPanel
+      height={null}
+      className={className}
+      points={points}
+      status={status === "ready" ? undefined : status}
+    />
+  );
 };

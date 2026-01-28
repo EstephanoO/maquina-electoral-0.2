@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
-import { and, isNotNull } from "drizzle-orm";
+import { and, eq, gte, isNotNull, lte } from "drizzle-orm";
 import { db } from "@/db/connection";
-import { territory } from "@/db/schema";
+import { events, territory } from "@/db/schema";
 
 type InterviewPayload = {
   id: string;
+  eventId?: string;
   interviewer: string;
   candidate: string;
   signature: string;
@@ -34,6 +35,47 @@ const requiredKeys: Array<keyof InterviewPayload> = [
   "location",
   "createdAt",
 ];
+
+const clientToCandidate: Record<string, string> = {
+  rocio: "Rocio Porras",
+  giovanna: "Giovanna Castagnino",
+  guillermo: "Guillermo Aliaga",
+};
+
+const formatDateInLima = (value: string) => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Lima",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+};
+
+const resolveEventId = async (createdAt: string) => {
+  const createdDate = formatDateInLima(createdAt);
+  if (!createdDate) return null;
+  const candidates = await db
+    .select({
+      id: events.id,
+      startDate: events.startDate,
+      endDate: events.endDate,
+      status: events.status,
+      dashboardTemplate: events.dashboardTemplate,
+    })
+    .from(events)
+    .where(and(eq(events.status, "ACTIVE"), eq(events.dashboardTemplate, "tierra")));
+
+  const matching = candidates.filter((event) => {
+    const start = event.startDate;
+    const end = event.endDate ?? event.startDate;
+    return createdDate >= start && createdDate <= end;
+  });
+  if (matching.length === 0) return null;
+  const sorted = matching.sort((a, b) => a.startDate.localeCompare(b.startDate));
+  return sorted[0].id;
+};
 
 const toRadians = (value: number) => (value * Math.PI) / 180;
 const toDegrees = (value: number) => (value * 180) / Math.PI;
@@ -138,10 +180,14 @@ export async function POST(request: Request) {
   const derived =
     utmValid && utmPayload?.datumEpsg === "4326" ? utmToLatLng(utmPayload) : null;
 
+  const resolvedEventId =
+    body.eventId ?? (await resolveEventId(body.createdAt as string));
+
   await db
     .insert(territory)
     .values({
       id: body.id as string,
+      eventId: resolvedEventId,
       interviewer: body.interviewer as string,
       candidate: body.candidate as string,
       signature: body.signature as string,
@@ -158,9 +204,38 @@ export async function POST(request: Request) {
   return NextResponse.json({ ok: true }, { status: 201 });
 }
 
-export async function GET() {
+export async function GET(request: Request) {
+  const url = new URL(request.url);
+  const candidateParam = url.searchParams.get("candidate");
+  const clientParam = url.searchParams.get("client");
+  const eventIdParam = url.searchParams.get("eventId");
+  const startDateParam = url.searchParams.get("startDate");
+  const endDateParam = url.searchParams.get("endDate");
+  if (clientParam && !clientToCandidate[clientParam]) {
+    return NextResponse.json({ error: "Invalid client" }, { status: 400 });
+  }
+  const resolvedCandidate =
+    (clientParam ? clientToCandidate[clientParam] : null) ?? candidateParam;
+  const conditions = [isNotNull(territory.latitude), isNotNull(territory.longitude)];
+  if (resolvedCandidate) {
+    conditions.push(eq(territory.candidate, resolvedCandidate));
+  }
+  if (eventIdParam) {
+    conditions.push(eq(territory.eventId, eventIdParam));
+  }
+  if (startDateParam) {
+    conditions.push(gte(territory.createdAt, new Date(startDateParam)));
+  }
+  if (endDateParam) {
+    conditions.push(lte(territory.createdAt, new Date(endDateParam)));
+  }
+  const condition = and(...conditions);
+
   const rows = await db
     .select({
+      id: territory.id,
+      eventId: territory.eventId,
+      interviewer: territory.interviewer,
       latitude: territory.latitude,
       longitude: territory.longitude,
       candidate: territory.candidate,
@@ -169,7 +244,37 @@ export async function GET() {
       createdAt: territory.createdAt,
     })
     .from(territory)
-    .where(and(isNotNull(territory.latitude), isNotNull(territory.longitude)));
+    .where(condition);
 
   return NextResponse.json({ points: rows });
+}
+
+export async function PATCH(request: Request) {
+  const body = (await request.json()) as Partial<InterviewPayload> & { id?: string };
+  if (!body.id) {
+    return NextResponse.json({ error: "Missing id" }, { status: 400 });
+  }
+
+  const updates: Partial<typeof territory.$inferInsert> = {};
+  if (typeof body.candidate === "string") updates.candidate = body.candidate;
+  if (typeof body.name === "string") updates.name = body.name;
+  if (typeof body.phone === "string") updates.phone = body.phone;
+
+  if (Object.keys(updates).length === 0) {
+    return NextResponse.json({ error: "No updates" }, { status: 400 });
+  }
+
+  await db.update(territory).set(updates).where(eq(territory.id, body.id));
+  return NextResponse.json({ ok: true });
+}
+
+export async function DELETE(request: Request) {
+  const url = new URL(request.url);
+  const id = url.searchParams.get("id");
+  if (!id) {
+    return NextResponse.json({ error: "Missing id" }, { status: 400 });
+  }
+
+  await db.delete(territory).where(eq(territory.id, id));
+  return NextResponse.json({ ok: true });
 }

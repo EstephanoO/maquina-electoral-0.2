@@ -17,7 +17,7 @@ export const ClientHeader = ({
 
   return (
     <Card className="border-border/60 bg-card/70 px-6 py-4">
-      <p className="text-xs font-semibold uppercase tracking-[0.3em] text-muted-foreground">
+      <p className="text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
         {templateLabel}
       </p>
     </Card>

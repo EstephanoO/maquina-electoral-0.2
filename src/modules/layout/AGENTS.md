@@ -3,6 +3,9 @@
 ## Module overview
 Owns the main app shell and top-of-screen candidate panel.
 
+## Design system
+- Source of truth: `design-system/MASTER.md`.
+
 ## Responsibilities
 - App shell composition for candidate/estratega/consultor views.
 - Candidate header panel with photo, metadata, and vote goal.
@@ -12,6 +15,9 @@ Owns the main app shell and top-of-screen candidate panel.
 ## Boundaries
 - No routing decisions beyond layout composition.
 - No domain mutations; read-only props/state.
+
+## Key files
+- `src/modules/layout/ThemeToggle.tsx`
 
 ## Skills
 - .agents/skills/frontend-design/SKILL.md

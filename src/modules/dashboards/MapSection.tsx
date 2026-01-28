@@ -1,6 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { MapPanel } from "@/modules/maps/MapPanel";
+import { PeruMapPanel } from "@/modules/maps/PeruMapPanel";
 
 export const MapSection = () => {
   return (
@@ -17,7 +17,7 @@ export const MapSection = () => {
         <Badge variant="outline">Opcional</Badge>
       </div>
       <div className="mt-4">
-        <MapPanel height={320} />
+        <PeruMapPanel height={320} />
       </div>
     </Card>
   );

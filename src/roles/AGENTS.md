@@ -14,5 +14,8 @@ Role and permission definitions for MAQUINA-ELECTORAL.
 ## Notes
 - Role list includes ESTRATEGA alongside CANDIDATO.
 
+## Key files
+- `src/roles/*`
+
 ## Skills
 - .agents/skills/vercel-react-best-practices/SKILL.md

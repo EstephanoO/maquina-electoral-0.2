@@ -22,7 +22,7 @@ export const CampaignInsights = () => {
             key={metric.label}
             className="rounded-xl border border-border/60 bg-background/70 p-3"
           >
-            <p className="text-xs text-muted-foreground">{metric.label}</p>
+            <p className="text-xs text-foreground/70">{metric.label}</p>
             <p className="text-lg font-semibold text-foreground">{metric.value}</p>
           </div>
         ))}

@@ -3,6 +3,9 @@
 ## Module overview
 Console UI for admin and consultor roles.
 
+## Design system
+- Source of truth: `design-system/MASTER.md`.
+
 ## Responsibilities
 - Console shell, sidebar, topbar, and access gate.
 - Console cards and campaign detail summaries.
@@ -10,6 +13,9 @@ Console UI for admin and consultor roles.
 ## Boundaries
 - No routing decisions; app routes own navigation.
 - No direct data fetching; use stores or props.
+
+## Key files
+- `src/modules/console/*`
 
 ## Skills
 - .agents/skills/frontend-design/SKILL.md

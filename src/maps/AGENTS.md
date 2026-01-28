@@ -8,8 +8,11 @@ Feature module for map-related configuration (legacy).
 - Shared types and helpers for map features.
 
 ## Boundaries
- - UI components live in `src/modules/maps`.
- - No dashboard-specific composition.
+- UI components live in `src/modules/maps`.
+- No dashboard-specific composition.
+
+## Key files
+- `src/maps/mapConfig.ts`
 
 ## Skills
 - .agents/skills/frontend-design/SKILL.md

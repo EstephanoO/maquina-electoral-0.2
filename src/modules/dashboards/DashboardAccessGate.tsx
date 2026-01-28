@@ -36,6 +36,15 @@ export const DashboardAccessGate = ({
     }
   }, [resolvedCampaignId, activeCampaignId, setActiveCampaign]);
 
+  if (client && !slugToCampaignId[client]) {
+    return (
+      <EmptyState
+        title="Cliente invalido"
+        description="El dashboard solicitado no corresponde a un cliente registrado."
+      />
+    );
+  }
+
   if (!resolvedCampaignId) {
     return (
       <EmptyState
@@ -63,6 +72,18 @@ export const DashboardAccessGate = ({
         description="Completa el formulario y activa el dashboard para verlo."
       />
     );
+  }
+
+  if (template === "tierra" && dashboard.date) {
+    const eventStart = new Date(`${dashboard.date}T05:00:00-05:00`);
+    if (Number.isFinite(eventStart.getTime()) && Date.now() < eventStart.getTime()) {
+      return (
+        <EmptyState
+          title="Evento aun no inicia"
+          description="El acceso se habilita el 28 de enero a las 05:00 (hora local)."
+        />
+      );
+    }
   }
 
   return <>{children}</>;

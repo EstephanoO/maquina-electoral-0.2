@@ -30,7 +30,7 @@ export const DashboardCatalog = () => {
             <p className="text-sm font-semibold text-foreground">
               {dashboard.title}
             </p>
-            <p className="text-xs text-muted-foreground">Estado: {dashboard.status}</p>
+            <p className="text-xs text-foreground/70">Estado: {dashboard.status}</p>
           </div>
         ))}
       </div>

@@ -2,6 +2,7 @@ import { integer, pgTable, text, timestamp, doublePrecision } from "drizzle-orm/
 
 export const territory = pgTable("territory", {
   id: text("id").primaryKey(),
+  eventId: text("event_id"),
   interviewer: text("interviewer").notNull(),
   candidate: text("candidate").notNull(),
   signature: text("signature").notNull(),
@@ -12,4 +13,18 @@ export const territory = pgTable("territory", {
   latitude: doublePrecision("latitude"),
   longitude: doublePrecision("longitude"),
   srid: integer("srid").notNull().default(4326),
+});
+
+export const events = pgTable("events", {
+  id: text("id").primaryKey(),
+  campaignId: text("campaign_id").notNull(),
+  name: text("name").notNull(),
+  status: text("status").notNull(),
+  startDate: text("start_date").notNull(),
+  endDate: text("end_date"),
+  dashboardTemplate: text("dashboard_template"),
+  contactName: text("contact_name"),
+  contactPhone: text("contact_phone"),
+  location: text("location"),
+  clients: text("clients").array(),
 });

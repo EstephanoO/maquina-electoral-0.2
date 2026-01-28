@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useEventsStore } from "@/modules/events/events.store";
 import { useCampaignsStore } from "@/modules/campaigns/store";
 import { useFormsStore } from "@/modules/events/forms.store";
@@ -22,6 +23,7 @@ export default function CampaignEventsPage() {
   const params = useParams();
   const campaignId = params.campaignId as string;
   const events = useEventsStore((state) => state.events);
+  const loadEvents = useEventsStore((state) => state.loadEvents);
   const campaignEvents = React.useMemo(
     () => events.filter((event) => event.campaignId === campaignId),
     [events, campaignId],
@@ -29,22 +31,63 @@ export default function CampaignEventsPage() {
   const createEvent = useEventsStore((state) => state.createEvent);
   const createDashboard = useCampaignsStore((state) => state.createDashboard);
   const saveFormSchema = useFormsStore((state) => state.saveFormSchema);
+  const campaigns = useCampaignsStore((state) => state.campaigns);
+  const campaign = React.useMemo(
+    () => campaigns.find((item) => item.id === campaignId),
+    [campaigns, campaignId],
+  );
   const [name, setName] = React.useState("");
   const [status, setStatus] = React.useState<EventStatus>("DRAFT");
   const [eventKind, setEventKind] = React.useState<"reunion" | "tierra">("reunion");
+  const [startDate, setStartDate] = React.useState(() => new Date().toISOString().slice(0, 10));
+  const [endDate, setEndDate] = React.useState("");
+  const [selectedClients, setSelectedClients] = React.useState<string[]>(
+    campaign ? [campaign.name] : [],
+  );
 
-  const handleCreate = () => {
+  React.useEffect(() => {
+    void loadEvents();
+  }, [loadEvents]);
+
+  const handleCreate = async () => {
     if (!name) {
       toast.error("Nombre requerido");
       return;
     }
-    const eventId = createEvent({
+    if (!startDate) {
+      toast.error("Fecha de inicio requerida");
+      return;
+    }
+    if (endDate && endDate < startDate) {
+      toast.error("La fecha de fin no puede ser anterior al inicio");
+      return;
+    }
+    if (eventKind === "tierra" && selectedClients.length === 0) {
+      toast.error("Selecciona al menos un candidato");
+      return;
+    }
+    const eventId = createId("event");
+    const payload = {
+      id: eventId,
       campaignId,
       name,
       status,
-      startDate: new Date().toISOString().slice(0, 10),
-      dashboardTemplate: eventKind === "tierra" ? "tierra" : undefined,
+      startDate,
+      endDate: endDate || undefined,
+      dashboardTemplate: eventKind === "tierra" ? ("tierra" as DashboardTemplate) : undefined,
+      clients: selectedClients.length > 0 ? selectedClients : undefined,
+    };
+    const response = await fetch("/api/events", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
     });
+    if (!response.ok) {
+      toast.error("No se pudo crear el evento");
+      return;
+    }
+
+    createEvent(payload);
     if (eventKind === "tierra") {
       saveFormSchema({
         eventId,
@@ -68,6 +111,9 @@ export default function CampaignEventsPage() {
     }
     setName("");
     setEventKind("reunion");
+    setSelectedClients(campaign ? [campaign.name] : []);
+    setStartDate(new Date().toISOString().slice(0, 10));
+    setEndDate("");
     toast.success("Evento creado");
   };
 
@@ -149,6 +195,65 @@ export default function CampaignEventsPage() {
                       </SelectContent>
                     </Select>
                   </div>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <label
+                        htmlFor="event-start"
+                        className="text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+                      >
+                        Inicio
+                      </label>
+                      <Input
+                        id="event-start"
+                        type="date"
+                        value={startDate}
+                        onChange={(event) => setStartDate(event.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label
+                        htmlFor="event-end"
+                        className="text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+                      >
+                        Fin (opcional)
+                      </label>
+                      <Input
+                        id="event-end"
+                        type="date"
+                        value={endDate}
+                        onChange={(event) => setEndDate(event.target.value)}
+                        min={startDate}
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Candidatos en el evento
+                    </p>
+                    <div className="space-y-2 rounded-xl border border-border/60 p-3">
+                      {campaigns.map((client) => {
+                        const checkboxId = `event-client-${client.id}`;
+                        return (
+                          <div key={client.id} className="flex items-center gap-2">
+                            <Checkbox
+                              id={checkboxId}
+                              checked={selectedClients.includes(client.name)}
+                              onCheckedChange={(checked) => {
+                                setSelectedClients((prev) =>
+                                  checked
+                                    ? [...prev, client.name]
+                                    : prev.filter((name) => name !== client.name),
+                                );
+                              }}
+                            />
+                            <label htmlFor={checkboxId} className="text-sm text-foreground">
+                              {client.name}
+                            </label>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
                   <Button className="button-glow" onClick={handleCreate}>
                     Guardar evento
                   </Button>
@@ -175,7 +280,9 @@ export default function CampaignEventsPage() {
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <p className="text-sm font-semibold text-foreground">{event.name}</p>
-                    <p className="text-xs text-muted-foreground">Inicio {event.startDate}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {event.endDate ? `${event.startDate} → ${event.endDate}` : `Inicio ${event.startDate}`}
+                    </p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge variant="outline">{event.status}</Badge>

@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { campaigns } from "@/db/constants";
-import { MapPanel } from "@/modules/maps/MapPanel";
+import { PeruMapPanel } from "@/modules/maps/PeruMapPanel";
 import { KpiGrid } from "@/modules/dashboards/KpiGrid";
 import { SummaryCard } from "@/modules/dashboards/SummaryCard";
 import { TimelineCard } from "@/modules/dashboards/TimelineCard";
@@ -64,7 +64,7 @@ export default async function PreviewPage({ params }: PreviewPageProps) {
           {isTierra ? (
             <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
               <div className="rounded-2xl border border-border/60 bg-card/60 p-0 shadow-sm shadow-black/5">
-                <MapPanel
+                <PeruMapPanel
                   height={null}
                   className="h-[calc(100vh-300px)] min-h-[560px] w-full rounded-2xl"
                 />

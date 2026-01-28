@@ -18,7 +18,12 @@ export const ThemeToggle = () => {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="icon" className="border-border/60 bg-background/80">
+        <Button
+          variant="outline"
+          size="icon"
+          className="border-border/60 bg-background/80"
+          aria-label="Alternar tema"
+        >
           {mode === "dark" ? <Moon /> : <Sun />}
         </Button>
       </DropdownMenuTrigger>

@@ -1,16 +1,21 @@
 # AGENTS.md
 
 ## Module overview
-Local data access layer for the UI-only phase.
+Data access layer for Neon-backed reads plus local UI seeds.
 
 ## Responsibilities
+- Neon connection via Drizzle for `territory` reads/writes.
 - Local storage keys and helpers.
-- Client-side constants for mock data sources.
-- Shared data access primitives until real ingestion lands.
+- Client-side constants for UI seed data.
 
 ## Notes
 - Campaigns/events/forms/responses seed the UI-only flow.
 - Dashboard states live in `src/modules/campaigns` store.
+
+## Key files
+- `src/db/schema.ts`
+- `src/db/connection.ts`
+- `src/db/constants/*`
 
 ## Boundaries
 - No UI components.

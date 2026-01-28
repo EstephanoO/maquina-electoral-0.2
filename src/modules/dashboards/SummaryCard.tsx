@@ -21,7 +21,7 @@ export const SummaryCard = () => {
         </div>
         <Badge className="bg-secondary text-secondary-foreground">Semana 11</Badge>
       </div>
-      <ul className="mt-5 space-y-3 text-sm text-muted-foreground">
+      <ul className="mt-5 space-y-3 text-sm text-foreground/70">
         {highlights.map((item) => (
           <li key={item} className="rounded-xl border border-border/60 bg-background/70 p-3">
             {item}

@@ -9,7 +9,12 @@ Theme system for light/dark mode.
 
 ## Boundaries
 - No UI layout ownership.
- - Theme toggle UI lives in `src/modules/layout`.
+- Theme toggle UI lives in `src/modules/layout`.
+
+## Key files
+- `src/theme/ThemeProvider.tsx`
+- `src/theme/ThemeScript.tsx`
+- `src/theme/theme.ts`
 
 ## Skills
 - .agents/skills/frontend-design/SKILL.md

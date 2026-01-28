@@ -9,6 +9,9 @@ Legacy management feature module (deprecated).
 ## Boundaries
 - No new features; migrate to `src/modules/console` when updating.
 
+## Key files
+- `src/management/*`
+
 ## Skills
 - .agents/skills/vercel-react-best-practices/SKILL.md
 - .agents/skills/zustand-state-management/SKILL.md

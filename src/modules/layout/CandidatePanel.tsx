@@ -43,7 +43,7 @@ export const CandidatePanel = () => {
               className="h-20 w-20 rounded-3xl object-cover"
             />
             <div className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-muted-foreground">
+              <p className="text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                 Candidatura
               </p>
               <div>

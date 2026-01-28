@@ -4,6 +4,13 @@ import type { Campaign, DashboardStatus, DashboardTemplate } from "@/lib/types";
 import { campaigns as seedCampaigns } from "@/db/constants";
 import { useSessionStore } from "@/stores/session.store";
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+const asRecord = <T extends Record<string, unknown>>(value: unknown, fallback: T): T =>
+  (isRecord(value) ? (value as T) : fallback);
+const asArray = <T>(value: unknown, fallback: T[]): T[] =>
+  Array.isArray(value) ? (value as T[]) : fallback;
+
 type CampaignState = {
   campaigns: Campaign[];
   searchQuery: string;
@@ -59,63 +66,67 @@ type CampaignActions = {
   removeCampaign: (campaignId: string) => void;
 };
 
+const defaultDashboardsByCampaign: CampaignState["dashboardsByCampaign"] = {
+  "cand-rocio": [
+    {
+      template: "tierra",
+      status: "ACTIVE",
+      name: "Salida a campo 28 de enero",
+      date: "2026-01-28",
+      team: "Equipo de terreno",
+    },
+  ],
+  "cand-giovanna": [
+    {
+      template: "tierra",
+      status: "ACTIVE",
+      name: "Salida a campo 28 de enero",
+      date: "2026-01-28",
+      team: "Equipo de terreno",
+    },
+  ],
+  "cand-guillermo": [
+    {
+      template: "tierra",
+      status: "ACTIVE",
+      name: "Salida a campo 28 de enero",
+      date: "2026-01-28",
+      team: "Equipo de terreno",
+    },
+  ],
+};
+
+const defaultCampaignProfiles: CampaignState["campaignProfiles"] = {
+  "cand-rocio": {
+    image: "/Rocio-Porras.jpg",
+    goal: "980.000",
+    party: "Somos Peru",
+    role: "Senadora Nacional",
+    number: "#4",
+  },
+  "cand-giovanna": {
+    image: "/giovanna-castagnino.jpg",
+    goal: "860.000",
+    party: "Somos Peru",
+    role: "Senadora Nacional",
+    number: "#12",
+  },
+  "cand-guillermo": {
+    image: "/2guillermo.jpg",
+    goal: "1.200.000",
+    party: "Somos Peru",
+    role: "Senador Nacional",
+    number: "#1",
+  },
+};
+
 export const useCampaignsStore = create<CampaignState & CampaignActions>()(
   persist(
     (set) => ({
       campaigns: seedCampaigns,
       searchQuery: "",
-      dashboardsByCampaign: {
-        "cand-rocio": [
-          {
-            template: "tierra",
-            status: "ACTIVE",
-            name: "Salida a campo 28 de enero",
-            date: "2026-01-28",
-            team: "Equipo de terreno",
-          },
-        ],
-        "cand-giovanna": [
-          {
-            template: "tierra",
-            status: "ACTIVE",
-            name: "Salida a campo 28 de enero",
-            date: "2026-01-28",
-            team: "Equipo de terreno",
-          },
-        ],
-        "cand-guillermo": [
-          {
-            template: "tierra",
-            status: "ACTIVE",
-            name: "Salida a campo 28 de enero",
-            date: "2026-01-28",
-            team: "Equipo de terreno",
-          },
-        ],
-      },
-      campaignProfiles: {
-        "cand-rocio": {
-          image: "/Rocio-Porras.jpg",
-          goal: "980.000",
-          party: "Somos Peru",
-          role: "Senadora Nacional",
-          number: "#4",
-        },
-        "cand-giovanna": {
-          image: "/giovanna-castagnino.jpg",
-          goal: "860.000",
-          party: "Somos Peru",
-          role: "Senadora Nacional",
-          number: "#12",
-        },
-        "cand-guillermo": {
-          image: "/2guillermo.jpg",
-          goal: "1.200.000",
-          party: "Somos Peru",
-          role: "Senador Nacional",
-          number: "#1",
-        },
-      },
+      dashboardsByCampaign: defaultDashboardsByCampaign,
+      campaignProfiles: defaultCampaignProfiles,
       selectCampaign: (campaignId) => {
         useSessionStore.getState().setActiveCampaign(campaignId);
       },
@@ -201,6 +212,16 @@ export const useCampaignsStore = create<CampaignState & CampaignActions>()(
     {
       name: "maquina-campaigns",
       storage: createJSONStorage(() => localStorage),
+      version: 1,
+      migrate: (persistedState) => {
+        const state = isRecord(persistedState) ? (persistedState as Partial<CampaignState>) : {};
+        return {
+          campaigns: asArray<Campaign>(state.campaigns, seedCampaigns),
+          searchQuery: typeof state.searchQuery === "string" ? state.searchQuery : "",
+          dashboardsByCampaign: asRecord(state.dashboardsByCampaign, defaultDashboardsByCampaign),
+          campaignProfiles: asRecord(state.campaignProfiles, defaultCampaignProfiles),
+        } as CampaignState;
+      },
       partialize: (state) => ({
         dashboardsByCampaign: state.dashboardsByCampaign,
         campaigns: state.campaigns,

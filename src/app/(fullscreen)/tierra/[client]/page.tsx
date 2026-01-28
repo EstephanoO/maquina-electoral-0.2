@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { MapPanel } from "@/modules/maps/MapPanel";
+import { MapLivePanel } from "@/modules/maps/MapLivePanel";
 
 type TierraFullscreenPageProps = {
   params: Promise<{ client: string }>;
@@ -23,7 +23,10 @@ export default async function TierraFullscreenPage({ params }: TierraFullscreenP
         </div>
       </header>
       <div className="flex-1">
-        <MapPanel height={null} className="h-full rounded-none border-0 shadow-none" />
+        <MapLivePanel
+          client={client}
+          className="h-full rounded-none border-0 shadow-none"
+        />
       </div>
     </div>
   );

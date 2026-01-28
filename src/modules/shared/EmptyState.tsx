@@ -8,9 +8,11 @@ export const EmptyState = ({
   description: string;
 }) => {
   return (
-    <Card className="panel border-dashed p-6">
-      <p className="text-sm font-semibold text-foreground">{title}</p>
-      <p className="text-xs text-muted-foreground">{description}</p>
-    </Card>
+    <div className="flex min-h-[60vh] items-center justify-center px-6">
+      <Card className="panel w-full max-w-md border-dashed p-6 text-center">
+        <p className="text-sm font-semibold text-foreground">{title}</p>
+        <p className="mt-2 text-xs text-muted-foreground">{description}</p>
+      </Card>
+    </div>
   );
 };
