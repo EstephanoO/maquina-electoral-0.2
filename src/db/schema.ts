@@ -12,6 +12,8 @@ export const territory = pgTable("territory", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
   latitude: doublePrecision("latitude"),
   longitude: doublePrecision("longitude"),
+  east: doublePrecision("east"),
+  north: doublePrecision("north"),
   srid: integer("srid").notNull().default(4326),
 });
 

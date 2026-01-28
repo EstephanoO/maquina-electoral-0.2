@@ -197,6 +197,8 @@ export async function POST(request: Request) {
       createdAt: new Date(body.createdAt as string),
       latitude: body.latitude ?? derived?.latitude ?? null,
       longitude: body.longitude ?? derived?.longitude ?? null,
+      east: utmValid ? utmPayload.easting : null,
+      north: utmValid ? utmPayload.northing : null,
       srid: 4326,
     })
     .onConflictDoNothing();
@@ -238,6 +240,8 @@ export async function GET(request: Request) {
       interviewer: territory.interviewer,
       latitude: territory.latitude,
       longitude: territory.longitude,
+      east: territory.east,
+      north: territory.north,
       candidate: territory.candidate,
       name: territory.name,
       phone: territory.phone,

@@ -48,6 +48,8 @@ import {
 export type EventRecord = {
   id?: string | null;
   interviewer?: string | null;
+  east?: number | null;
+  north?: number | null;
   latitude: number | null;
   longitude: number | null;
   candidate?: string | null;
@@ -322,6 +324,24 @@ export const EventRecordsDialog = ({
         cell: ({ row }) => (
           <span className="text-sm text-muted-foreground">
             {row.getValue("phone") || "-"}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "east",
+        header: "Este (UTM)",
+        cell: ({ row }) => (
+          <span className="text-sm text-muted-foreground">
+            {row.getValue("east") ?? "-"}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "north",
+        header: "Norte (UTM)",
+        cell: ({ row }) => (
+          <span className="text-sm text-muted-foreground">
+            {row.getValue("north") ?? "-"}
           </span>
         ),
       },
