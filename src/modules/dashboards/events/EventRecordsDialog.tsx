@@ -50,6 +50,7 @@ export type EventRecord = {
   interviewer?: string | null;
   east?: number | null;
   north?: number | null;
+  signature?: string | null;
   latitude: number | null;
   longitude: number | null;
   candidate?: string | null;
@@ -67,6 +68,8 @@ type EventRecordsDialogProps = {
   onDelete?: (record: EventRecord) => void;
   onEdit?: (record: EventRecord) => void;
   onFocusPoint?: (record: EventRecord) => void;
+  buildDeleteUrl?: (id: string) => string;
+  mutate?: any;
 };
 
 type EditFormState = {
@@ -87,6 +90,51 @@ const formatDate = (value?: string | null) => {
     hour: "2-digit",
     minute: "2-digit",
   }).format(date);
+};
+
+const downloadCSV = (rows: EventRecord[]): void => {
+  if (rows.length === 0) return;
+  
+  const headers = [
+    "ID",
+    "Entrevistador",
+    "Candidato",
+    "Nombre",
+    "Teléfono",
+    "Firma",
+    "Este (UTM)",
+    "Norte (UTM)",
+    "Latitud",
+    "Longitud",
+    "Fecha"
+  ];
+  
+  const csvContent = [
+    headers.join(","),
+    ...rows.map(row => [
+      row.id || "",
+      row.interviewer || "",
+      row.candidate || "",
+      row.name || "",
+      row.phone || "",
+      row.signature || "",
+      row.east || "",
+      row.north || "",
+      row.latitude || "",
+      row.longitude || "",
+      row.createdAt || ""
+    ].map(field => `"${field}"`).join(","))
+  ].join("\n");
+  
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  const link = document.createElement("a");
+  const url = URL.createObjectURL(blob);
+  link.setAttribute("href", url);
+  link.setAttribute("download", `registros_${new Date().toISOString().slice(0, 10)}.csv`);
+  link.style.visibility = "hidden";
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
 };
 
 const EditRecordDialog = ({
@@ -474,6 +522,14 @@ export const EventRecordsDialog = ({
               />
             </div>
             <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => downloadCSV(filteredRows)}
+                disabled={filteredRows.length === 0}
+              >
+                Descargar CSV ({filteredRows.length})
+              </Button>
               {filterCandidate ? (
                 <span className="rounded-full border border-border/60 px-2 py-1 text-[0.65rem] uppercase tracking-wide">
                   {filterCandidate}

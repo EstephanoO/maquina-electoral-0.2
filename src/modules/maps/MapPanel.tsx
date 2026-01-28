@@ -32,7 +32,10 @@ type MapPoint = {
   candidate?: string | null;
   interviewer?: string | null;
   name?: string | null;
+  phone?: string | null;
   createdAt?: string | null;
+  east?: number | null;
+  north?: number | null;
 };
 
 type MapPanelProps = {
