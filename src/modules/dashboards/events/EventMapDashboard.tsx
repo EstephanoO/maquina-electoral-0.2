@@ -375,7 +375,7 @@ export const EventMapDashboard = ({
             resetMapView={resetMapView}
             setResetMapView={setResetMapView}
             withLocation={withLocation}
-            showLegend={!hideMapLegend}
+            showLegend={false}
             focusPoint={focusPoint}
             onClearFocusPoint={() => setFocusPoint(null)}
             campaignId={campaignId}
