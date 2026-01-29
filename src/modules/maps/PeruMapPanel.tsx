@@ -10,7 +10,7 @@ import { getGeoIndex, getGeoJson, getGeoUrls } from "@/modules/maps/hierarchy/ge
 import { MapHierarchyLayers } from "@/modules/maps/hierarchy/MapHierarchyLayers";
 import { MapHierarchyControls } from "@/modules/maps/hierarchy/MapHierarchyControls";
 import { useMapHierarchy } from "@/modules/maps/hierarchy/useMapHierarchy";
-import type { GeoFeatureCollection } from "@/modules/maps/hierarchy/types";
+import type { GeoFeatureCollection, GeoLevel } from "@/modules/maps/hierarchy/types";
 import { findFeatureByPoint } from "@/modules/maps/hierarchy/geoSpatial";
 import { Source, Layer } from "@vis.gl/react-maplibre";
 
@@ -44,11 +44,21 @@ type PeruMapPanelProps = {
   focusPoint?: { lat: number; lng: number } | null;
   onClearFocusPoint?: () => void;
   clientGeojson?: GeoFeatureCollection | null;
+  clientGeojsonMeta?: {
+    bbox?: [number, number, number, number] | null;
+    featureCount?: number;
+    codes?: {
+      deps?: string[];
+      provs?: Array<{ dep: string; prov: string }>;
+      dists?: string[];
+    };
+  } | null;
   clientGeojsonLayers?: {
     departamento?: GeoFeatureCollection | null;
     provincia?: GeoFeatureCollection | null;
     distrito?: GeoFeatureCollection | null;
   } | null;
+  onHierarchyLevelChange?: (level: GeoLevel) => void;
 };
 
 export const PeruMapPanel = ({
@@ -69,7 +79,9 @@ export const PeruMapPanel = ({
   focusPoint = null,
   onClearFocusPoint,
   clientGeojson = null,
+  clientGeojsonMeta = null,
   clientGeojsonLayers = null,
+  onHierarchyLevelChange,
 }: PeruMapPanelProps) => {
   const { mode } = useTheme();
   const { level, selectedCodes, breadcrumb, canGoBack, actions } = useMapHierarchy();
@@ -86,10 +98,17 @@ export const PeruMapPanel = ({
     if (!clientGeojson) return null;
     return getGeoJsonBounds(clientGeojson);
   }, [clientGeojson]);
+  const metaBounds = React.useMemo(() => {
+    const bbox = clientGeojsonMeta?.bbox ?? null;
+    if (!bbox || bbox.length !== 4) return null;
+    if (!bbox.every((value) => Number.isFinite(value))) return null;
+    return bbox as [number, number, number, number];
+  }, [clientGeojsonMeta?.bbox]);
   const clientBoundsKey = React.useMemo(() => {
-    if (!clientBounds) return null;
-    return clientBounds.map((value) => value.toFixed(6)).join(",");
-  }, [clientBounds]);
+    const resolvedBounds = clientBounds ?? metaBounds;
+    if (!resolvedBounds) return null;
+    return resolvedBounds.map((value) => value.toFixed(6)).join(",");
+  }, [clientBounds, metaBounds]);
 
   const geoUrls = React.useMemo(() => getGeoUrls(), []);
 
@@ -191,34 +210,47 @@ export const PeruMapPanel = ({
   ]);
 
   const allowedCodes = React.useMemo(() => {
-    if (!clientGeojsonLayers) return null;
-    const deps = new Set<string>();
-    const provs = new Map<string, { dep: string; prov: string }>();
-    const dists = new Set<string>();
-    const depFeatures = clientGeojsonLayers.departamento?.features ?? [];
+    const metaCodes = clientGeojsonMeta?.codes;
+    if (!clientGeojsonLayers && !metaCodes) return null;
+    const layers = clientGeojsonLayers ?? {};
+    const deps = layers.departamento ? new Set<string>() : null;
+    const provs = layers.provincia ? new Map<string, { dep: string; prov: string }>() : null;
+    const dists = layers.distrito ? new Set<string>() : null;
+    const depFeatures = layers.departamento?.features ?? [];
     for (const feature of depFeatures) {
       const dep = feature.properties?.CODDEP ? String(feature.properties.CODDEP) : null;
-      if (dep) deps.add(dep);
+      if (dep && deps) deps.add(dep);
     }
-    const provFeatures = clientGeojsonLayers.provincia?.features ?? [];
+    const provFeatures = layers.provincia?.features ?? [];
     for (const feature of provFeatures) {
       const dep = feature.properties?.CODDEP ? String(feature.properties.CODDEP) : null;
       const prov = feature.properties?.CODPROV ? String(feature.properties.CODPROV) : null;
-      if (dep && prov) {
+      if (dep && prov && provs) {
         provs.set(`${dep}-${prov}`, { dep, prov });
       }
     }
-    const distFeatures = clientGeojsonLayers.distrito?.features ?? [];
+    const distFeatures = layers.distrito?.features ?? [];
     for (const feature of distFeatures) {
       const dist = feature.properties?.UBIGEO ? String(feature.properties.UBIGEO) : null;
-      if (dist) dists.add(dist);
+      if (dist && dists) dists.add(dist);
+    }
+    if (metaCodes?.deps && deps) {
+      for (const dep of metaCodes.deps) deps.add(dep);
+    }
+    if (metaCodes?.provs && provs) {
+      for (const prov of metaCodes.provs) {
+        provs.set(`${prov.dep}-${prov.prov}`, { dep: prov.dep, prov: prov.prov });
+      }
+    }
+    if (metaCodes?.dists && dists) {
+      for (const dist of metaCodes.dists) dists.add(dist);
     }
     return {
-      deps: Array.from(deps),
-      provs: Array.from(provs.values()),
-      dists: Array.from(dists),
+      deps: deps ? Array.from(deps) : null,
+      provs: provs ? Array.from(provs.values()) : null,
+      dists: dists ? Array.from(dists) : null,
     };
-  }, [clientGeojsonLayers]);
+  }, [clientGeojsonLayers, clientGeojsonMeta?.codes]);
 
   const activeClientLayer = React.useMemo(() => {
     if (!clientGeojsonLayers) return null;
@@ -310,20 +342,20 @@ export const PeruMapPanel = ({
 
   React.useEffect(() => {
     if (!mapReady || !resolvedRef.current) return;
-    if (!clientBounds) return;
+    const resolvedBounds = clientBounds ?? metaBounds;
+    if (!resolvedBounds) return;
     if (!clientBoundsKey) return;
     if (points && points.length > 0) return;
-    if (!clientBounds.every((value) => Number.isFinite(value))) return;
     if (appliedClientBoundsKeyRef.current === clientBoundsKey) return;
     resolvedRef.current.fitBounds(
       [
-        [clientBounds[0], clientBounds[1]],
-        [clientBounds[2], clientBounds[3]],
+        [resolvedBounds[0], resolvedBounds[1]],
+        [resolvedBounds[2], resolvedBounds[3]],
       ],
       { padding: 24, duration: 650 },
     );
     appliedClientBoundsKeyRef.current = clientBoundsKey;
-  }, [clientBounds, clientBoundsKey, mapReady, points, resolvedRef]);
+  }, [clientBounds, clientBoundsKey, mapReady, metaBounds, points, resolvedRef]);
 
   React.useEffect(() => {
     if (!mapReady || !resolvedRef.current) return;
@@ -392,6 +424,11 @@ export const PeruMapPanel = ({
     if (!onResetViewReady) return;
     onResetViewReady(resetView);
   }, [onResetViewReady, resetView]);
+
+  React.useEffect(() => {
+    if (!onHierarchyLevelChange) return;
+    onHierarchyLevelChange(level);
+  }, [level, onHierarchyLevelChange]);
 
   React.useEffect(() => {
     if (!mapReady) return;

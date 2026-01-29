@@ -37,6 +37,7 @@ export const campaignGeojson = pgTable(
     campaignId: text("campaign_id").notNull(),
     layerType: text("layer_type").notNull(),
     geojson: jsonb("geojson").notNull(),
+    meta: jsonb("meta"),
     fileName: text("file_name"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
