@@ -17,12 +17,14 @@ export const DashboardAccessGate = ({
   client,
   campaignId,
   allowDraft = false,
+  skipEventSchedule = false,
 }: {
   children: ReactNode;
   template: "tierra" | "mar" | "aire";
   client?: string;
   campaignId?: string;
   allowDraft?: boolean;
+  skipEventSchedule?: boolean;
 }) => {
   const activeCampaignId = useSessionStore((state) => state.activeCampaignId);
   const setActiveCampaign = useSessionStore((state) => state.setActiveCampaign);
@@ -74,7 +76,7 @@ export const DashboardAccessGate = ({
     );
   }
 
-  if (template === "tierra" && dashboard.date) {
+  if (template === "tierra" && dashboard.date && !skipEventSchedule) {
     const eventStart = new Date(`${dashboard.date}T05:00:00-05:00`);
     if (Number.isFinite(eventStart.getTime()) && Date.now() < eventStart.getTime()) {
       return (

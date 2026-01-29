@@ -7,8 +7,8 @@ import {
 } from "../EventRecordsDialog";
 
 interface DashboardHeaderProps {
-  eventTitle: string;
-  eventSubtitle: string;
+  eventTitle?: string;
+  eventSubtitle?: string;
   lastUpdated: Date | null;
   rows: EventRecord[];
   candidateLabels: string[];
@@ -17,6 +17,13 @@ interface DashboardHeaderProps {
   onDelete: (record: EventRecord) => void;
   onFocusPoint: (record: EventRecord) => void;
   onDownloadCSV: () => void;
+  candidateProfile?: {
+    name: string;
+    party: string;
+    role: string;
+    number: string;
+    image: string;
+  };
 }
 
 export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
@@ -30,24 +37,62 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   onDelete,
   onFocusPoint,
   onDownloadCSV,
+  candidateProfile,
 }) => {
+  const showEventMeta = Boolean(eventTitle) || Boolean(eventSubtitle);
+
   return (
     <Card className="border-border/60 bg-card/70 p-5">
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-            Evento en tierra
-          </p>
-          <h1 className="mt-2 text-2xl font-semibold text-foreground">{eventTitle}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">{eventSubtitle}</p>
-          <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-            <span>
-              Ultima actualizacion: {lastUpdated ? lastUpdated.toLocaleTimeString("es-PE", {
-                hour: "2-digit",
-                minute: "2-digit",
-              }) : "-"}
-            </span>
-          </div>
+        <div className="flex flex-wrap items-center gap-6">
+          {candidateProfile ? (
+            <div className="flex items-center gap-4">
+              <img
+                src={candidateProfile.image}
+                alt={candidateProfile.name}
+                className="h-20 w-20 rounded-3xl object-cover"
+              />
+              <div className="space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                  Candidatura
+                </p>
+                <div>
+                  <h2 className="text-2xl font-semibold text-foreground [font-family:var(--font-display)]">
+                    {candidateProfile.name}
+                  </h2>
+                  <p className="text-sm text-muted-foreground">
+                    {candidateProfile.party}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {candidateProfile.role} · {candidateProfile.number}
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : null}
+          {showEventMeta ? (
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                Evento en tierra
+              </p>
+              {eventTitle ? (
+                <h1 className="mt-2 text-2xl font-semibold text-foreground">
+                  {eventTitle}
+                </h1>
+              ) : null}
+              {eventSubtitle ? (
+                <p className="mt-1 text-sm text-muted-foreground">{eventSubtitle}</p>
+              ) : null}
+              <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                <span>
+                  Ultima actualizacion: {lastUpdated ? lastUpdated.toLocaleTimeString("es-PE", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  }) : "-"}
+                </span>
+              </div>
+            </div>
+          ) : null}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button 

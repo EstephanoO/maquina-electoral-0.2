@@ -16,6 +16,7 @@ interface CandidateDistributionProps {
   onFocusPoint: (record: EventRecord) => void;
   hiddenCandidates: Set<string>;
   onToggleCandidateVisibility: (candidate: string) => void;
+  dataGoal?: string;
 }
 
 export const CandidateDistribution: React.FC<CandidateDistributionProps> = ({
@@ -28,7 +29,10 @@ export const CandidateDistribution: React.FC<CandidateDistributionProps> = ({
   onFocusPoint,
   hiddenCandidates,
   onToggleCandidateVisibility,
+  dataGoal,
 }) => {
+  const showObjectiveCard = Boolean(dataGoal) && candidateLabels.length === 1;
+
   return (
     <Card className="border-border/60 bg-card/70 p-5">
       <div className="flex items-center justify-between">
@@ -39,7 +43,7 @@ export const CandidateDistribution: React.FC<CandidateDistributionProps> = ({
           En tiempo real
         </span>
       </div>
-      <div className="grid gap-3 lg:grid-cols-4">
+      <div className={`grid gap-3 ${showObjectiveCard ? "lg:grid-cols-2" : "lg:grid-cols-4"}`}>
         <Card className="border-border/60 bg-card/70 px-4 py-3">
           <div className="flex items-center justify-between">
             <p className="text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
@@ -52,48 +56,65 @@ export const CandidateDistribution: React.FC<CandidateDistributionProps> = ({
             <div className="h-1.5 w-full rounded-full bg-gradient-to-r from-amber-400/70 via-sky-400/70 to-emerald-400/70" />
           </div>
         </Card>
-        {candidateLabels.map((candidate, index) => {
-          const totalCandidate = counts[candidate] ?? 0;
-          const percent = total > 0 ? Math.round((totalCandidate / total) * 100) : 0;
-          const color = index === 0 ? "bg-emerald-500" : index === 1 ? "bg-blue-500" : "bg-orange-500";
-          const dot = index === 0 ? "bg-emerald-500" : index === 1 ? "bg-blue-500" : "bg-orange-500";
-          return (
-            <Card key={candidate} className="border-border/60 bg-card/70 px-4 py-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className={`h-2.5 w-2.5 rounded-full ${dot}`} />
-                  <p className="text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                    {candidate}
-                  </p>
+        {showObjectiveCard ? (
+          <Card className="border-border/60 bg-card/70 px-4 py-3">
+            <div className="flex items-center justify-between">
+              <p className="text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                Objetivo de datos
+              </p>
+              <span className="text-xs text-muted-foreground">Meta</span>
+            </div>
+            <p className="mt-2 text-2xl font-semibold text-foreground">{dataGoal}</p>
+            <div className="mt-2 h-1.5 w-full rounded-full bg-muted/40">
+              <div className="h-1.5 w-2/3 rounded-full bg-primary/60" />
+            </div>
+          </Card>
+        ) : (
+          candidateLabels.map((candidate, index) => {
+            const totalCandidate = counts[candidate] ?? 0;
+            const percent = total > 0 ? Math.round((totalCandidate / total) * 100) : 0;
+            const color =
+              index === 0 ? "bg-emerald-500" : index === 1 ? "bg-blue-500" : "bg-orange-500";
+            const dot =
+              index === 0 ? "bg-emerald-500" : index === 1 ? "bg-blue-500" : "bg-orange-500";
+            return (
+              <Card key={candidate} className="border-border/60 bg-card/70 px-4 py-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className={`h-2.5 w-2.5 rounded-full ${dot}`} />
+                    <p className="text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                      {candidate}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">{percent}%</span>
+                    <EyeToggleButton
+                      candidate={candidate}
+                      isHidden={hiddenCandidates.has(candidate)}
+                      onToggle={onToggleCandidateVisibility}
+                    />
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground">{percent}%</span>
-                  <EyeToggleButton
-                    candidate={candidate}
-                    isHidden={hiddenCandidates.has(candidate)}
-                    onToggle={onToggleCandidateVisibility}
+                <div className="mt-2 flex items-end justify-between">
+                  <p className="text-2xl font-semibold text-foreground">{totalCandidate}</p>
+                  <EventRecordsDialog
+                    rows={rows}
+                    title="Registros en campo"
+                    triggerLabel="Ver"
+                    filterCandidate={candidate}
+                    candidateOptions={candidateLabels}
+                    onDelete={onDelete}
+                    onEdit={onEdit}
+                    onFocusPoint={onFocusPoint}
                   />
                 </div>
-              </div>
-              <div className="mt-2 flex items-end justify-between">
-                <p className="text-2xl font-semibold text-foreground">{totalCandidate}</p>
-                <EventRecordsDialog
-                  rows={rows}
-                  title="Registros en campo"
-                  triggerLabel="Ver"
-                  filterCandidate={candidate}
-                  candidateOptions={candidateLabels}
-                  onDelete={onDelete}
-                  onEdit={onEdit}
-                  onFocusPoint={onFocusPoint}
-                />
-              </div>
-              <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted/40">
-                <div className={`h-1.5 ${color}`} style={{ width: `${percent}%` }} />
-              </div>
-            </Card>
-          );
-        })}
+                <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted/40">
+                  <div className={`h-1.5 ${color}`} style={{ width: `${percent}%` }} />
+                </div>
+              </Card>
+            );
+          })
+        )}
       </div>
     </Card>
   );

@@ -46,6 +46,15 @@ type EventMapDashboardProps = {
   eventSubtitle?: string;
   candidateLabels: string[];
   dataUrl?: string;
+  candidateProfile?: {
+    name: string;
+    party: string;
+    role: string;
+    number: string;
+    image: string;
+  };
+  dataGoal?: string;
+  layoutVariant?: "default" | "compact";
 };
 
 export const EventMapDashboard = ({
@@ -53,7 +62,11 @@ export const EventMapDashboard = ({
   eventSubtitle = "Actualizacion en tiempo real",
   candidateLabels,
   dataUrl = "/api/interviews",
+  candidateProfile,
+  dataGoal,
+  layoutVariant = "default",
 }: EventMapDashboardProps) => {
+  const isCompact = layoutVariant === "compact";
   // Hooks para manejo de datos y estado
   const {
     data,
@@ -195,7 +208,11 @@ export const EventMapDashboard = ({
 
   return (
     <div className="min-h-screen w-screen bg-background text-foreground">
-      <div className="mx-auto flex h-full w-full max-w-[1400px] flex-col gap-5 px-5 py-5">
+      <div
+        className={`mx-auto flex h-full w-full flex-col px-5 py-5 ${
+          isCompact ? "max-w-[1280px] gap-4" : "max-w-[1400px] gap-5"
+        }`}
+      >
         {/* Header */}
         <DashboardHeader
           eventTitle={eventTitle}
@@ -208,6 +225,7 @@ export const EventMapDashboard = ({
           onDelete={handleDelete}
           onFocusPoint={handleFocusPoint}
           onDownloadCSV={downloadCSV}
+          candidateProfile={candidateProfile}
         />
 
         {/* Candidate Distribution */}
@@ -221,10 +239,15 @@ export const EventMapDashboard = ({
           onFocusPoint={handleFocusPoint}
           hiddenCandidates={hiddenCandidates}
           onToggleCandidateVisibility={toggleCandidateVisibility}
+          dataGoal={dataGoal}
         />
 
         {/* Main grid: Map + Sidebar */}
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+        <div
+          className={`grid gap-6 ${
+            isCompact ? "lg:grid-cols-[minmax(0,1fr)_320px]" : "lg:grid-cols-[minmax(0,1fr)_360px]"
+          }`}
+        >
           {/* Map Section */}
           <MapSection
             points={filteredMapPoints}
@@ -273,7 +296,7 @@ export const EventMapDashboard = ({
             <Card className="border-border/60 bg-card/70 p-4">
               <div className="flex items-center justify-between">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                  Progreso por candidato
+                  {isCompact ? "Progreso" : "Progreso por candidato"}
                 </p>
                 <Dialog>
                   <DialogTrigger asChild>
@@ -317,19 +340,17 @@ export const EventMapDashboard = ({
               </div>
               {/* Candidate Timeline Chart */}
               <div className="mt-4 space-y-3">
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span className="flex items-center gap-2">
-                    <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                    {candidateLabels[0] || "-"}
-                  </span>
-                  <span className="flex items-center gap-2">
-                    <span className="h-2 w-2 rounded-full bg-blue-500" />
-                    {candidateLabels[1] || "-"}
-                  </span>
-                  <span className="flex items-center gap-2">
-                    <span className="h-2 w-2 rounded-full bg-orange-500" />
-                    {candidateLabels[2] || "-"}
-                  </span>
+                <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                  {candidateLabels.map((candidate, index) => {
+                    const legendColors = ["bg-emerald-500", "bg-blue-500", "bg-orange-500"];
+                    const dotColor = legendColors[index] ?? "bg-slate-400";
+                    return (
+                      <span key={candidate} className="flex items-center gap-2">
+                        <span className={`h-2 w-2 rounded-full ${dotColor}`} />
+                        {candidate}
+                      </span>
+                    );
+                  })}
                 </div>
                 <div className="h-[160px] w-full rounded-2xl border border-border/60 bg-gradient-to-br from-background to-muted/20 p-3">
                   <ResponsiveContainer width="100%" height="100%">
@@ -378,7 +399,7 @@ export const EventMapDashboard = ({
 
         {/* Bottom Charts */}
         <Card className="border-border/60 bg-card/70 p-4">
-          <div className="grid gap-6 lg:grid-cols-2">
+          <div className={`grid gap-6 ${isCompact ? "lg:grid-cols-1" : "lg:grid-cols-2"}`}>
             {/* Interviewer Progress Chart (moved here) */}
             <div>
               <div className="flex items-center justify-between">
@@ -432,52 +453,53 @@ export const EventMapDashboard = ({
             </div>
 
             {/* Candidate Bar Chart (moved here) */}
-            <div>
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                  Comparativo candidatos
-                </p>
-                <span className="text-xs text-muted-foreground">Barras</span>
+            {isCompact ? null : (
+              <div>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                    Comparativo candidatos
+                  </p>
+                  <span className="text-xs text-muted-foreground">Barras</span>
+                </div>
+                <div className="mt-4 h-[220px] w-full rounded-2xl border border-border/60 bg-gradient-to-br from-background to-muted/20 p-3">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={candidateBarData}
+                      margin={{ top: 0, right: 10, left: 0, bottom: 0 }}
+                      barCategoryGap={12}
+                    >
+                      <XAxis
+                        dataKey="name"
+                        tick={{ fontSize: 10 }}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <YAxis hide />
+                      <Tooltip
+                        contentStyle={{
+                          background: "rgba(15,23,42,0.92)",
+                          border: "1px solid rgba(148,163,184,0.2)",
+                          borderRadius: "12px",
+                          color: "#e2e8f0",
+                        }}
+                        labelStyle={{ color: "#f8fafc" }}
+                      />
+                      <Bar dataKey="value" radius={[8, 8, 8, 8]} barSize={18}>
+                        {candidateBarData.map((entry) => (
+                          <Cell
+                            key={entry.name}
+                            fill={getCandidateColor(entry.name, candidateLabels)}
+                          />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
               </div>
-              <div className="mt-4 h-[220px] w-full rounded-2xl border border-border/60 bg-gradient-to-br from-background to-muted/20 p-3">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={candidateBarData}
-                    margin={{ top: 0, right: 10, left: 0, bottom: 0 }}
-                    barCategoryGap={12}
-                  >
-                    <XAxis
-                      dataKey="name"
-                      tick={{ fontSize: 10 }}
-                      axisLine={false}
-                      tickLine={false}
-                    />
-                    <YAxis hide />
-                    <Tooltip
-                      contentStyle={{
-                        background: "rgba(15,23,42,0.92)",
-                        border: "1px solid rgba(148,163,184,0.2)",
-                        borderRadius: "12px",
-                        color: "#e2e8f0",
-                      }}
-                      labelStyle={{ color: "#f8fafc" }}
-                    />
-                    <Bar dataKey="value" radius={[8, 8, 8, 8]} barSize={18}>
-                      {candidateBarData.map((entry) => (
-                        <Cell
-                          key={entry.name}
-                          fill={getCandidateColor(entry.name, candidateLabels)}
-                        />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
+            )}
           </div>
         </Card>
       </div>
     </div>
   );
 };
-
