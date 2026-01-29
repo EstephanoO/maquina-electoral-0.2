@@ -93,6 +93,11 @@ export const PeruMapPanel = ({
   const [distritos, setDistritos] = React.useState<GeoFeatureCollection | null>(null);
   const [bounds, setBounds] = React.useState<[number, number, number, number] | null>(null);
   const [mapReady, setMapReady] = React.useState(false);
+  const [hoveredCodes, setHoveredCodes] = React.useState<{
+    dep?: string;
+    prov?: string;
+    dist?: string;
+  } | null>(null);
 
   const clientBounds = React.useMemo(() => {
     if (!clientGeojson) return null;
@@ -506,6 +511,53 @@ export const PeruMapPanel = ({
     resetView();
   }, [actions, focusPoint, onClearFocusPoint, resetView]);
 
+  const clearHover = React.useCallback(() => {
+    setHoveredCodes(null);
+    const canvas = resolvedRef.current?.getCanvas();
+    if (canvas) canvas.style.cursor = "";
+  }, [resolvedRef]);
+
+  const handleMapHover = React.useCallback(
+    (event: MapLayerMouseEvent) => {
+      if (!enableHierarchy) return;
+      const feature = event.features?.find((item) => item?.properties);
+      if (!feature?.properties) {
+        clearHover();
+        return;
+      }
+      const props = feature.properties as Record<string, unknown>;
+      if (level === "departamento") {
+        const dep = props.CODDEP ? String(props.CODDEP) : "";
+        if (!dep || (allowedCodes?.deps && !allowedCodes.deps.includes(dep))) {
+          clearHover();
+          return;
+        }
+        setHoveredCodes({ dep });
+      } else if (level === "provincia") {
+        const dep = props.CODDEP ? String(props.CODDEP) : "";
+        const prov = props.CODPROV ? String(props.CODPROV) : "";
+        const isAllowed = !allowedCodes?.provs
+          ? Boolean(dep && prov)
+          : allowedCodes.provs.some((item) => item.dep === dep && item.prov === prov);
+        if (!isAllowed) {
+          clearHover();
+          return;
+        }
+        setHoveredCodes({ dep, prov });
+      } else if (level === "distrito") {
+        const dist = props.UBIGEO ? String(props.UBIGEO) : "";
+        if (!dist || (allowedCodes?.dists && !allowedCodes.dists.includes(dist))) {
+          clearHover();
+          return;
+        }
+        setHoveredCodes({ dist });
+      }
+      const canvas = resolvedRef.current?.getCanvas();
+      if (canvas) canvas.style.cursor = "pointer";
+    },
+    [allowedCodes, clearHover, enableHierarchy, level, resolvedRef],
+  );
+
   const interactiveLayerIds = React.useMemo(() => {
     if (!enableHierarchy) return undefined;
     if (level === "departamento") return ["peru-departamentos-fill"];
@@ -524,6 +576,8 @@ export const PeruMapPanel = ({
       maxBounds={maxBounds}
       onMapLoad={() => setMapReady(true)}
       onMapClick={handleMapClick}
+      onMapHover={handleMapHover}
+      onMapHoverLeave={clearHover}
       interactiveLayerIds={interactiveLayerIds}
       overlay={
         enableHierarchy && showHierarchyControls ? (
@@ -549,6 +603,7 @@ export const PeruMapPanel = ({
           points={points}
           level={level}
           selectedCodes={selectedCodes}
+          hoverCodes={hoveredCodes}
           fillColor={fillColor}
           lineColor={lineColor}
           fillOpacity={fillOpacity}

@@ -50,6 +50,8 @@ type MapPanelProps = {
   maxBounds?: [[number, number], [number, number]];
   onMapLoad?: () => void;
   onMapClick?: (event: MapLayerMouseEvent) => void;
+  onMapHover?: (event: MapLayerMouseEvent) => void;
+  onMapHoverLeave?: () => void;
   interactiveLayerIds?: string[];
   mapRef?: React.Ref<MapRef | null>;
   children?: React.ReactNode;
@@ -74,6 +76,8 @@ export const MapPanel = ({
   maxBounds,
   onMapLoad,
   onMapClick,
+  onMapHover,
+  onMapHoverLeave,
   interactiveLayerIds,
   mapRef,
   children,
@@ -152,6 +156,16 @@ export const MapPanel = ({
     [enablePointTooltip, renderPointsAsLayer, resolvedPointLayerId],
   );
 
+  const handleMouseMove = React.useCallback(
+    (event: MapLayerMouseEvent) => {
+      if (renderPointsAsLayer && enablePointTooltip) {
+        handleMapMouseMove(event);
+      }
+      onMapHover?.(event);
+    },
+    [enablePointTooltip, handleMapMouseMove, onMapHover, renderPointsAsLayer],
+  );
+
   return (
     <div
       className={cn(
@@ -167,8 +181,15 @@ export const MapPanel = ({
         maxBounds={maxBounds}
         onLoad={onMapLoad}
         onClick={onMapClick}
-        onMouseMove={renderPointsAsLayer ? handleMapMouseMove : undefined}
-        onMouseLeave={renderPointsAsLayer && enablePointTooltip ? () => setHoveredPoint(null) : undefined}
+        onMouseMove={onMapHover || renderPointsAsLayer ? handleMouseMove : undefined}
+        onMouseLeave={
+          onMapHoverLeave || (renderPointsAsLayer && enablePointTooltip)
+            ? () => {
+                if (renderPointsAsLayer && enablePointTooltip) setHoveredPoint(null);
+                onMapHoverLeave?.();
+              }
+            : undefined
+        }
         interactiveLayerIds={resolvedInteractiveLayerIds}
         ref={mapRef}
       >

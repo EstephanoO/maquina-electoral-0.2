@@ -14,11 +14,18 @@ type MapHierarchyLayersProps = {
     prov?: string;
     dist?: string;
   };
+  hoverCodes?: {
+    dep?: string;
+    prov?: string;
+    dist?: string;
+  } | null;
   fillColor: string;
   lineColor: string;
   fillOpacity: number;
   highlightFillColor: string;
   highlightFillOpacity: number;
+  hoverLineColor?: string;
+  hoverLineWidth?: number;
   enableHighlight?: boolean;
   highlightOpacity?: number;
 };
@@ -30,11 +37,14 @@ export const MapHierarchyLayers = ({
   level,
   points = [],
   selectedCodes,
+  hoverCodes = null,
   fillColor,
   lineColor,
   fillOpacity,
   highlightFillColor,
   highlightFillOpacity,
+  hoverLineColor = "rgba(239,68,68,0.95)",
+  hoverLineWidth = 3.2,
   enableHighlight = true,
   highlightOpacity = 0.5,
 }: MapHierarchyLayersProps) => {
@@ -144,6 +154,25 @@ export const MapHierarchyLayers = ({
     ] as any;
   }, [highlightCodes.distPairs, selectedCodes.dep, selectedCodes.prov]);
 
+  const departamentoHoverFilter = React.useMemo(() => {
+    if (!hoverCodes?.dep) return ["==", ["get", "CODDEP"], ""] as any;
+    return ["==", ["get", "CODDEP"], hoverCodes.dep] as any;
+  }, [hoverCodes?.dep]);
+
+  const provinciaHoverFilter = React.useMemo(() => {
+    if (!hoverCodes?.dep || !hoverCodes?.prov) return ["==", ["get", "CODDEP"], ""] as any;
+    return [
+      "all",
+      ["==", ["get", "CODDEP"], hoverCodes.dep],
+      ["==", ["get", "CODPROV"], hoverCodes.prov],
+    ] as any;
+  }, [hoverCodes?.dep, hoverCodes?.prov]);
+
+  const distritoHoverFilter = React.useMemo(() => {
+    if (!hoverCodes?.dist) return ["==", ["get", "UBIGEO"], ""] as any;
+    return ["==", ["get", "UBIGEO"], hoverCodes.dist] as any;
+  }, [hoverCodes?.dist]);
+
   return (
     <>
       {departamentos ? (
@@ -198,6 +227,19 @@ export const MapHierarchyLayers = ({
               paint={{
                 "line-color": lineColor,
                 "line-width": 2.8,
+                "line-opacity": 1,
+              }}
+            />
+          ) : null}
+          {hoverCodes?.dep ? (
+            <Layer
+              id="peru-departamentos-hover"
+              type="line"
+              layout={{ visibility: showDepartamentos ? "visible" : "none" }}
+              filter={departamentoHoverFilter}
+              paint={{
+                "line-color": hoverLineColor,
+                "line-width": hoverLineWidth,
                 "line-opacity": 1,
               }}
             />
@@ -263,6 +305,19 @@ export const MapHierarchyLayers = ({
               }}
             />
           ) : null}
+          {hoverCodes?.prov ? (
+            <Layer
+              id="peru-provincias-hover"
+              type="line"
+              layout={{ visibility: showProvincias ? "visible" : "none" }}
+              filter={provinciaHoverFilter}
+              paint={{
+                "line-color": hoverLineColor,
+                "line-width": hoverLineWidth,
+                "line-opacity": 1,
+              }}
+            />
+          ) : null}
         </Source>
       ) : null}
 
@@ -316,6 +371,19 @@ export const MapHierarchyLayers = ({
               paint={{
                 "line-color": lineColor,
                 "line-width": 2.4,
+                "line-opacity": 1,
+              }}
+            />
+          ) : null}
+          {hoverCodes?.dist ? (
+            <Layer
+              id="peru-distritos-hover"
+              type="line"
+              layout={{ visibility: showDistritos ? "visible" : "none" }}
+              filter={distritoHoverFilter}
+              paint={{
+                "line-color": hoverLineColor,
+                "line-width": hoverLineWidth,
                 "line-opacity": 1,
               }}
             />
