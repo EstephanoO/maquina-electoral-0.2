@@ -46,6 +46,7 @@ type MapPanelProps = {
   statusLabel?: string;
   mapStyle?: string | StyleSpecification;
   initialViewState?: { longitude: number; latitude: number; zoom: number };
+  maxBounds?: [[number, number], [number, number]];
   onMapLoad?: () => void;
   mapRef?: React.Ref<MapRef | null>;
   children?: React.ReactNode;
@@ -62,6 +63,7 @@ export const MapPanel = ({
   statusLabel,
   mapStyle,
   initialViewState,
+  maxBounds,
   onMapLoad,
   mapRef,
   children,
@@ -86,6 +88,7 @@ export const MapPanel = ({
         initialViewState={initialViewState ?? defaultMapView}
         style={{ width: "100%", height: "100%" }}
         mapStyle={resolvedStyle}
+        maxBounds={maxBounds}
         onLoad={onMapLoad}
         ref={mapRef}
       >

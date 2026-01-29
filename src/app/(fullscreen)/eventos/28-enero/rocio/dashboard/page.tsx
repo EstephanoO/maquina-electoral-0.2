@@ -20,6 +20,7 @@ export default function EventMapDashboardRocioPage() {
       dataGoal="85,440"
       layoutVariant="compact"
       dataUrl="/api/interviews"
+      hideMapLegend
     />
   );
 }

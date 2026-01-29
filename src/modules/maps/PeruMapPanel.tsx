@@ -4,7 +4,7 @@ import * as React from "react";
 import type { MapRef } from "@vis.gl/react-maplibre";
 import { Layer, Source } from "@vis.gl/react-maplibre";
 import { MapPanel } from "@/modules/maps/MapPanel";
-import { peruMapStyle, defaultMapView } from "@/maps/mapConfig";
+import { peruMapStyle, defaultMapView, mapStyleDark, mapStyleLight } from "@/maps/mapConfig";
 import { useTheme } from "@/theme/ThemeProvider";
 
 type PeruGeoJson = {
@@ -44,6 +44,8 @@ type PeruMapPanelProps = {
   getPointColor?: (point: { lat: number; lng: number; candidate?: string | null }) => string;
   enablePointTooltip?: boolean;
   renderPointTooltip?: (point: PeruMapPoint) => React.ReactNode;
+  useStreetBase?: boolean;
+  restrictToPeru?: boolean;
 };
 
 export const PeruMapPanel = ({
@@ -58,6 +60,8 @@ export const PeruMapPanel = ({
   getPointColor,
   enablePointTooltip,
   renderPointTooltip,
+  useStreetBase = false,
+  restrictToPeru = false,
 }: PeruMapPanelProps) => {
   const { mode } = useTheme();
   const localMapRef = React.useRef<MapRef | null>(null);
@@ -68,6 +72,20 @@ export const PeruMapPanel = ({
 
   const fillColor = mode === "dark" ? "rgba(148,163,184,0.16)" : "rgba(15,23,42,0.08)";
   const lineColor = mode === "dark" ? "rgba(226,232,240,0.6)" : "rgba(15,23,42,0.35)";
+  const fillOpacity = useStreetBase ? (mode === "dark" ? 0.25 : 0.18) : 1;
+  const resolvedMapStyle = useStreetBase
+    ? mode === "dark"
+      ? mapStyleDark
+      : mapStyleLight
+    : peruMapStyle;
+  const maxBounds = React.useMemo(() => {
+    if (!restrictToPeru || !bounds) return undefined;
+    const padding = 1.2;
+    return [
+      [bounds[0] - padding, bounds[1] - padding],
+      [bounds[2] + padding, bounds[3] + padding],
+    ] as [[number, number], [number, number]];
+  }, [bounds, restrictToPeru]);
 
   React.useEffect(() => {
     let isMounted = true;
@@ -121,7 +139,8 @@ export const PeruMapPanel = ({
       points={points}
       status={status}
       statusLabel={statusLabel}
-      mapStyle={peruMapStyle}
+      mapStyle={resolvedMapStyle}
+      maxBounds={maxBounds}
       onMapLoad={() => setMapReady(true)}
       mapRef={resolvedRef}
       getPointColor={getPointColor}
@@ -133,11 +152,11 @@ export const PeruMapPanel = ({
           <Layer
             id="peru-departamentos-fill"
             type="fill"
-            paint={{
-              "fill-color": fillColor,
-              "fill-opacity": 1,
-            }}
-          />
+              paint={{
+                "fill-color": fillColor,
+                "fill-opacity": fillOpacity,
+              }}
+            />
           <Layer
             id="peru-departamentos-line"
             type="line"

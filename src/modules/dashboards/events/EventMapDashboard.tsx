@@ -45,6 +45,7 @@ type EventMapDashboardProps = {
   };
   dataGoal?: string;
   layoutVariant?: "default" | "compact";
+  hideMapLegend?: boolean;
 };
 
 export const EventMapDashboard = ({
@@ -55,6 +56,7 @@ export const EventMapDashboard = ({
   candidateProfile,
   dataGoal,
   layoutVariant = "default",
+  hideMapLegend = false,
 }: EventMapDashboardProps) => {
   const isCompact = layoutVariant === "compact";
   // Hooks para manejo de datos y estado
@@ -255,6 +257,7 @@ export const EventMapDashboard = ({
             resetMapView={resetMapView}
             setResetMapView={setResetMapView}
             withLocation={withLocation}
+            showLegend={!hideMapLegend}
           />
 
           {/* Sidebar */}
