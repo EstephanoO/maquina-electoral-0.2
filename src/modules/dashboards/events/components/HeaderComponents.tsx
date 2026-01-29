@@ -13,6 +13,7 @@ interface DashboardHeaderProps {
   rows: EventRecord[];
   candidateLabels: string[];
   total: number;
+  dataGoal?: string;
   onEdit: (record: EventRecord) => void;
   onDelete: (record: EventRecord) => void;
   onFocusPoint: (record: EventRecord) => void;
@@ -33,6 +34,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   rows,
   candidateLabels,
   total,
+  dataGoal,
   onEdit,
   onDelete,
   onFocusPoint,
@@ -40,13 +42,26 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   candidateProfile,
 }) => {
   const showEventMeta = Boolean(eventTitle) || Boolean(eventSubtitle);
+  const dataGoalValue = React.useMemo(() => {
+    if (!dataGoal) return null;
+    const numeric = Number(dataGoal.replace(/[^0-9]/g, ""));
+    return Number.isFinite(numeric) && numeric > 0 ? numeric : null;
+  }, [dataGoal]);
+  const dataGoalLabel = dataGoalValue
+    ? dataGoalValue.toLocaleString("en-US")
+    : dataGoal ?? "-";
+  const totalLabel = total.toLocaleString("en-US");
+  const goalProgress = dataGoalValue ? (total / dataGoalValue) * 100 : 0;
+  const goalProgressLabel = dataGoalValue
+    ? `${Math.min(goalProgress, 100).toFixed(1)}%`
+    : "-";
 
   return (
     <Card className="border-border/60 bg-card/70 p-5">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex flex-wrap items-center gap-6">
           {candidateProfile ? (
-            <div className="flex items-center gap-4">
+            <div className="flex flex-wrap items-center gap-4">
               <img
                 src={candidateProfile.image}
                 alt={candidateProfile.name}
@@ -54,7 +69,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
               />
               <div className="space-y-2">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                  Candidatura
+                  CANDIDATURA
                 </p>
                 <div>
                   <h2 className="text-2xl font-semibold text-foreground [font-family:var(--font-display)]">
@@ -68,6 +83,25 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                   </p>
                 </div>
               </div>
+              {dataGoal ? (
+                <div className="min-w-[260px] rounded-xl border border-border/60 bg-muted/20 px-5 py-4">
+                  <div className="text-xs text-muted-foreground">Objetivo de datos</div>
+                  <div className="mt-3 flex items-end justify-between gap-4">
+                    <p className="text-sm font-semibold text-foreground">
+                      {totalLabel}/{dataGoalLabel}
+                    </p>
+                    <span className="text-xs font-semibold text-foreground">
+                      {goalProgressLabel}
+                    </span>
+                  </div>
+                  <div className="mt-3 h-2 w-full rounded-full bg-muted/40">
+                    <div
+                      className="h-2 rounded-full bg-gradient-to-r from-emerald-400 via-lime-400 to-amber-400"
+                      style={{ width: `${Math.min(goalProgress, 100)}%` }}
+                    />
+                  </div>
+                </div>
+              ) : null}
             </div>
           ) : null}
           {showEventMeta ? (

@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import {
   LineChart,
   Line,
@@ -15,13 +14,6 @@ import {
   Cell,
   ReferenceLine,
 } from "recharts";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import { useEventData } from "./hooks/useEventData";
 import { useEventActions } from "./hooks/useEventActions";
 import { useCandidateVisibility } from "./hooks/useCandidateVisibility";
@@ -37,9 +29,7 @@ import {
   getCandidateColor,
 } from "./utils/dataUtils";
 import { DashboardHeader, TotalStats } from "./components/HeaderComponents";
-import { CandidateDistribution } from "./components/CandidateDistribution";
 import { MapSection } from "./components/MapSection";
-import type { EventRecord } from "./EventRecordsDialog";
 
 type EventMapDashboardProps = {
   eventTitle: string;
@@ -134,6 +124,27 @@ export const EventMapDashboard = ({
     [candidateLabels, counts],
   );
 
+  const candidateTimelineWithTrend = React.useMemo(() => {
+    if (timelineData.length === 0) return timelineData;
+    const totals = timelineData.map((entry) =>
+      candidateLabels.reduce((sum, candidate) => {
+        const value = entry[candidate];
+        return sum + (typeof value === "number" ? value : 0);
+      }, 0),
+    );
+    const windowSize = 3;
+    const trend = totals.map((_, index) => {
+      const start = Math.max(0, index - windowSize + 1);
+      const slice = totals.slice(start, index + 1);
+      const avg = slice.reduce((sum, value) => sum + value, 0) / slice.length;
+      return Number(avg.toFixed(2));
+    });
+    return timelineData.map((entry, index) => ({
+      ...entry,
+      tendencia: trend[index],
+    }));
+  }, [timelineData, candidateLabels]);
+
   // Estado del mapa
   const mapStatus = isLoading
     ? "loading"
@@ -221,25 +232,12 @@ export const EventMapDashboard = ({
           rows={rows}
           candidateLabels={candidateLabels}
           total={total}
+          dataGoal={dataGoal}
           onEdit={handleEdit}
           onDelete={handleDelete}
           onFocusPoint={handleFocusPoint}
           onDownloadCSV={downloadCSV}
           candidateProfile={candidateProfile}
-        />
-
-        {/* Candidate Distribution */}
-        <CandidateDistribution
-          candidateLabels={candidateLabels}
-          counts={counts}
-          total={total}
-          rows={rows}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
-          onFocusPoint={handleFocusPoint}
-          hiddenCandidates={hiddenCandidates}
-          onToggleCandidateVisibility={toggleCandidateVisibility}
-          dataGoal={dataGoal}
         />
 
         {/* Main grid: Map + Sidebar */}
@@ -290,6 +288,32 @@ export const EventMapDashboard = ({
                   </span>
                 </div>
               </div>
+              <div className="mt-4 space-y-2">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>Top encuestadores</span>
+                  <span>Hoy</span>
+                </div>
+                <div className="space-y-2">
+                  {topInterviewers.map(([name, count]) => {
+                    const maxValue = topInterviewers[0]?.[1] ?? 0;
+                    const width = maxValue > 0 ? (count / maxValue) * 100 : 0;
+                    return (
+                      <div key={name} className="space-y-1">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="truncate text-foreground">{name}</span>
+                          <span className="text-muted-foreground">{count}</span>
+                        </div>
+                        <div className="h-2 w-full rounded-full bg-muted/40">
+                          <div
+                            className="h-2 rounded-full bg-gradient-to-r from-emerald-400 via-sky-400 to-indigo-500"
+                            style={{ width: `${Math.min(width, 100)}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             </Card>
 
             {/* Candidate Progress Dialog (replaced interviewer) */}
@@ -298,64 +322,27 @@ export const EventMapDashboard = ({
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                   {isCompact ? "Progreso" : "Progreso por candidato"}
                 </p>
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <Button size="sm" variant="ghost">
-                      Ver mas
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-2xl bg-background text-foreground">
-                    <DialogHeader>
-                      <DialogTitle>Ranking general de candidatos</DialogTitle>
-                    </DialogHeader>
-                    <div className="max-h-[60vh] overflow-y-auto rounded-xl border border-border/60">
-                      <div className="divide-y divide-border/60">
-                        {candidateLabels.map((candidate) => {
-                          const count = counts[candidate] ?? 0;
-                          const percent =
-                            total > 0 ? Math.round((count / total) * 100) : 0;
-                          return (
-                            <div
-                              key={candidate}
-                              className="flex items-center justify-between px-4 py-3"
-                            >
-                              <div>
-                                <p className="text-sm font-semibold text-foreground">
-                                  {candidate}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  {percent}% del total
-                                </p>
-                              </div>
-                              <span className="text-sm font-semibold text-foreground">
-                                {count}
-                              </span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </DialogContent>
-                </Dialog>
               </div>
               {/* Candidate Timeline Chart */}
               <div className="mt-4 space-y-3">
-                <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                  {candidateLabels.map((candidate, index) => {
-                    const legendColors = ["bg-emerald-500", "bg-blue-500", "bg-orange-500"];
-                    const dotColor = legendColors[index] ?? "bg-slate-400";
-                    return (
-                      <span key={candidate} className="flex items-center gap-2">
-                        <span className={`h-2 w-2 rounded-full ${dotColor}`} />
-                        {candidate}
-                      </span>
-                    );
-                  })}
-                </div>
+                {candidateLabels.length > 1 ? (
+                  <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                    {candidateLabels.map((candidate, index) => {
+                      const legendColors = ["bg-emerald-500", "bg-blue-500", "bg-orange-500"];
+                      const dotColor = legendColors[index] ?? "bg-slate-400";
+                      return (
+                        <span key={candidate} className="flex items-center gap-2">
+                          <span className={`h-2 w-2 rounded-full ${dotColor}`} />
+                          {candidate}
+                        </span>
+                      );
+                    })}
+                  </div>
+                ) : null}
                 <div className="h-[160px] w-full rounded-2xl border border-border/60 bg-gradient-to-br from-background to-muted/20 p-3">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart
-                      data={timelineData}
+                      data={candidateTimelineWithTrend}
                       margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
                     >
                       <XAxis
@@ -378,6 +365,14 @@ export const EventMapDashboard = ({
                           color: "#e2e8f0",
                         }}
                         labelStyle={{ color: "#f8fafc" }}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="tendencia"
+                        stroke="#94a3b8"
+                        strokeDasharray="6 6"
+                        strokeWidth={2}
+                        dot={false}
                       />
                       {candidateLabels.map((candidate) => (
                         <Line
