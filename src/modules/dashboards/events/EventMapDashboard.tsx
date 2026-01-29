@@ -108,25 +108,25 @@ const resolveGoalForSelection = (
 
   if (selection.level === "distrito") {
     if (depName && provName && distName) {
-      return index.byDist.get(`${depName}::${provName}::${distName}`) ?? index.total;
+      return index.byDist.get(`${depName}::${provName}::${distName}`) ?? 0;
     }
     if (depName && provName) {
-      return index.byProv.get(`${depName}::${provName}`) ?? index.total;
+      return index.byProv.get(`${depName}::${provName}`) ?? 0;
     }
-    if (depName) return index.byDep.get(depName) ?? index.total;
-    return index.total;
+    if (depName) return index.byDep.get(depName) ?? 0;
+    return 0;
   }
 
   if (selection.level === "provincia") {
     if (depName && provName) {
-      return index.byProv.get(`${depName}::${provName}`) ?? index.total;
+      return index.byProv.get(`${depName}::${provName}`) ?? 0;
     }
-    if (depName) return index.byDep.get(depName) ?? index.total;
-    return index.total;
+    if (depName) return index.byDep.get(depName) ?? 0;
+    return 0;
   }
 
-  if (depName) return index.byDep.get(depName) ?? index.total;
-  return index.total;
+  if (depName) return index.byDep.get(depName) ?? 0;
+  return 0;
 };
 
 export const EventMapDashboard = ({
@@ -209,8 +209,20 @@ export const EventMapDashboard = ({
 
   const resolvedDataGoal = React.useMemo(() => {
     if (!dataGoalIndex) return dataGoal;
+    const hasSelection = Boolean(
+      mapSelection?.depCode ||
+        mapSelection?.provCode ||
+        mapSelection?.distCode ||
+        mapSelection?.depName ||
+        mapSelection?.provName ||
+        mapSelection?.distName,
+    );
+    if (!hasSelection && dataGoalIndex.total) {
+      return dataGoalIndex.total.toLocaleString("en-US");
+    }
     const goalValue = resolveGoalForSelection(mapSelection, dataGoalIndex);
-    if (!goalValue || goalValue <= 0) return dataGoal;
+    if (hasSelection && (!goalValue || goalValue <= 0)) return "0";
+    if (!goalValue || goalValue <= 0) return dataGoalIndex.total?.toLocaleString("en-US") ?? dataGoal;
     return goalValue.toLocaleString("en-US");
   }, [dataGoal, dataGoalIndex, mapSelection]);
 
