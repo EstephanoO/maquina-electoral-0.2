@@ -111,7 +111,7 @@ export default function DashboardMain({
             </span>
           </div>
           <div className="mt-3 h-52">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
               <AreaChart data={trendSeries} margin={{ left: 0, right: 12, top: 10, bottom: 0 }}>
                 <defs>
                   <linearGradient id="reachFill" x1="0" y1="0" x2="0" y2="1">
@@ -218,7 +218,7 @@ export default function DashboardMain({
             </div>
           </div>
           <div className="mt-2 h-52">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
               <BarChart data={growthSeries} layout="vertical" margin={{ left: 12, right: 12, top: 10, bottom: 0 }}>
                 <defs>
                   <linearGradient id="growthBefore" x1="0" y1="0" x2="0" y2="1">
@@ -319,7 +319,7 @@ export default function DashboardMain({
                 </span>
               </div>
               <div className="mt-2 h-64">
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                   <BarChart data={topPages} layout="vertical" margin={{ left: 6, right: 16 }}>
                     <defs>
                       <linearGradient id="pageViewsFill" x1="0" y1="0" x2="1" y2="0">
@@ -415,7 +415,7 @@ export default function DashboardMain({
           </div>
           <div className="mt-3 space-y-2">
             <div className="h-12">
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                 <BarChart data={sentimentStack} layout="vertical" margin={{ left: 0, right: 16 }}>
                   <XAxis hide type="number" />
                   <YAxis hide type="category" dataKey="name" />

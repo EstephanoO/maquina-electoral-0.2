@@ -37,6 +37,10 @@ type DashboardItem = {
   accent: string;
 };
 
+type GeojsonLayerType = "departamento" | "provincia" | "distrito";
+type GeojsonLayerInfo = { fileName: string | null; updatedAt: string | null };
+type GeojsonInfoState = Record<GeojsonLayerType, GeojsonLayerInfo>;
+
 const candidateSlugById: Record<string, string> = {
   "cand-rocio": "rocio",
   "cand-giovanna": "giovanna",
@@ -49,9 +53,33 @@ const eventByCampaignId: Record<string, string> = {
   "cand-guillermo": "event-guillermo-01",
 };
 
+const buildGeojsonSpecs = (slug: string): DashboardFileSpec[] => [
+  {
+    id: "geojson-departamento",
+    label: "GeoJSON departamentos",
+    accept: ".geojson,.json",
+    hint: `/public/${slug}/mapa-${slug}/departamentos.geojson`,
+    optional: true,
+  },
+  {
+    id: "geojson-provincia",
+    label: "GeoJSON provincias",
+    accept: ".geojson,.json",
+    hint: `/public/${slug}/mapa-${slug}/provincias.geojson`,
+    optional: true,
+  },
+  {
+    id: "geojson-distrito",
+    label: "GeoJSON distritos",
+    accept: ".geojson,.json",
+    hint: `/public/${slug}/mapa-${slug}/distritos.geojson`,
+    optional: true,
+  },
+];
+
 const buildDashboards = (campaignId: string): DashboardItem[] => {
   const slug = candidateSlugById[campaignId] ?? "cliente";
-  const eventId = eventByCampaignId[campaignId] ?? "event"
+  const eventId = eventByCampaignId[campaignId] ?? "event";
   const sharedFiles: DashboardFileSpec[] = [
     {
       id: "panorama",
@@ -65,12 +93,7 @@ const buildDashboards = (campaignId: string): DashboardItem[] => {
       accept: ".json",
       hint: `/public/${slug}/dataset_facebook-posts.json`,
     },
-    {
-      id: "geojson",
-      label: "Mapas GeoJSON",
-      accept: ".geojson,.zip",
-      hint: `/public/${slug}/mapa-${slug}/*.geojson`,
-    },
+    ...buildGeojsonSpecs(slug),
     {
       id: "landings",
       label: "Landings / Campanas (XLSX o CSV)",
@@ -101,13 +124,7 @@ const buildDashboards = (campaignId: string): DashboardItem[] => {
           hint: "Carga manual para reemplazar data de campo.",
           optional: true,
         },
-        {
-          id: "geojson",
-          label: "GeoJSON base del cliente",
-          accept: ".geojson,.json",
-          hint: "Se aplica al mapa del cliente en el dashboard tierra.",
-          optional: true,
-        },
+        ...buildGeojsonSpecs(slug),
       ],
       accent: "from-emerald-400/30 via-sky-300/20 to-transparent",
     },
@@ -134,12 +151,24 @@ export default function CampaignDetailPage() {
   const [uploads, setUploads] = React.useState<Record<string, File | null>>({});
   const [isSaving, setIsSaving] = React.useState(false);
   const [saveError, setSaveError] = React.useState<string | null>(null);
-  const [geojsonInfo, setGeojsonInfo] = React.useState<{
-    fileName: string | null;
-    updatedAt: string | null;
-  } | null>(null);
+  const [geojsonInfo, setGeojsonInfo] = React.useState<GeojsonInfoState | null>(null);
 
   const dashboards = buildDashboards(campaignId);
+  const geojsonLayerIds: GeojsonLayerType[] = ["departamento", "provincia", "distrito"];
+  const parseLayerType = (fileId: string): GeojsonLayerType | null => {
+    if (!fileId.startsWith("geojson-")) return null;
+    const value = fileId.replace("geojson-", "") as GeojsonLayerType;
+    return geojsonLayerIds.includes(value) ? value : null;
+  };
+  const emptyGeojsonInfo = React.useMemo<GeojsonInfoState>(
+    () => ({
+      departamento: { fileName: null, updatedAt: null },
+      provincia: { fileName: null, updatedAt: null },
+      distrito: { fileName: null, updatedAt: null },
+    }),
+    [],
+  );
+  const resolvedGeojsonInfo = geojsonInfo ?? emptyGeojsonInfo;
 
   React.useEffect(() => {
     if (!dialogOpen || !activeDashboard || activeDashboard.id !== "tierra") return;
@@ -150,17 +179,35 @@ export default function CampaignDetailPage() {
       });
       if (!response.ok) return;
       const payload = (await response.json()) as {
-        fileName: string | null;
-        updatedAt: string | null;
+        layers?: Record<GeojsonLayerType, { fileName: string | null; updatedAt: string | null } | null>;
       };
       if (!active) return;
-      setGeojsonInfo({ fileName: payload.fileName, updatedAt: payload.updatedAt });
+      setGeojsonInfo({
+        departamento: payload.layers?.departamento
+          ? {
+              fileName: payload.layers.departamento.fileName,
+              updatedAt: payload.layers.departamento.updatedAt,
+            }
+          : emptyGeojsonInfo.departamento,
+        provincia: payload.layers?.provincia
+          ? {
+              fileName: payload.layers.provincia.fileName,
+              updatedAt: payload.layers.provincia.updatedAt,
+            }
+          : emptyGeojsonInfo.provincia,
+        distrito: payload.layers?.distrito
+          ? {
+              fileName: payload.layers.distrito.fileName,
+              updatedAt: payload.layers.distrito.updatedAt,
+            }
+          : emptyGeojsonInfo.distrito,
+      });
     };
     load();
     return () => {
       active = false;
     };
-  }, [campaignId, dialogOpen, activeDashboard]);
+  }, [campaignId, dialogOpen, activeDashboard, emptyGeojsonInfo]);
 
   const handleSave = async () => {
     if (!activeDashboard || !isAdmin) {
@@ -172,10 +219,11 @@ export default function CampaignDetailPage() {
     setSaveError(null);
 
     try {
-      const geojsonKey = `${campaignId}-${activeDashboard.id}-geojson`;
-      const geojsonFile = uploads[geojsonKey];
-
-      if (geojsonFile) {
+      const newInfo: GeojsonInfoState = { ...(geojsonInfo ?? emptyGeojsonInfo) };
+      for (const layerType of geojsonLayerIds) {
+        const geojsonKey = `${campaignId}-${activeDashboard.id}-geojson-${layerType}`;
+        const geojsonFile = uploads[geojsonKey];
+        if (!geojsonFile) continue;
         if (geojsonFile.size > 10 * 1024 * 1024) {
           throw new Error("file-too-large");
         }
@@ -189,6 +237,7 @@ export default function CampaignDetailPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             campaignId: campaignId,
+            layerType,
             geojson: payload,
             fileName: geojsonFile.name,
           }),
@@ -196,8 +245,9 @@ export default function CampaignDetailPage() {
         if (!response.ok) {
           throw new Error("upload-failed");
         }
-        setGeojsonInfo({ fileName: geojsonFile.name, updatedAt: new Date().toISOString() });
+        newInfo[layerType] = { fileName: geojsonFile.name, updatedAt: new Date().toISOString() };
       }
+      setGeojsonInfo({ ...newInfo });
 
       setDialogOpen(false);
     } catch (error) {
@@ -213,21 +263,27 @@ export default function CampaignDetailPage() {
     }
   };
 
-  const handleDeleteGeojson = async () => {
+  const handleDeleteGeojson = async (layerType: GeojsonLayerType) => {
     if (!isAdmin) return;
     setIsSaving(true);
     setSaveError(null);
     try {
-      const response = await fetch(`/api/geojson?campaignId=${campaignId}`, {
-        method: "DELETE",
-      });
+      const response = await fetch(
+        `/api/geojson?campaignId=${campaignId}&layerType=${layerType}`,
+        {
+          method: "DELETE",
+        },
+      );
       if (!response.ok) {
         throw new Error("delete-failed");
       }
-      setGeojsonInfo({ fileName: null, updatedAt: null });
+      setGeojsonInfo((current) => ({
+        ...(current ?? emptyGeojsonInfo),
+        [layerType]: { fileName: null, updatedAt: null },
+      }));
       setUploads((current) => ({
         ...current,
-        [`${campaignId}-${activeDashboard?.id ?? "tierra"}-geojson`]: null,
+        [`${campaignId}-${activeDashboard?.id ?? "tierra"}-geojson-${layerType}`]: null,
       }));
     } catch (error) {
       setSaveError("No se pudo eliminar el GeoJSON.");
@@ -334,9 +390,11 @@ export default function CampaignDetailPage() {
                 activeDashboard.files.map((fileSpec) => {
                   const key = `${campaignId}-${activeDashboard.id}-${fileSpec.id}`;
                   const uploaded = uploads[key];
-                  const isGeojson = fileSpec.id === "geojson";
-                  const geojsonUpdatedLabel = geojsonInfo?.updatedAt
-                    ? new Date(geojsonInfo.updatedAt).toLocaleDateString("es-PE", {
+                  const layerType = parseLayerType(fileSpec.id);
+                  const isGeojson = Boolean(layerType);
+                  const layerInfo = layerType ? resolvedGeojsonInfo[layerType] : null;
+                  const geojsonUpdatedLabel = layerInfo?.updatedAt
+                    ? new Date(layerInfo.updatedAt).toLocaleDateString("es-PE", {
                         day: "2-digit",
                         month: "short",
                         year: "numeric",
@@ -375,11 +433,11 @@ export default function CampaignDetailPage() {
                           {isGeojson ? (
                             <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
                               <span className="rounded-full border border-border/60 bg-muted/40 px-2 py-0.5">
-                                {geojsonInfo?.fileName ? "Cargado" : "Sin GeoJSON"}
+                                {layerInfo?.fileName ? "Cargado" : "Sin GeoJSON"}
                               </span>
-                              {geojsonInfo?.fileName ? (
+                              {layerInfo?.fileName ? (
                                 <span className="rounded-full border border-border/60 bg-muted/40 px-2 py-0.5">
-                                  {geojsonInfo.fileName}
+                                  {layerInfo.fileName}
                                 </span>
                               ) : null}
                               {geojsonUpdatedLabel ? (
@@ -420,8 +478,11 @@ export default function CampaignDetailPage() {
                           <Button
                             size="sm"
                             variant="outline"
-                            disabled={!isAdmin || isSaving || !geojsonInfo?.fileName}
-                            onClick={handleDeleteGeojson}
+                            disabled={!isAdmin || isSaving || !layerType || !layerInfo?.fileName}
+                            onClick={() => {
+                              if (!layerType) return;
+                              handleDeleteGeojson(layerType);
+                            }}
                           >
                             Eliminar GeoJSON
                           </Button>

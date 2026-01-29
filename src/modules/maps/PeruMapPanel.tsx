@@ -44,6 +44,11 @@ type PeruMapPanelProps = {
   focusPoint?: { lat: number; lng: number } | null;
   onClearFocusPoint?: () => void;
   clientGeojson?: GeoFeatureCollection | null;
+  clientGeojsonLayers?: {
+    departamento?: GeoFeatureCollection | null;
+    provincia?: GeoFeatureCollection | null;
+    distrito?: GeoFeatureCollection | null;
+  } | null;
 };
 
 export const PeruMapPanel = ({
@@ -64,22 +69,35 @@ export const PeruMapPanel = ({
   focusPoint = null,
   onClearFocusPoint,
   clientGeojson = null,
+  clientGeojsonLayers = null,
 }: PeruMapPanelProps) => {
   const { mode } = useTheme();
   const { level, selectedCodes, breadcrumb, canGoBack, actions } = useMapHierarchy();
   const localMapRef = React.useRef<MapRef | null>(null);
   const resolvedRef = mapRef ?? localMapRef;
+  const appliedClientBoundsKeyRef = React.useRef<string | null>(null);
   const [departamentos, setDepartamentos] = React.useState<GeoFeatureCollection | null>(null);
   const [provincias, setProvincias] = React.useState<GeoFeatureCollection | null>(null);
   const [distritos, setDistritos] = React.useState<GeoFeatureCollection | null>(null);
   const [bounds, setBounds] = React.useState<[number, number, number, number] | null>(null);
   const [mapReady, setMapReady] = React.useState(false);
 
+  const clientBounds = React.useMemo(() => {
+    if (!clientGeojson) return null;
+    return getGeoJsonBounds(clientGeojson);
+  }, [clientGeojson]);
+  const clientBoundsKey = React.useMemo(() => {
+    if (!clientBounds) return null;
+    return clientBounds.map((value) => value.toFixed(6)).join(",");
+  }, [clientBounds]);
+
   const geoUrls = React.useMemo(() => getGeoUrls(), []);
 
   const fillColor = mode === "dark" ? "rgba(148,163,184,0.22)" : "rgba(15,23,42,0.12)";
   const lineColor = "rgba(24,24,27,0.68)";
   const fillOpacity = useStreetBase ? 0 : mode === "dark" ? 0.24 : 0.2;
+  const highlightFillColor = "rgba(239,68,68,0.35)";
+  const highlightFillOpacity = 1;
   const resolvedMapStyle = useStreetBase
     ? mode === "dark"
       ? mapStyleDark
@@ -161,7 +179,110 @@ export const PeruMapPanel = ({
     return () => {
       active = false;
     };
-  }, [departamentos, distritos, enableHierarchy, focusPoint, geoUrls.departamentos, geoUrls.distritos, geoUrls.provincias, provincias]);
+  }, [
+    departamentos,
+    distritos,
+    enableHierarchy,
+    focusPoint,
+    geoUrls.departamentos,
+    geoUrls.distritos,
+    geoUrls.provincias,
+    provincias,
+  ]);
+
+  const allowedCodes = React.useMemo(() => {
+    if (!clientGeojsonLayers) return null;
+    const deps = new Set<string>();
+    const provs = new Map<string, { dep: string; prov: string }>();
+    const dists = new Set<string>();
+    const depFeatures = clientGeojsonLayers.departamento?.features ?? [];
+    for (const feature of depFeatures) {
+      const dep = feature.properties?.CODDEP ? String(feature.properties.CODDEP) : null;
+      if (dep) deps.add(dep);
+    }
+    const provFeatures = clientGeojsonLayers.provincia?.features ?? [];
+    for (const feature of provFeatures) {
+      const dep = feature.properties?.CODDEP ? String(feature.properties.CODDEP) : null;
+      const prov = feature.properties?.CODPROV ? String(feature.properties.CODPROV) : null;
+      if (dep && prov) {
+        provs.set(`${dep}-${prov}`, { dep, prov });
+      }
+    }
+    const distFeatures = clientGeojsonLayers.distrito?.features ?? [];
+    for (const feature of distFeatures) {
+      const dist = feature.properties?.UBIGEO ? String(feature.properties.UBIGEO) : null;
+      if (dist) dists.add(dist);
+    }
+    return {
+      deps: Array.from(deps),
+      provs: Array.from(provs.values()),
+      dists: Array.from(dists),
+    };
+  }, [clientGeojsonLayers]);
+
+  const activeClientLayer = React.useMemo(() => {
+    if (!clientGeojsonLayers) return null;
+    if (level === "departamento") return clientGeojsonLayers.departamento ?? null;
+    if (level === "provincia") return clientGeojsonLayers.provincia ?? null;
+    return clientGeojsonLayers.distrito ?? null;
+  }, [clientGeojsonLayers, level]);
+
+  const clientLayerFilter = React.useMemo(() => {
+    if (level === "departamento") {
+      return selectedCodes.dep ? (["==", ["get", "CODDEP"], selectedCodes.dep] as any) : (null as any);
+    }
+    if (level === "provincia") {
+      if (selectedCodes.dep && selectedCodes.prov) {
+        return [
+          "all",
+          ["==", ["get", "CODDEP"], selectedCodes.dep],
+          ["==", ["get", "CODPROV"], selectedCodes.prov],
+        ] as any;
+      }
+      if (selectedCodes.dep) {
+        return ["==", ["get", "CODDEP"], selectedCodes.dep] as any;
+      }
+      return null as any;
+    }
+    if (level === "distrito") {
+      if (selectedCodes.dist) {
+        return ["==", ["get", "UBIGEO"], selectedCodes.dist] as any;
+      }
+      if (selectedCodes.dep && selectedCodes.prov) {
+        return [
+          "all",
+          ["==", ["get", "CODDEP"], selectedCodes.dep],
+          ["==", ["get", "CODPROV"], selectedCodes.prov],
+        ] as any;
+      }
+      return null as any;
+    }
+    return null as any;
+  }, [level, selectedCodes.dep, selectedCodes.dist, selectedCodes.prov]);
+
+  const clientFillFilter = React.useMemo(() => {
+    const geometryFilter = [
+      "match",
+      ["geometry-type"],
+      ["Polygon", "MultiPolygon"],
+      true,
+      false,
+    ] as any;
+    if (!clientLayerFilter) return geometryFilter;
+    return ["all", clientLayerFilter, geometryFilter] as any;
+  }, [clientLayerFilter]);
+
+  const clientLineFilter = React.useMemo(() => {
+    const geometryFilter = [
+      "match",
+      ["geometry-type"],
+      ["LineString", "MultiLineString", "Polygon", "MultiPolygon"],
+      true,
+      false,
+    ] as any;
+    if (!clientLayerFilter) return geometryFilter;
+    return ["all", clientLayerFilter, geometryFilter] as any;
+  }, [clientLayerFilter]);
 
   const resetView = React.useCallback(() => {
     if (!resolvedRef.current) return;
@@ -186,6 +307,23 @@ export const PeruMapPanel = ({
     if (!mapReady) return;
     resetView();
   }, [mapReady, resetView]);
+
+  React.useEffect(() => {
+    if (!mapReady || !resolvedRef.current) return;
+    if (!clientBounds) return;
+    if (!clientBoundsKey) return;
+    if (points && points.length > 0) return;
+    if (!clientBounds.every((value) => Number.isFinite(value))) return;
+    if (appliedClientBoundsKeyRef.current === clientBoundsKey) return;
+    resolvedRef.current.fitBounds(
+      [
+        [clientBounds[0], clientBounds[1]],
+        [clientBounds[2], clientBounds[3]],
+      ],
+      { padding: 24, duration: 650 },
+    );
+    appliedClientBoundsKeyRef.current = clientBoundsKey;
+  }, [clientBounds, clientBoundsKey, mapReady, points, resolvedRef]);
 
   React.useEffect(() => {
     if (!mapReady || !resolvedRef.current) return;
@@ -229,19 +367,26 @@ export const PeruMapPanel = ({
     const depCode = depMatch?.properties?.CODDEP ? String(depMatch.properties.CODDEP) : null;
     const provCode = provMatch?.properties?.CODPROV ? String(provMatch.properties.CODPROV) : null;
     const distCode = distMatch?.properties?.UBIGEO ? String(distMatch.properties.UBIGEO) : null;
+    const allowDep = !allowedCodes?.deps || (depCode ? allowedCodes.deps.includes(depCode) : false);
+    const allowProv =
+      !allowedCodes?.provs ||
+      (depCode && provCode
+        ? allowedCodes.provs.some((item) => item.dep === depCode && item.prov === provCode)
+        : false);
+    const allowDist = !allowedCodes?.dists || (distCode ? allowedCodes.dists.includes(distCode) : false);
 
-    if (distCode) {
+    if (distCode && allowDist) {
       actions.selectDistrictByCode(distCode);
       return;
     }
-    if (depCode && provCode) {
+    if (depCode && provCode && allowProv) {
       actions.selectProvinceByCodes(depCode, provCode);
       return;
     }
-    if (depCode) {
+    if (depCode && allowDep) {
       actions.selectDepartmentByCode(depCode);
     }
-  }, [actions, departamentos, distritos, enableHierarchy, focusPoint, provincias]);
+  }, [actions, allowedCodes, departamentos, distritos, enableHierarchy, focusPoint, provincias]);
 
   React.useEffect(() => {
     if (!onResetViewReady) return;
@@ -261,7 +406,10 @@ export const PeruMapPanel = ({
       if (focusPoint) {
         onClearFocusPoint?.();
       }
-      const feature = event.features?.[0];
+      const feature = event.features?.find((item) => {
+        const props = item?.properties as Record<string, unknown> | undefined;
+        return Boolean(props?.CODDEP || props?.CODPROV || props?.UBIGEO);
+      });
       if (!feature?.properties) {
         if (level === "distrito") {
           actions.goBack();
@@ -279,21 +427,31 @@ export const PeruMapPanel = ({
       }
       if (level === "departamento") {
         const code = String((feature.properties as Record<string, unknown>).CODDEP ?? "");
-        if (code) actions.selectDepartmentByCode(code);
+        if (code && (!allowedCodes?.deps || allowedCodes.deps.includes(code))) {
+          actions.selectDepartmentByCode(code);
+        }
         return;
       }
       if (level === "provincia") {
         const dep = String((feature.properties as Record<string, unknown>).CODDEP ?? "");
         const prov = String((feature.properties as Record<string, unknown>).CODPROV ?? "");
-        if (dep && prov) actions.selectProvinceByCodes(dep, prov);
+        if (
+          dep &&
+          prov &&
+          (!allowedCodes?.provs || allowedCodes.provs.some((item) => item.dep === dep && item.prov === prov))
+        ) {
+          actions.selectProvinceByCodes(dep, prov);
+        }
         return;
       }
       if (level === "distrito") {
         const dist = String((feature.properties as Record<string, unknown>).UBIGEO ?? "");
-        if (dist) actions.selectDistrictByCode(dist);
+        if (dist && (!allowedCodes?.dists || allowedCodes.dists.includes(dist))) {
+          actions.selectDistrictByCode(dist);
+        }
       }
     },
-    [actions, enableHierarchy, focusPoint, level, onClearFocusPoint, resetView],
+    [actions, allowedCodes, enableHierarchy, focusPoint, level, onClearFocusPoint, resetView],
   );
 
   const handleBack = React.useCallback(() => {
@@ -344,34 +502,45 @@ export const PeruMapPanel = ({
       getPointColor={getPointColor}
       enablePointTooltip={enablePointTooltip}
       renderPointTooltip={renderPointTooltip}
+      renderPointsAsLayer
+      pointLayerId="peru-points"
     >
-      <MapHierarchyLayers
-        departamentos={departamentos}
-        provincias={provincias}
-        distritos={distritos}
-        points={points}
-        level={level}
-        selectedCodes={selectedCodes}
-        fillColor={fillColor}
-        lineColor={lineColor}
-        fillOpacity={fillOpacity}
-      />
-      {clientGeojson ? (
-        <Source id="client-geojson" type="geojson" data={clientGeojson as unknown as any}>
+        <MapHierarchyLayers
+          departamentos={departamentos}
+          provincias={provincias}
+          distritos={distritos}
+          points={points}
+          level={level}
+          selectedCodes={selectedCodes}
+          fillColor={fillColor}
+          lineColor={lineColor}
+          fillOpacity={fillOpacity}
+          highlightFillColor={highlightFillColor}
+          highlightFillOpacity={highlightFillOpacity}
+          enableHighlight={!activeClientLayer}
+        />
+      {activeClientLayer ? (
+        <Source
+          id="client-geojson"
+          type="geojson"
+          data={activeClientLayer as unknown as any}
+        >
           <Layer
             id="client-geojson-fill"
             type="fill"
+            filter={clientFillFilter}
             paint={{
-              "fill-color": "rgba(15,23,42,0.14)",
-              "fill-opacity": useStreetBase ? 0 : 0.35,
+              "fill-color": highlightFillColor,
+              "fill-opacity": highlightFillOpacity,
             }}
           />
           <Layer
             id="client-geojson-line"
             type="line"
+            filter={clientLineFilter}
             paint={{
-              "line-color": "rgba(15,23,42,0.75)",
-              "line-width": 1.4,
+              "line-color": "rgba(239,68,68,0)",
+              "line-width": 0,
             }}
           />
         </Source>

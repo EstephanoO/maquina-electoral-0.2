@@ -3,6 +3,7 @@
 import * as React from "react";
 import dynamic from "next/dynamic";
 import type { MapRef } from "@vis.gl/react-maplibre";
+import { Layer, Source } from "@vis.gl/react-maplibre";
 import type { MapLayerMouseEvent, StyleSpecification } from "maplibre-gl";
 import { mapStyleDark, mapStyleLight, defaultMapView } from "@/maps/mapConfig";
 import { useTheme } from "@/theme/ThemeProvider";
@@ -56,6 +57,10 @@ type MapPanelProps = {
   getPointColor?: (point: { lat: number; lng: number; candidate?: string | null }) => string;
   enablePointTooltip?: boolean;
   renderPointTooltip?: (point: MapPoint) => React.ReactNode;
+  renderPointsAsLayer?: boolean;
+  pointLayerId?: string;
+  pointLayerRadius?: number;
+  pointLayerOpacity?: number;
 };
 
 export const MapPanel = ({
@@ -76,11 +81,76 @@ export const MapPanel = ({
   getPointColor,
   enablePointTooltip = false,
   renderPointTooltip,
+  renderPointsAsLayer = false,
+  pointLayerId,
+  pointLayerRadius = 4,
+  pointLayerOpacity = 0.9,
 }: MapPanelProps) => {
   const { mode } = useTheme();
   const resolvedStyle = mapStyle ?? (mode === "dark" ? mapStyleDark : mapStyleLight);
   const showStatus = Boolean(status);
   const [hoveredPoint, setHoveredPoint] = React.useState<MapPoint | null>(null);
+  const resolvedPointLayerId = pointLayerId ?? "map-points";
+  const pointFeatureCollection = React.useMemo(() => {
+    if (!renderPointsAsLayer || points.length === 0) return null;
+    const features = points
+      .filter((point) => Number.isFinite(point.lat) && Number.isFinite(point.lng))
+      .map((point) => ({
+        type: "Feature",
+        geometry: {
+          type: "Point",
+          coordinates: [point.lng, point.lat],
+        },
+        properties: {
+          lat: point.lat,
+          lng: point.lng,
+          candidate: point.candidate ?? null,
+          interviewer: point.interviewer ?? null,
+          name: point.name ?? null,
+          phone: point.phone ?? null,
+          createdAt: point.createdAt ?? null,
+          color: getPointColor ? getPointColor(point) : "hsl(var(--primary))",
+        },
+      }));
+    return { type: "FeatureCollection", features } as const;
+  }, [getPointColor, points, renderPointsAsLayer]);
+  const resolvedInteractiveLayerIds = React.useMemo(() => {
+    if (!renderPointsAsLayer) return interactiveLayerIds;
+    if (!interactiveLayerIds || interactiveLayerIds.length === 0) {
+      return [resolvedPointLayerId];
+    }
+    return Array.from(new Set([resolvedPointLayerId, ...interactiveLayerIds]));
+  }, [interactiveLayerIds, renderPointsAsLayer, resolvedPointLayerId]);
+  const handleMapMouseMove = React.useCallback(
+    (event: MapLayerMouseEvent) => {
+      if (!renderPointsAsLayer || !enablePointTooltip) return;
+      const feature = event.features?.find((item) => item.layer.id === resolvedPointLayerId);
+      if (!feature?.properties) {
+        setHoveredPoint((current) => (current ? null : current));
+        return;
+      }
+      const props = feature.properties as Record<string, unknown>;
+      const latValue = typeof props.lat === "number" ? props.lat : Number(props.lat);
+      const lngValue = typeof props.lng === "number" ? props.lng : Number(props.lng);
+      if (!Number.isFinite(latValue) || !Number.isFinite(lngValue)) {
+        setHoveredPoint((current) => (current ? null : current));
+        return;
+      }
+      setHoveredPoint((current) => {
+        if (current?.lat === latValue && current?.lng === lngValue) return current;
+        return {
+          lat: latValue,
+          lng: lngValue,
+          candidate: (props.candidate as string | null | undefined) ?? null,
+          interviewer: (props.interviewer as string | null | undefined) ?? null,
+          name: (props.name as string | null | undefined) ?? null,
+          phone: (props.phone as string | null | undefined) ?? null,
+          createdAt: (props.createdAt as string | null | undefined) ?? null,
+        };
+      });
+    },
+    [enablePointTooltip, renderPointsAsLayer, resolvedPointLayerId],
+  );
 
   return (
     <div
@@ -97,28 +167,46 @@ export const MapPanel = ({
         maxBounds={maxBounds}
         onLoad={onMapLoad}
         onClick={onMapClick}
-        interactiveLayerIds={interactiveLayerIds}
+        onMouseMove={renderPointsAsLayer ? handleMapMouseMove : undefined}
+        onMouseLeave={renderPointsAsLayer && enablePointTooltip ? () => setHoveredPoint(null) : undefined}
+        interactiveLayerIds={resolvedInteractiveLayerIds}
         ref={mapRef}
       >
         {children}
-        {points.map((point, index) => (
-          <MapMarker
-            key={`${point.lat}-${point.lng}-${index}`}
-            latitude={point.lat}
-            longitude={point.lng}
-          >
-            <button
-              type="button"
-              className="h-3.5 w-3.5 rounded-full shadow-[0_0_0_4px_rgba(2,6,23,0.35)]"
-              style={{
-                backgroundColor: getPointColor ? getPointColor(point) : "hsl(var(--primary))",
+        {renderPointsAsLayer && pointFeatureCollection ? (
+          <Source id={`${resolvedPointLayerId}-source`} type="geojson" data={pointFeatureCollection as any}>
+            <Layer
+              id={resolvedPointLayerId}
+              type="circle"
+              paint={{
+                "circle-radius": pointLayerRadius,
+                "circle-color": ["get", "color"],
+                "circle-opacity": pointLayerOpacity,
+                "circle-stroke-color": "rgba(2,6,23,0.35)",
+                "circle-stroke-width": 2,
               }}
-              onMouseEnter={() => enablePointTooltip && setHoveredPoint(point)}
-              onMouseLeave={() => enablePointTooltip && setHoveredPoint(null)}
-              onClick={() => enablePointTooltip && setHoveredPoint(point)}
             />
-          </MapMarker>
-        ))}
+          </Source>
+        ) : (
+          points.map((point, index) => (
+            <MapMarker
+              key={`${point.lat}-${point.lng}-${index}`}
+              latitude={point.lat}
+              longitude={point.lng}
+            >
+              <button
+                type="button"
+                className="h-3.5 w-3.5 rounded-full shadow-[0_0_0_4px_rgba(2,6,23,0.35)]"
+                style={{
+                  backgroundColor: getPointColor ? getPointColor(point) : "hsl(var(--primary))",
+                }}
+                onMouseEnter={() => enablePointTooltip && setHoveredPoint(point)}
+                onMouseLeave={() => enablePointTooltip && setHoveredPoint(null)}
+                onClick={() => enablePointTooltip && setHoveredPoint(point)}
+              />
+            </MapMarker>
+          ))
+        )}
         {enablePointTooltip && hoveredPoint ? (
           <MapPopup
             longitude={hoveredPoint.lng}

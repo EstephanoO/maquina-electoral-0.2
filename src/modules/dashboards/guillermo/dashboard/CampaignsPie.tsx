@@ -75,7 +75,7 @@ export default function CampaignsPie({ csvUrl }: { csvUrl: string }) {
         </div>
       ) : (
         <div className="mt-4 h-64">
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
             <PieChart>
               <Tooltip />
               <Pie

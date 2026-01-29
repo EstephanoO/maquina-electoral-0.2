@@ -1,0 +1,279 @@
+# ----------------------------------------
+# Informe panorámico
+# Cuenta: guillermo.ganalytics
+# Propiedad: guillermoaliaga.pe
+# ----------------------------------------
+#  
+# Fecha de inicio: 20251225
+# Fecha de finalización: 20260121
+Usuarios activos,Usuarios nuevos,Tiempo de interacción medio por usuario activo,Número de eventos
+5271,5195,11.787137165623221,22188
+
+#  
+# Fecha de inicio: 20251225
+# Fecha de finalización: 20260121
+Título de página y clase de pantalla,Vistas,Usuarios activos,Número de eventos,Porcentaje de rebote
+Registro convocatoria de Básquet - Guillermo Aliaga,1758,1474,6626,0.4812768569674647
+El Oro Ilegal y la Amenaza a la Gobernanza: Conferencia Internacional - Guillermo Aliaga,1392,1121,3960,0.9222873900293255
+El oro ilegal y la violencia que desangra al Perú,1279,832,3294,0.8098223615464994
+PRONUNCIAMIENTO ANTE LA VIOLENCIA EN PATAZ Y LA MINERÍA ILEGAL,814,744,2459,0.8425692695214105
+Registro Convocatoria mesa Pet Lover - Guillermo Aliaga,508,442,1891,0.4968553459119497
+Registro familia Somista - Guillermo Aliaga,429,370,1493,0.6699029126213593
+Vota con el Corazón - Guillermo Aliaga,323,190,946,0.4965034965034965
+"enero 2, 2026 - Guillermo Aliaga",298,1,367,0
+Página no encontrada - Guillermo Aliaga,135,41,327,0.6461538461538462
+"Pedro Effio Yaipén, nuevo presidente del Consejo de Minería - Guillermo Aliaga",110,67,297,0.627906976744186
+Loreto nos recibió con fuerza: lanzamiento de campaña,39,33,127,0.6578947368421053
+Mi Biografía - Guillermo Aliaga - Guillermo Aliaga,28,16,72,0.37037037037037035
+"Por la gente, al senado - Guillermo Aliaga",28,15,83,0.391304347826087
+"Inversión minera supera los US$ 4,482 millones",17,11,48,0.7058823529411765
+Pronunciamiento sobre la comparación entre la reunión del presidente José Jerí y el caso Sarratea,15,15,45,0.3333333333333333
+Todas las noticias - Guillermo Aliaga,9,6,22,0.14285714285714285
+Mi postulación al Senado: una decisión con enfoque técnico,7,6,16,0.125
+"Minería, Institucionalidad y Seguridad: Desafíos del REINFO y la Realidad Peruana - Guillermo Aliaga",7,5,23,0
+"SEMINARIO PRESENCIAL EN ESPAÑA, SOBRE EL ORO ILEGAL - Guillermo Aliaga",7,4,29,0.2
+Criando a mis 10 Siberian Huskies aprendí sobre lealtad y disciplina: Mi Manada y yo - Guillermo Aliaga,5,0,10,1
+Hacia la Excelencia en la Gestión Pública: Un Reconocimiento a la Calidad Técnica de Somos Perú - Guillermo Aliaga,5,3,9,0
+PRONUNCIAMIENTO: PATAZ Y EL ORO ILEGAL,4,3,12,0
+Crisis del básquet peruano: volvamos a la FIBA,3,2,10,0.6666666666666666
+Guillermo Aliaga en Bolivia: Hacia una agenda minera regional de solidez técnica - Guillermo Aliaga,3,2,8,0.5
+Pronunciamiento sobre el proceso de ética ante el caso de la congresista Kira Alcarraz,2,2,4,0
+El oro ilegal: la nueva cocaína de América Latina. Lecciones desde el caso peruano – Conferencia en España - Guillermo Aliaga,1,1,1,0
+"La minería ilegal ya cuesta el 2.7% del PBI y desata un ""escenario de guerra"" en el Perú - Guillermo Aliaga",1,1,3,0.5
+"diciembre 28, 2025 - Guillermo Aliaga",1,1,3,0
+"enero 8, 2026 - Guillermo Aliaga",1,1,3,0
+
+#  
+# Fecha de inicio: 20251225
+# Fecha de finalización: 20260121
+Primera fuente/medio del usuario,Usuarios activos
+fb / paid,3446
+m.facebook.com / referral,830
+(direct) / (none),394
+ig / paid,321
+lm.facebook.com / referral,102
+l.facebook.com / referral,61
+google / organic,49
+facebook.com / referral,39
+instagram.com / referral,14
+ig / social,9
+bing / organic,1
+codigos-qr.com / referral,1
+l.instagram.com / referral,1
+l.wl.co / referral,1
+pe.search.yahoo.com / referral,1
+t.co / referral,1
+
+#  
+# Fecha de inicio: 20251225
+# Fecha de finalización: 20260121
+Fuente/medio de la sesión,Sesiones
+fb / paid,3979
+m.facebook.com / referral,882
+(direct) / (none),492
+ig / paid,335
+google / organic,128
+lm.facebook.com / referral,110
+l.facebook.com / referral,84
+facebook.com / referral,39
+instagram.com / referral,15
+ig / social,10
+l.instagram.com / referral,2
+pe.search.yahoo.com / referral,2
+bing / organic,1
+codigos-qr.com / referral,1
+l.wl.co / referral,1
+t.co / referral,1
+
+#  
+# Fecha de inicio: 20251225
+# Fecha de finalización: 20260121
+Día N,new,returning
+0000,8,0
+0001,25,4
+0002,179,15
+0003,46,3
+0004,96,8
+0005,322,25
+0006,382,26
+0007,442,25
+0008,572,28
+0009,750,39
+0010,15,3
+0011,425,8
+0012,754,38
+0013,249,18
+0014,216,10
+0015,237,27
+0016,120,6
+0017,78,4
+0018,11,3
+0019,70,7
+0020,101,6
+0021,40,6
+0022,5,6
+0023,5,1
+0024,4,1
+0025,32,4
+0026,6,1
+0027,10,2
+
+# Datos sobre la actividad en sus plataformas
+# Fecha de inicio: 20251225
+# Fecha de finalización: 20260121
+Plataforma,Eventos clave
+
+
+#  
+# Fecha de inicio: 20251225
+# Fecha de finalización: 20260121
+Ciudad,Usuarios activos
+Trujillo,602
+Arequipa,242
+Piura,144
+Cusco,127
+Chiclayo,87
+Ica,67
+Cerro Colorado,65
+Juliaca,57
+Cajamarca,49
+Huancayo,48
+Jose Luis Bustamante,39
+Iquitos,38
+Chimbote,37
+Tacna,37
+La Esperanza,30
+Ayacucho,26
+Puerto Maldonado,26
+Pucallpa,25
+Huaraz,24
+Sullana,23
+Prineville,21
+Puno,20
+Lulea,19
+Paucarpata,18
+Tarapoto,16
+Cayma,15
+El Porvenir,15
+Alto Selva Alegre,14
+Dublin,14
+Forest City,14
+Lurin,14
+Fort Worth,13
+Moquegua,13
+Cerro de Pasco,11
+Miraflores,11
+Talara,11
+Victor Larco Herrera,11
+Altoona,10
+Barranca,10
+Huacho,10
+Ilo,10
+Parcona District,10
+Pisco,10
+Lambayeque,9
+Huaral,8
+Paita,8
+Socabaya,7
+10430,5
+34698,5
+40384,5
+77066,5
+Gallatin,5
+Jacobo Hunter,5
+Jaen,5
+Jose Leonardo Ortiz,5
+Madrid,5
+Yanahuara,5
+Ferrenafe,4
+Huancavelica,4
+Montreal,4
+Ashburn,3
+Huaura,3
+La Victoria,3
+Mollendo,3
+Moses Lake,3
+Sachaca,3
+San Jose,3
+Santa Rosa,3
+Santiago,3
+Springfield,3
+Badalona,2
+Bayreuth,2
+Caleta Olivia,2
+Calgary,2
+Gane Timur,2
+Mariano Melgar,2
+New York,2
+North Carolina's 3rd Congressional District 2022 redistricting,2
+Oxapampa,2
+Pembroke Pines,2
+San Pedro de Lloc,2
+Siberut Tengah,2
+Zaragoza,2
+39279,1
+Al Hidd,1
+Alameda,1
+Alcorcon,1
+Arnhem,1
+Aspen,1
+Bamberg,1
+Barcelona,1
+Bellville,1
+Belmont,1
+Bethesda,1
+Birmingham,1
+Bogota,1
+Cali,1
+Caracas,1
+Carhuamayo,1
+Chepen,1
+Cordoba,1
+Council Bluffs,1
+Dosquebradas,1
+Fiorano Modenese,1
+Fuenlabrada,1
+Hai Duong,1
+Ho Chi Minh City,1
+Ibarra,1
+Jacksonville,1
+Lahore,1
+Laura,1
+Leesburg,1
+Los Angeles,1
+Mala,1
+Manuel B. Gonnet,1
+Marechal Candido Rondon,1
+Meknes,1
+Mexico City,1
+Miami,1
+Miranda,1
+Mississauga,1
+Muscat,1
+Nauta,1
+Oakland,1
+Oberdorla,1
+Oviedo,1
+Palma,1
+Pamplona,1
+Phoenix,1
+Ponferrada,1
+Quito,1
+Reston,1
+Rincon de Milberg,1
+San Diego,1
+San Martin de Pangoa,1
+Santiago De Los Caballeros,1
+The Hammocks,1
+Tuman,1
+Utica,1
+Valencia,1
+Valladolid,1
+Villa Rica,1
+West Bishop,1
+
+#  
+# Fecha de inicio: 20251225
+# Fecha de finalización: 20260121
+Nombre de la audiencia,Usuarios activos
+All Users,5271

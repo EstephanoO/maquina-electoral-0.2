@@ -142,6 +142,7 @@ export const ClientDashboardConfigCard = () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           campaignId: activeConfig.clientId,
+          layerType: "departamento",
           geojson: payload,
           fileName: geojsonFile.name,
         }),

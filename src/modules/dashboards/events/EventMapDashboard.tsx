@@ -353,7 +353,7 @@ export const EventMapDashboard = ({
                   </div>
                 ) : null}
                 <div className="h-[160px] w-full rounded-2xl border border-border/60 bg-gradient-to-br from-background to-muted/20 p-3">
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                     <LineChart
                       data={candidateTimelineWithTrend}
                       margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
@@ -419,7 +419,7 @@ export const EventMapDashboard = ({
                 </span>
               </div>
               <div className="mt-4 h-[220px] w-full rounded-2xl border border-border/60 bg-gradient-to-br from-background to-muted/20 p-3">
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                   <LineChart
                     data={interviewerTimelineData}
                     margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
@@ -470,7 +470,7 @@ export const EventMapDashboard = ({
                   <span className="text-xs text-muted-foreground">Barras</span>
                 </div>
                 <div className="mt-4 h-[220px] w-full rounded-2xl border border-border/60 bg-gradient-to-br from-background to-muted/20 p-3">
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                     <BarChart
                       data={candidateBarData}
                       margin={{ top: 0, right: 10, left: 0, bottom: 0 }}

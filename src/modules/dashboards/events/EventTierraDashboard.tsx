@@ -5,6 +5,7 @@ import { EventMapDashboard } from "@/modules/dashboards/events/EventMapDashboard
 import { useEventsStore } from "@/modules/events/events.store";
 import { useCampaignsStore } from "@/modules/campaigns/store";
 import { EmptyState } from "@/modules/shared/EmptyState";
+import { LoadingState } from "@/modules/shared/LoadingState";
 
 type EventTierraDashboardProps = {
   eventId: string;
@@ -12,6 +13,10 @@ type EventTierraDashboardProps = {
 };
 
 export const EventTierraDashboard = ({ eventId, client }: EventTierraDashboardProps) => {
+  const [mounted, setMounted] = React.useState(false);
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
   const event = useEventsStore((state) => state.getEventById(eventId));
   const campaigns = useCampaignsStore((state) => state.campaigns);
   const campaignProfiles = useCampaignsStore((state) => state.campaignProfiles);
@@ -20,6 +25,10 @@ export const EventTierraDashboard = ({ eventId, client }: EventTierraDashboardPr
     [campaigns, event?.campaignId],
   );
   const campaignProfile = event?.campaignId ? campaignProfiles[event.campaignId] : undefined;
+
+  if (!mounted) {
+    return <LoadingState title="Cargando evento" />;
+  }
 
   if (!event) {
     return <EmptyState title="Evento no encontrado" description="Revisa el ID." />;

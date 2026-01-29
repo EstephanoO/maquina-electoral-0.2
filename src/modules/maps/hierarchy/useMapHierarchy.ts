@@ -98,7 +98,10 @@ export const useMapHierarchy = () => {
 
   const goBack = React.useCallback(() => {
     if (level === "distrito") {
-      setSelectedDistrictId(null);
+      if (selectedDistrictId) {
+        setSelectedDistrictId(null);
+        return;
+      }
       setSelectedProvinceId(null);
       setLevel("provincia");
       return;
@@ -108,7 +111,7 @@ export const useMapHierarchy = () => {
       setSelectedDepartmentId(null);
       setLevel("departamento");
     }
-  }, [level]);
+  }, [level, selectedDistrictId]);
 
   const breadcrumb = React.useMemo(() => {
     const labels: string[] = ["Peru"];

@@ -17,6 +17,9 @@ type MapHierarchyLayersProps = {
   fillColor: string;
   lineColor: string;
   fillOpacity: number;
+  highlightFillColor: string;
+  highlightFillOpacity: number;
+  enableHighlight?: boolean;
   highlightOpacity?: number;
 };
 
@@ -30,6 +33,9 @@ export const MapHierarchyLayers = ({
   fillColor,
   lineColor,
   fillOpacity,
+  highlightFillColor,
+  highlightFillOpacity,
+  enableHighlight = true,
   highlightOpacity = 0.5,
 }: MapHierarchyLayersProps) => {
   const showDepartamentos = level === "departamento";
@@ -159,11 +165,11 @@ export const MapHierarchyLayers = ({
           <Layer
             id="peru-departamentos-highlight"
             type="fill"
-            layout={{ visibility: showDepartamentos ? "visible" : "none" }}
+            layout={{ visibility: showDepartamentos && enableHighlight ? "visible" : "none" }}
             filter={departamentoHighlightFilter}
             paint={{
-              "fill-color": "#ef4444",
-              "fill-opacity": highlightOpacity,
+              "fill-color": highlightFillColor,
+              "fill-opacity": highlightFillOpacity,
             }}
           />
           <Layer
@@ -214,11 +220,11 @@ export const MapHierarchyLayers = ({
           <Layer
             id="peru-provincias-highlight"
             type="fill"
-            layout={{ visibility: level === "provincia" ? "visible" : "none" }}
+            layout={{ visibility: level === "provincia" && enableHighlight ? "visible" : "none" }}
             filter={provinciaHighlightFilter}
             paint={{
-              "fill-color": "#ef4444",
-              "fill-opacity": highlightOpacity,
+              "fill-color": highlightFillColor,
+              "fill-opacity": highlightFillOpacity,
             }}
           />
           <Layer
@@ -279,11 +285,11 @@ export const MapHierarchyLayers = ({
           <Layer
             id="peru-distritos-highlight"
             type="fill"
-            layout={{ visibility: showDistritos ? "visible" : "none" }}
+            layout={{ visibility: showDistritos && enableHighlight ? "visible" : "none" }}
             filter={distritoHighlightFilter}
             paint={{
-              "fill-color": "#ef4444",
-              "fill-opacity": highlightOpacity,
+              "fill-color": highlightFillColor,
+              "fill-opacity": highlightFillOpacity,
             }}
           />
           <Layer

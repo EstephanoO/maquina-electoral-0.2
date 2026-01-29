@@ -8,10 +8,18 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const clientParam = url.searchParams.get("client");
   const campaignIdParam = url.searchParams.get("campaignId");
+  const layerType = url.searchParams.get("layerType");
   const campaignId = campaignIdParam ?? resolveCampaignIdFromClient(clientParam);
+  const allowedLayerTypes = ["departamento", "provincia", "distrito"] as const;
+  const normalizedLayerType = layerType
+    ? allowedLayerTypes.find((value) => value === layerType)
+    : null;
 
   if (!campaignId) {
-    return NextResponse.json({ geojson: null }, { status: 200 });
+    return NextResponse.json({ layers: null }, { status: 200 });
+  }
+  if (layerType && !normalizedLayerType) {
+    return NextResponse.json({ error: "Invalid layerType" }, { status: 400 });
   }
 
   const rows = await db
@@ -19,16 +27,54 @@ export async function GET(request: Request) {
       geojson: campaignGeojson.geojson,
       fileName: campaignGeojson.fileName,
       updatedAt: campaignGeojson.updatedAt,
+      layerType: campaignGeojson.layerType,
     })
     .from(campaignGeojson)
     .where(eq(campaignGeojson.campaignId, campaignId));
 
-  const record = rows[0];
+  if (normalizedLayerType) {
+    const record = rows.find((row) => row.layerType === normalizedLayerType);
+    return NextResponse.json(
+      {
+        layerType: normalizedLayerType,
+        geojson: record?.geojson ?? null,
+        fileName: record?.fileName ?? null,
+        updatedAt: record?.updatedAt ?? null,
+      },
+      { status: 200 },
+    );
+  }
+
+  const layers = {
+    departamento: rows.find((row) => row.layerType === "departamento") ?? null,
+    provincia: rows.find((row) => row.layerType === "provincia") ?? null,
+    distrito: rows.find((row) => row.layerType === "distrito") ?? null,
+  };
   return NextResponse.json(
     {
-      geojson: record?.geojson ?? null,
-      fileName: record?.fileName ?? null,
-      updatedAt: record?.updatedAt ?? null,
+      layers: {
+        departamento: layers.departamento
+          ? {
+              geojson: layers.departamento.geojson,
+              fileName: layers.departamento.fileName,
+              updatedAt: layers.departamento.updatedAt,
+            }
+          : null,
+        provincia: layers.provincia
+          ? {
+              geojson: layers.provincia.geojson,
+              fileName: layers.provincia.fileName,
+              updatedAt: layers.provincia.updatedAt,
+            }
+          : null,
+        distrito: layers.distrito
+          ? {
+              geojson: layers.distrito.geojson,
+              fileName: layers.distrito.fileName,
+              updatedAt: layers.distrito.updatedAt,
+            }
+          : null,
+      },
     },
     { status: 200 },
   );
@@ -39,9 +85,14 @@ export async function POST(request: Request) {
     campaignId?: string;
     geojson?: unknown;
     fileName?: string;
+    layerType?: string;
   };
+  const allowedLayerTypes = ["departamento", "provincia", "distrito"] as const;
+  const normalizedLayerType = body.layerType
+    ? allowedLayerTypes.find((value) => value === body.layerType)
+    : null;
 
-  if (!body.campaignId || !body.geojson) {
+  if (!body.campaignId || !body.geojson || !normalizedLayerType) {
     return NextResponse.json({ error: "Missing fields" }, { status: 400 });
   }
 
@@ -55,15 +106,27 @@ export async function POST(request: Request) {
 
   const payloadText = JSON.stringify(payload);
   await db.execute(sql`
-    insert into public.campaign_geojson (campaign_id, geojson, file_name, geom, updated_at)
+    insert into public.campaign_geojson (campaign_id, layer_type, geojson, file_name, geom, updated_at)
     values (
       ${body.campaignId},
+      ${normalizedLayerType},
       ${payloadText}::jsonb,
       ${body.fileName ?? null},
-      ST_SetSRID(ST_GeomFromGeoJSON(${payloadText}), 4326),
+      (
+        select ST_Collect(geom)
+        from (
+          select ST_SetSRID(
+            ST_MakeValid(ST_GeomFromGeoJSON((feat->'geometry')::text)),
+            4326
+          ) as geom
+          from jsonb_array_elements(${payloadText}::jsonb->'features') as feat
+          where (feat->'geometry') is not null
+        ) as derived
+        where geom is not null
+      ),
       now()
     )
-    on conflict (campaign_id) do update
+    on conflict (campaign_id, layer_type) do update
     set geojson = excluded.geojson,
         file_name = excluded.file_name,
         geom = excluded.geom,
@@ -76,11 +139,27 @@ export async function POST(request: Request) {
 export async function DELETE(request: Request) {
   const url = new URL(request.url);
   const campaignId = url.searchParams.get("campaignId");
+  const layerType = url.searchParams.get("layerType");
+  const allowedLayerTypes = ["departamento", "provincia", "distrito"] as const;
+  const normalizedLayerType = layerType
+    ? allowedLayerTypes.find((value) => value === layerType)
+    : null;
 
   if (!campaignId) {
     return NextResponse.json({ error: "Missing campaignId" }, { status: 400 });
   }
+  if (layerType && !normalizedLayerType) {
+    return NextResponse.json({ error: "Invalid layerType" }, { status: 400 });
+  }
 
-  await db.delete(campaignGeojson).where(eq(campaignGeojson.campaignId, campaignId));
+  if (normalizedLayerType) {
+    await db
+      .delete(campaignGeojson)
+      .where(
+        sql`${campaignGeojson.campaignId} = ${campaignId} and ${campaignGeojson.layerType} = ${normalizedLayerType}`,
+      );
+  } else {
+    await db.delete(campaignGeojson).where(eq(campaignGeojson.campaignId, campaignId));
+  }
   return NextResponse.json({ ok: true }, { status: 200 });
 }

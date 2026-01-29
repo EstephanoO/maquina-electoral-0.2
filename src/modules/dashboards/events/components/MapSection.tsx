@@ -45,12 +45,55 @@ export const MapSection: React.FC<MapSectionProps> = ({
   const geojsonFetcher = React.useCallback(async (url: string) => {
     const response = await fetch(url, { cache: "no-store" });
     if (!response.ok) throw new Error("geojson-failed");
-    return response.json() as Promise<{ geojson: unknown }>;
+    return response.json() as Promise<{
+      layers?: {
+        departamento?: { geojson: unknown } | null;
+        provincia?: { geojson: unknown } | null;
+        distrito?: { geojson: unknown } | null;
+      } | null;
+    }>;
+  }, []);
+
+  const asFeatureCollection = React.useCallback((payload?: unknown) => {
+    const value = payload as { type?: string; features?: unknown[] } | undefined;
+    if (!value || value.type !== "FeatureCollection") return null;
+    if (!Array.isArray(value.features)) return null;
+    return value as { type: "FeatureCollection"; features: unknown[] };
   }, []);
 
   const { data: geojsonData } = useSWR(geojsonKey, geojsonFetcher, {
     revalidateOnFocus: false,
   });
+  const clientLayers = React.useMemo(() => {
+    const layers = geojsonData?.layers;
+    if (!layers) return null;
+    return {
+      departamento: asFeatureCollection(layers.departamento?.geojson),
+      provincia: asFeatureCollection(layers.provincia?.geojson),
+      distrito: asFeatureCollection(layers.distrito?.geojson),
+    };
+  }, [asFeatureCollection, geojsonData?.layers]);
+
+  const resolvedClientLayers = React.useMemo(() => {
+    if (!clientLayers) return null;
+    return {
+      departamento: (clientLayers.departamento as any) ?? null,
+      provincia: (clientLayers.provincia as any) ?? null,
+      distrito: (clientLayers.distrito as any) ?? null,
+    };
+  }, [clientLayers]);
+  const hasClientGeojson = Boolean(
+    clientLayers?.departamento || clientLayers?.provincia || clientLayers?.distrito,
+  );
+  const resolvedMapStatus = mapStatus === "empty" && hasClientGeojson ? undefined : mapStatus;
+  const geojsonFeatureCount = React.useMemo(() => {
+    if (!clientLayers) return null;
+    const total =
+      (clientLayers.departamento?.features.length ?? 0) +
+      (clientLayers.provincia?.features.length ?? 0) +
+      (clientLayers.distrito?.features.length ?? 0);
+    return total > 0 ? total : null;
+  }, [clientLayers]);
 
   return (
     <div className="relative h-[70vh] min-h-[520px] rounded-2xl border border-border/60 bg-card/70 shadow-[0_20px_60px_rgba(15,23,42,0.12)]">
@@ -83,6 +126,11 @@ export const MapSection: React.FC<MapSectionProps> = ({
         >
           Centrar Peru
         </Button>
+        {geojsonFeatureCount !== null ? (
+          <div className="rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-1 text-[11px] font-semibold text-emerald-700">
+            GeoJSON: {geojsonFeatureCount}
+          </div>
+        ) : null}
       </div>
       <div className="absolute left-4 top-4 z-10 rounded-2xl border border-border/60 bg-background/75 px-3 py-2 text-xs text-muted-foreground shadow-sm backdrop-blur">
         <p className="font-semibold text-foreground">Mapa Peru</p>
@@ -113,7 +161,7 @@ export const MapSection: React.FC<MapSectionProps> = ({
         height={null}
         className="h-full w-full rounded-2xl"
         points={points}
-        status={mapStatus}
+        status={resolvedMapStatus}
         mapRef={mapRef}
         onResetViewReady={setResetMapView}
         useStreetBase={showStreetBase}
@@ -121,7 +169,7 @@ export const MapSection: React.FC<MapSectionProps> = ({
         enablePointTooltip
         focusPoint={focusPoint}
         onClearFocusPoint={onClearFocusPoint}
-        clientGeojson={geojsonData?.geojson ? (geojsonData.geojson as any) : null}
+        clientGeojsonLayers={resolvedClientLayers}
         renderPointTooltip={(point) => (
           <div className="space-y-2 rounded-xl bg-slate-950/90 px-3 py-2 text-xs text-slate-100 shadow-lg">
             <div className="space-y-1">
