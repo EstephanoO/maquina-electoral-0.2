@@ -105,16 +105,16 @@ export const MapSection: React.FC<MapSectionProps> = ({
           <div className="space-y-2 rounded-xl bg-slate-950/90 px-3 py-2 text-xs text-slate-100 shadow-lg">
             <div className="space-y-1">
               <p className="text-[0.65rem] uppercase tracking-[0.2em] text-slate-300">
-                Entrevistador
+                Entrevistado
               </p>
               <p className="text-sm font-semibold text-white">
-                {point.interviewer ?? "-"}
+                {point.name ?? "-"}
               </p>
             </div>
             <div className="flex items-center justify-between gap-4">
               <div>
                 <p className="text-[0.65rem] uppercase tracking-[0.2em] text-slate-300">
-                  Telefono
+                  WhatsApp
                 </p>
                 <p className="text-xs text-white">{point.phone ?? "-"}</p>
               </div>
