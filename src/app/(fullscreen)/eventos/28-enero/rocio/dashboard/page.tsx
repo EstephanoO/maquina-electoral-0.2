@@ -17,7 +17,7 @@ export default function EventMapDashboardRocioPage() {
       eventSubtitle=""
       candidateLabels={candidateLabels}
       candidateProfile={candidateProfile}
-      dataGoal="85,440"
+      dataGoal="80,000"
       layoutVariant="compact"
       dataUrl="/api/interviews"
       hideMapLegend
