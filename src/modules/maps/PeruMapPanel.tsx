@@ -1,24 +1,18 @@
 "use client";
 
 import * as React from "react";
+import type { MapLayerMouseEvent } from "maplibre-gl";
 import type { MapRef } from "@vis.gl/react-maplibre";
-import { Layer, Source } from "@vis.gl/react-maplibre";
 import { MapPanel } from "@/modules/maps/MapPanel";
 import { peruMapStyle, defaultMapView, mapStyleDark, mapStyleLight } from "@/maps/mapConfig";
 import { useTheme } from "@/theme/ThemeProvider";
-
-type PeruGeoJson = {
-  type: "FeatureCollection";
-  features: Array<{
-    type: "Feature";
-    geometry: {
-      type: "Polygon" | "MultiPolygon";
-      coordinates: number[][][] | number[][][][];
-    };
-    properties?: Record<string, unknown>;
-  }>;
-};
-
+import { getGeoIndex, getGeoJson, getGeoUrls } from "@/modules/maps/hierarchy/geoIndex";
+import { MapHierarchyLayers } from "@/modules/maps/hierarchy/MapHierarchyLayers";
+import { MapHierarchyControls } from "@/modules/maps/hierarchy/MapHierarchyControls";
+import { useMapHierarchy } from "@/modules/maps/hierarchy/useMapHierarchy";
+import type { GeoFeatureCollection } from "@/modules/maps/hierarchy/types";
+import { findFeatureByPoint } from "@/modules/maps/hierarchy/geoSpatial";
+import { Source, Layer } from "@vis.gl/react-maplibre";
 
 type PeruMapPoint = {
   lat: number;
@@ -38,7 +32,6 @@ type PeruMapPanelProps = {
   points?: PeruMapPoint[];
   status?: "loading" | "error" | "empty";
   statusLabel?: string;
-  geoJsonUrl?: string;
   mapRef?: React.RefObject<MapRef | null>;
   onResetViewReady?: (resetView: () => void) => void;
   getPointColor?: (point: { lat: number; lng: number; candidate?: string | null }) => string;
@@ -46,6 +39,11 @@ type PeruMapPanelProps = {
   renderPointTooltip?: (point: PeruMapPoint) => React.ReactNode;
   useStreetBase?: boolean;
   restrictToPeru?: boolean;
+  enableHierarchy?: boolean;
+  showHierarchyControls?: boolean;
+  focusPoint?: { lat: number; lng: number } | null;
+  onClearFocusPoint?: () => void;
+  clientGeojson?: GeoFeatureCollection | null;
 };
 
 export const PeruMapPanel = ({
@@ -54,7 +52,6 @@ export const PeruMapPanel = ({
   points,
   status,
   statusLabel,
-  geoJsonUrl = "/geo/departamentos.geojson",
   mapRef,
   onResetViewReady,
   getPointColor,
@@ -62,17 +59,27 @@ export const PeruMapPanel = ({
   renderPointTooltip,
   useStreetBase = false,
   restrictToPeru = false,
+  enableHierarchy = true,
+  showHierarchyControls = true,
+  focusPoint = null,
+  onClearFocusPoint,
+  clientGeojson = null,
 }: PeruMapPanelProps) => {
   const { mode } = useTheme();
+  const { level, selectedCodes, breadcrumb, canGoBack, actions } = useMapHierarchy();
   const localMapRef = React.useRef<MapRef | null>(null);
   const resolvedRef = mapRef ?? localMapRef;
-  const [geojson, setGeojson] = React.useState<PeruGeoJson | null>(null);
+  const [departamentos, setDepartamentos] = React.useState<GeoFeatureCollection | null>(null);
+  const [provincias, setProvincias] = React.useState<GeoFeatureCollection | null>(null);
+  const [distritos, setDistritos] = React.useState<GeoFeatureCollection | null>(null);
   const [bounds, setBounds] = React.useState<[number, number, number, number] | null>(null);
   const [mapReady, setMapReady] = React.useState(false);
 
-  const fillColor = mode === "dark" ? "rgba(148,163,184,0.16)" : "rgba(15,23,42,0.08)";
-  const lineColor = mode === "dark" ? "rgba(226,232,240,0.6)" : "rgba(15,23,42,0.35)";
-  const fillOpacity = useStreetBase ? (mode === "dark" ? 0.25 : 0.18) : 1;
+  const geoUrls = React.useMemo(() => getGeoUrls(), []);
+
+  const fillColor = mode === "dark" ? "rgba(148,163,184,0.22)" : "rgba(15,23,42,0.12)";
+  const lineColor = "rgba(24,24,27,0.68)";
+  const fillOpacity = useStreetBase ? 0 : mode === "dark" ? 0.24 : 0.2;
   const resolvedMapStyle = useStreetBase
     ? mode === "dark"
       ? mapStyleDark
@@ -80,7 +87,7 @@ export const PeruMapPanel = ({
     : peruMapStyle;
   const maxBounds = React.useMemo(() => {
     if (!restrictToPeru || !bounds) return undefined;
-    const padding = 1.2;
+    const padding = 2.2;
     return [
       [bounds[0] - padding, bounds[1] - padding],
       [bounds[2] + padding, bounds[3] + padding],
@@ -88,20 +95,73 @@ export const PeruMapPanel = ({
   }, [bounds, restrictToPeru]);
 
   React.useEffect(() => {
-    let isMounted = true;
+    let active = true;
     const load = async () => {
-      const response = await fetch(geoJsonUrl, { cache: "force-cache" });
-      if (!response.ok) return;
-      const payload = (await response.json()) as PeruGeoJson;
-      if (!isMounted) return;
-      setGeojson(payload);
+      const payload = await getGeoJson(geoUrls.departamentos);
+      if (!active) return;
+      setDepartamentos(payload);
       setBounds(getGeoJsonBounds(payload));
     };
     load();
     return () => {
-      isMounted = false;
+      active = false;
     };
-  }, [geoJsonUrl]);
+  }, [geoUrls.departamentos]);
+
+  React.useEffect(() => {
+    if (level === "departamento") return;
+    let active = true;
+    const load = async () => {
+      const payload = await getGeoJson(geoUrls.provincias);
+      if (!active) return;
+      setProvincias(payload);
+    };
+    load();
+    return () => {
+      active = false;
+    };
+  }, [geoUrls.provincias, level]);
+
+  React.useEffect(() => {
+    if (level !== "distrito") return;
+    let active = true;
+    const load = async () => {
+      const payload = await getGeoJson(geoUrls.distritos);
+      if (!active) return;
+      setDistritos(payload);
+    };
+    load();
+    return () => {
+      active = false;
+    };
+  }, [geoUrls.distritos, level]);
+
+  React.useEffect(() => {
+    if (!focusPoint || !enableHierarchy) return;
+    let active = true;
+    const load = async () => {
+      if (!departamentos) {
+        const payload = await getGeoJson(geoUrls.departamentos);
+        if (!active) return;
+        setDepartamentos(payload);
+        setBounds(getGeoJsonBounds(payload));
+      }
+      if (!provincias) {
+        const payload = await getGeoJson(geoUrls.provincias);
+        if (!active) return;
+        setProvincias(payload);
+      }
+      if (!distritos) {
+        const payload = await getGeoJson(geoUrls.distritos);
+        if (!active) return;
+        setDistritos(payload);
+      }
+    };
+    load();
+    return () => {
+      active = false;
+    };
+  }, [departamentos, distritos, enableHierarchy, focusPoint, geoUrls.departamentos, geoUrls.distritos, geoUrls.provincias, provincias]);
 
   const resetView = React.useCallback(() => {
     if (!resolvedRef.current) return;
@@ -128,9 +188,135 @@ export const PeruMapPanel = ({
   }, [mapReady, resetView]);
 
   React.useEffect(() => {
+    if (!mapReady || !resolvedRef.current) return;
+    getGeoIndex().then((payload) => {
+      let nodeId: string | undefined;
+      if (level === "distrito") {
+        if (selectedCodes.dist) {
+          nodeId = payload.byCode.distrito[selectedCodes.dist];
+        } else if (selectedCodes.prov) {
+          nodeId = payload.byCode.provincia[`${selectedCodes.dep ?? ""}${selectedCodes.prov}`];
+        }
+      } else if (level === "provincia") {
+        if (selectedCodes.prov) {
+          nodeId = payload.byCode.provincia[`${selectedCodes.dep ?? ""}${selectedCodes.prov}`];
+        } else if (selectedCodes.dep) {
+          nodeId = payload.byCode.departamento[selectedCodes.dep];
+        }
+      } else if (selectedCodes.dep) {
+        nodeId = payload.byCode.departamento[selectedCodes.dep];
+      }
+      if (!nodeId) return;
+      const node = payload.nodes[nodeId];
+      if (!node) return;
+      resolvedRef.current?.fitBounds(
+        [
+          [node.bbox[0], node.bbox[1]],
+          [node.bbox[2], node.bbox[3]],
+        ],
+        { padding: 24, duration: 650 },
+      );
+    });
+  }, [level, mapReady, resolvedRef, selectedCodes.dep, selectedCodes.dist, selectedCodes.prov]);
+
+  React.useEffect(() => {
+    if (!focusPoint || !enableHierarchy) return;
+    if (!departamentos) return;
+    const distMatch = distritos ? findFeatureByPoint(distritos, focusPoint) : null;
+    const provMatch = provincias ? findFeatureByPoint(provincias, focusPoint) : null;
+    const depMatch = findFeatureByPoint(departamentos, focusPoint);
+
+    const depCode = depMatch?.properties?.CODDEP ? String(depMatch.properties.CODDEP) : null;
+    const provCode = provMatch?.properties?.CODPROV ? String(provMatch.properties.CODPROV) : null;
+    const distCode = distMatch?.properties?.UBIGEO ? String(distMatch.properties.UBIGEO) : null;
+
+    if (distCode) {
+      actions.selectDistrictByCode(distCode);
+      return;
+    }
+    if (depCode && provCode) {
+      actions.selectProvinceByCodes(depCode, provCode);
+      return;
+    }
+    if (depCode) {
+      actions.selectDepartmentByCode(depCode);
+    }
+  }, [actions, departamentos, distritos, enableHierarchy, focusPoint, provincias]);
+
+  React.useEffect(() => {
     if (!onResetViewReady) return;
     onResetViewReady(resetView);
   }, [onResetViewReady, resetView]);
+
+  React.useEffect(() => {
+    if (!mapReady) return;
+    if (level !== "departamento") return;
+    if (selectedCodes.dep || selectedCodes.prov || selectedCodes.dist) return;
+    resetView();
+  }, [level, mapReady, resetView, selectedCodes.dep, selectedCodes.dist, selectedCodes.prov]);
+
+  const handleMapClick = React.useCallback(
+    (event: MapLayerMouseEvent) => {
+      if (!enableHierarchy) return;
+      if (focusPoint) {
+        onClearFocusPoint?.();
+      }
+      const feature = event.features?.[0];
+      if (!feature?.properties) {
+        if (level === "distrito") {
+          actions.goBack();
+          return;
+        }
+        if (level === "provincia") {
+          actions.goBack();
+          return;
+        }
+        if (level === "departamento") {
+          actions.reset();
+          resetView();
+        }
+        return;
+      }
+      if (level === "departamento") {
+        const code = String((feature.properties as Record<string, unknown>).CODDEP ?? "");
+        if (code) actions.selectDepartmentByCode(code);
+        return;
+      }
+      if (level === "provincia") {
+        const dep = String((feature.properties as Record<string, unknown>).CODDEP ?? "");
+        const prov = String((feature.properties as Record<string, unknown>).CODPROV ?? "");
+        if (dep && prov) actions.selectProvinceByCodes(dep, prov);
+        return;
+      }
+      if (level === "distrito") {
+        const dist = String((feature.properties as Record<string, unknown>).UBIGEO ?? "");
+        if (dist) actions.selectDistrictByCode(dist);
+      }
+    },
+    [actions, enableHierarchy, focusPoint, level, onClearFocusPoint, resetView],
+  );
+
+  const handleBack = React.useCallback(() => {
+    if (focusPoint) {
+      onClearFocusPoint?.();
+    }
+    actions.goBack();
+  }, [actions, focusPoint, onClearFocusPoint]);
+
+  const handleReset = React.useCallback(() => {
+    if (focusPoint) {
+      onClearFocusPoint?.();
+    }
+    actions.reset();
+    resetView();
+  }, [actions, focusPoint, onClearFocusPoint, resetView]);
+
+  const interactiveLayerIds = React.useMemo(() => {
+    if (!enableHierarchy) return undefined;
+    if (level === "departamento") return ["peru-departamentos-fill"];
+    if (level === "provincia") return ["peru-provincias-fill"];
+    return ["peru-distritos-fill"];
+  }, [enableHierarchy, level]);
 
   return (
     <MapPanel
@@ -142,27 +328,50 @@ export const PeruMapPanel = ({
       mapStyle={resolvedMapStyle}
       maxBounds={maxBounds}
       onMapLoad={() => setMapReady(true)}
+      onMapClick={handleMapClick}
+      interactiveLayerIds={interactiveLayerIds}
+      overlay={
+        enableHierarchy && showHierarchyControls ? (
+          <MapHierarchyControls
+            breadcrumb={breadcrumb}
+            canGoBack={canGoBack}
+            onBack={handleBack}
+            onReset={handleReset}
+          />
+        ) : null
+      }
       mapRef={resolvedRef}
       getPointColor={getPointColor}
       enablePointTooltip={enablePointTooltip}
       renderPointTooltip={renderPointTooltip}
     >
-      {geojson ? (
-        <Source id="peru-departamentos" type="geojson" data={geojson as unknown as any}>
+      <MapHierarchyLayers
+        departamentos={departamentos}
+        provincias={provincias}
+        distritos={distritos}
+        points={points}
+        level={level}
+        selectedCodes={selectedCodes}
+        fillColor={fillColor}
+        lineColor={lineColor}
+        fillOpacity={fillOpacity}
+      />
+      {clientGeojson ? (
+        <Source id="client-geojson" type="geojson" data={clientGeojson as unknown as any}>
           <Layer
-            id="peru-departamentos-fill"
+            id="client-geojson-fill"
             type="fill"
-              paint={{
-                "fill-color": fillColor,
-                "fill-opacity": fillOpacity,
-              }}
-            />
+            paint={{
+              "fill-color": "rgba(15,23,42,0.14)",
+              "fill-opacity": useStreetBase ? 0 : 0.35,
+            }}
+          />
           <Layer
-            id="peru-departamentos-line"
+            id="client-geojson-line"
             type="line"
             paint={{
-              "line-color": lineColor,
-              "line-width": 1.2,
+              "line-color": "rgba(15,23,42,0.75)",
+              "line-width": 1.4,
             }}
           />
         </Source>
@@ -171,7 +380,9 @@ export const PeruMapPanel = ({
   );
 };
 
-const getGeoJsonBounds = (payload: PeruGeoJson): [number, number, number, number] => {
+const getGeoJsonBounds = (payload: {
+  features: Array<{ geometry: { coordinates: unknown } }>;
+}): [number, number, number, number] => {
   let minLng = Infinity;
   let minLat = Infinity;
   let maxLng = -Infinity;

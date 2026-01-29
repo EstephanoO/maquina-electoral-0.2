@@ -4,6 +4,7 @@ import type { EventRecord } from "../EventRecordsDialog";
 interface UseEventActionsParams {
   dataUrl: string;
   mutate: any;
+  onFocusRecord?: (record: EventRecord) => void;
 }
 
 interface UseEventActionsReturn {
@@ -13,9 +14,10 @@ interface UseEventActionsReturn {
   buildDeleteUrl: (id: string) => string;
 }
 
-export const useEventActions = ({ 
-  dataUrl, 
-  mutate 
+export const useEventActions = ({
+  dataUrl,
+  mutate,
+  onFocusRecord,
 }: UseEventActionsParams): UseEventActionsReturn => {
   const buildDeleteUrl = useCallback(
     (id: string) => {
@@ -105,10 +107,11 @@ export const useEventActions = ({
     if (record.latitude === null || record.longitude === null) return;
     mapRef.current?.flyTo({
       center: [record.longitude, record.latitude],
-      zoom: 9,
+      zoom: 15,
       essential: true,
     });
-  }, []);
+    onFocusRecord?.(record);
+  }, [onFocusRecord]);
 
   const createFocusPointHandler = useCallback((mapRef: any) => {
     return (record: EventRecord) => handleFocusPoint(record, mapRef);

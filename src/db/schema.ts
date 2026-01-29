@@ -1,4 +1,4 @@
-import { integer, pgTable, text, timestamp, doublePrecision } from "drizzle-orm/pg-core";
+import { integer, pgTable, text, timestamp, doublePrecision, jsonb } from "drizzle-orm/pg-core";
 
 export const territory = pgTable("territory", {
   id: text("id").primaryKey(),
@@ -29,4 +29,12 @@ export const events = pgTable("events", {
   contactPhone: text("contact_phone"),
   location: text("location"),
   clients: text("clients").array(),
+});
+
+export const campaignGeojson = pgTable("campaign_geojson", {
+  campaignId: text("campaign_id").primaryKey(),
+  geojson: jsonb("geojson").notNull(),
+  fileName: text("file_name"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

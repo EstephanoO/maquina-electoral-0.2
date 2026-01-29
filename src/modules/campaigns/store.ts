@@ -71,27 +71,54 @@ const defaultDashboardsByCampaign: CampaignState["dashboardsByCampaign"] = {
     {
       template: "tierra",
       status: "ACTIVE",
+      eventId: "event-rocio-01",
       name: "Salida a campo 28 de enero",
       date: "2026-01-28",
       team: "Equipo de terreno",
+    },
+    {
+      template: "mar",
+      status: "ACTIVE",
+    },
+    {
+      template: "aire",
+      status: "ACTIVE",
     },
   ],
   "cand-giovanna": [
     {
       template: "tierra",
       status: "ACTIVE",
+      eventId: "event-giovanna-01",
       name: "Salida a campo 28 de enero",
       date: "2026-01-28",
       team: "Equipo de terreno",
+    },
+    {
+      template: "mar",
+      status: "ACTIVE",
+    },
+    {
+      template: "aire",
+      status: "ACTIVE",
     },
   ],
   "cand-guillermo": [
     {
       template: "tierra",
       status: "ACTIVE",
+      eventId: "event-guillermo-01",
       name: "Salida a campo 28 de enero",
       date: "2026-01-28",
       team: "Equipo de terreno",
+    },
+    {
+      template: "mar",
+      status: "ACTIVE",
+    },
+    {
+      template: "aire",
+      status: "ACTIVE",
     },
   ],
 };

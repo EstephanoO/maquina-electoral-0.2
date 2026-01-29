@@ -41,7 +41,6 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   onDownloadCSV,
   candidateProfile,
 }) => {
-  const showEventMeta = Boolean(eventTitle) || Boolean(eventSubtitle);
   const dataGoalValue = React.useMemo(() => {
     if (!dataGoal) return null;
     const numeric = Number(dataGoal.replace(/[^0-9]/g, ""));
@@ -102,29 +101,6 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                   </div>
                 </div>
               ) : null}
-            </div>
-          ) : null}
-          {showEventMeta ? (
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                Evento en tierra
-              </p>
-              {eventTitle ? (
-                <h1 className="mt-2 text-2xl font-semibold text-foreground">
-                  {eventTitle}
-                </h1>
-              ) : null}
-              {eventSubtitle ? (
-                <p className="mt-1 text-sm text-muted-foreground">{eventSubtitle}</p>
-              ) : null}
-              <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                <span>
-                  Ultima actualizacion: {lastUpdated ? lastUpdated.toLocaleTimeString("es-PE", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  }) : "-"}
-                </span>
-              </div>
             </div>
           ) : null}
         </div>

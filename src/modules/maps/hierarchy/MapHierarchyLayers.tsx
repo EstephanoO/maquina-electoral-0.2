@@ -1,0 +1,321 @@
+import * as React from "react";
+import { Layer, Source } from "@vis.gl/react-maplibre";
+import type { GeoFeatureCollection, GeoLevel } from "./types";
+import { findFeatureByPoint } from "./geoSpatial";
+
+type MapHierarchyLayersProps = {
+  departamentos: GeoFeatureCollection | null;
+  provincias: GeoFeatureCollection | null;
+  distritos: GeoFeatureCollection | null;
+  level: GeoLevel;
+  points?: Array<{ lat: number; lng: number }>;
+  selectedCodes: {
+    dep?: string;
+    prov?: string;
+    dist?: string;
+  };
+  fillColor: string;
+  lineColor: string;
+  fillOpacity: number;
+  highlightOpacity?: number;
+};
+
+export const MapHierarchyLayers = ({
+  departamentos,
+  provincias,
+  distritos,
+  level,
+  points = [],
+  selectedCodes,
+  fillColor,
+  lineColor,
+  fillOpacity,
+  highlightOpacity = 0.5,
+}: MapHierarchyLayersProps) => {
+  const showDepartamentos = level === "departamento";
+  const showProvincias = level === "provincia";
+  const showDistritos = level === "distrito";
+
+  const provinciaFilter = React.useMemo(() => {
+    if (!selectedCodes.dep) return ["==", ["get", "CODDEP"], ""] as any;
+    return ["==", ["get", "CODDEP"], selectedCodes.dep] as any;
+  }, [selectedCodes.dep]);
+
+  const distritoFilter = React.useMemo(() => {
+    if (!selectedCodes.dep || !selectedCodes.prov) {
+      return ["==", ["get", "CODDEP"], ""] as any;
+    }
+    return [
+      "all",
+      ["==", ["get", "CODDEP"], selectedCodes.dep],
+      ["==", ["get", "CODPROV"], selectedCodes.prov],
+    ] as any;
+  }, [selectedCodes.dep, selectedCodes.prov]);
+
+  const highlightCodes = React.useMemo(() => {
+    const deptCodes = new Set<string>();
+    const provPairs = new Map<string, { dep: string; prov: string }>();
+    const distPairs = new Map<string, { dep: string; prov: string; dist: string }>();
+
+    if (points.length === 0) {
+      return { deptCodes: [], provPairs: [], distPairs: [] };
+    }
+
+    if (departamentos) {
+      for (const point of points) {
+        const match = findFeatureByPoint(departamentos, point);
+        const dep = match?.properties?.CODDEP ? String(match.properties.CODDEP) : null;
+        if (dep) deptCodes.add(dep);
+      }
+    }
+
+    if (provincias) {
+      for (const point of points) {
+        const match = findFeatureByPoint(provincias, point);
+        const dep = match?.properties?.CODDEP ? String(match.properties.CODDEP) : null;
+        const prov = match?.properties?.CODPROV ? String(match.properties.CODPROV) : null;
+        if (dep && prov) {
+          provPairs.set(`${dep}-${prov}`, { dep, prov });
+        }
+      }
+    }
+
+    if (distritos) {
+      for (const point of points) {
+        const match = findFeatureByPoint(distritos, point);
+        const dep = match?.properties?.CODDEP ? String(match.properties.CODDEP) : null;
+        const prov = match?.properties?.CODPROV ? String(match.properties.CODPROV) : null;
+        const dist = match?.properties?.UBIGEO ? String(match.properties.UBIGEO) : null;
+        if (dep && prov && dist) {
+          distPairs.set(`${dep}-${prov}-${dist}`, { dep, prov, dist });
+        }
+      }
+    }
+
+    return {
+      deptCodes: Array.from(deptCodes),
+      provPairs: Array.from(provPairs.values()),
+      distPairs: Array.from(distPairs.values()),
+    };
+  }, [departamentos, distritos, points, provincias]);
+
+  const departamentoHighlightFilter = React.useMemo(() => {
+    if (highlightCodes.deptCodes.length === 0) return ["==", ["get", "CODDEP"], ""] as any;
+    if (selectedCodes.dep) {
+      return highlightCodes.deptCodes.includes(selectedCodes.dep)
+        ? (["==", ["get", "CODDEP"], selectedCodes.dep] as any)
+        : (["==", ["get", "CODDEP"], ""] as any);
+    }
+    return ["in", ["get", "CODDEP"], ["literal", highlightCodes.deptCodes]] as any;
+  }, [highlightCodes.deptCodes, selectedCodes.dep]);
+
+  const provinciaHighlightFilter = React.useMemo(() => {
+    if (!selectedCodes.dep) return ["==", ["get", "CODDEP"], ""] as any;
+    if (highlightCodes.provPairs.length === 0) return ["==", ["get", "CODDEP"], ""] as any;
+    const provCodes = highlightCodes.provPairs
+      .filter((item) => item.dep === selectedCodes.dep)
+      .map((item) => item.prov);
+    if (provCodes.length === 0) return ["==", ["get", "CODDEP"], ""] as any;
+    return [
+      "all",
+      ["==", ["get", "CODDEP"], selectedCodes.dep],
+      ["in", ["get", "CODPROV"], ["literal", provCodes]],
+    ] as any;
+  }, [highlightCodes.provPairs, selectedCodes.dep]);
+
+  const distritoHighlightFilter = React.useMemo(() => {
+    if (!selectedCodes.dep || !selectedCodes.prov) return ["==", ["get", "CODDEP"], ""] as any;
+    if (highlightCodes.distPairs.length === 0) return ["==", ["get", "CODDEP"], ""] as any;
+    const distCodes = highlightCodes.distPairs
+      .filter((item) => item.dep === selectedCodes.dep && item.prov === selectedCodes.prov)
+      .map((item) => item.dist);
+    if (distCodes.length === 0) return ["==", ["get", "CODDEP"], ""] as any;
+    return [
+      "all",
+      ["==", ["get", "CODDEP"], selectedCodes.dep],
+      ["==", ["get", "CODPROV"], selectedCodes.prov],
+      ["in", ["get", "UBIGEO"], ["literal", distCodes]],
+    ] as any;
+  }, [highlightCodes.distPairs, selectedCodes.dep, selectedCodes.prov]);
+
+  return (
+    <>
+      {departamentos ? (
+        <Source id="peru-departamentos" type="geojson" data={departamentos as unknown as any}>
+          <Layer
+            id="peru-departamentos-fill"
+            type="fill"
+            layout={{ visibility: showDepartamentos ? "visible" : "none" }}
+            filter={
+              selectedCodes.dep
+                ? (["==", ["get", "CODDEP"], selectedCodes.dep] as any)
+                : (["all"] as any)
+            }
+            paint={{
+              "fill-color": fillColor,
+              "fill-opacity": fillOpacity,
+            }}
+          />
+          <Layer
+            id="peru-departamentos-highlight"
+            type="fill"
+            layout={{ visibility: showDepartamentos ? "visible" : "none" }}
+            filter={departamentoHighlightFilter}
+            paint={{
+              "fill-color": "#ef4444",
+              "fill-opacity": highlightOpacity,
+            }}
+          />
+          <Layer
+            id="peru-departamentos-line"
+            type="line"
+            layout={{ visibility: showDepartamentos ? "visible" : "none" }}
+            filter={
+              selectedCodes.dep
+                ? (["==", ["get", "CODDEP"], selectedCodes.dep] as any)
+                : showDepartamentos
+                  ? (["all"] as any)
+                  : (["==", ["get", "CODDEP"], ""] as any)
+            }
+            paint={{
+              "line-color": lineColor,
+              "line-width": 2,
+              "line-opacity": 1,
+            }}
+          />
+          {selectedCodes.dep ? (
+            <Layer
+              id="peru-departamentos-selected"
+              type="line"
+              layout={{ visibility: showDepartamentos ? "visible" : "none" }}
+              filter={["==", ["get", "CODDEP"], selectedCodes.dep] as any}
+              paint={{
+                "line-color": lineColor,
+                "line-width": 2.8,
+                "line-opacity": 1,
+              }}
+            />
+          ) : null}
+        </Source>
+      ) : null}
+
+      {provincias ? (
+        <Source id="peru-provincias" type="geojson" data={provincias as unknown as any}>
+          <Layer
+            id="peru-provincias-fill"
+            type="fill"
+            layout={{ visibility: level === "provincia" ? "visible" : "none" }}
+            filter={provinciaFilter}
+            paint={{
+              "fill-color": "rgba(16,185,129,0.18)",
+              "fill-opacity": fillOpacity,
+            }}
+          />
+          <Layer
+            id="peru-provincias-highlight"
+            type="fill"
+            layout={{ visibility: level === "provincia" ? "visible" : "none" }}
+            filter={provinciaHighlightFilter}
+            paint={{
+              "fill-color": "#ef4444",
+              "fill-opacity": highlightOpacity,
+            }}
+          />
+          <Layer
+            id="peru-provincias-line"
+            type="line"
+            layout={{ visibility: showProvincias ? "visible" : "none" }}
+            filter={
+              selectedCodes.prov
+                ? ([
+                    "all",
+                    ["==", ["get", "CODDEP"], selectedCodes.dep ?? ""],
+                    ["==", ["get", "CODPROV"], selectedCodes.prov],
+                  ] as any)
+                : provinciaFilter
+            }
+            paint={{
+              "line-color": lineColor,
+              "line-width": 1.4,
+              "line-opacity": 1,
+            }}
+          />
+          {selectedCodes.prov ? (
+            <Layer
+              id="peru-provincias-selected"
+              type="line"
+              layout={{ visibility: level === "provincia" ? "visible" : "none" }}
+              filter={[
+                "all",
+                ["==", ["get", "CODDEP"], selectedCodes.dep ?? ""],
+                ["==", ["get", "CODPROV"], selectedCodes.prov],
+              ] as any}
+              paint={{
+                "line-color": lineColor,
+                "line-width": 2.4,
+                "line-opacity": 1,
+              }}
+            />
+          ) : null}
+        </Source>
+      ) : null}
+
+      {distritos ? (
+        <Source id="peru-distritos" type="geojson" data={distritos as unknown as any}>
+          <Layer
+            id="peru-distritos-fill"
+            type="fill"
+            layout={{ visibility: showDistritos ? "visible" : "none" }}
+            filter={
+              selectedCodes.dist
+                ? (["==", ["get", "UBIGEO"], selectedCodes.dist] as any)
+                : distritoFilter
+            }
+            paint={{
+              "fill-color": "rgba(248,113,113,0.22)",
+              "fill-opacity": fillOpacity,
+            }}
+          />
+          <Layer
+            id="peru-distritos-highlight"
+            type="fill"
+            layout={{ visibility: showDistritos ? "visible" : "none" }}
+            filter={distritoHighlightFilter}
+            paint={{
+              "fill-color": "#ef4444",
+              "fill-opacity": highlightOpacity,
+            }}
+          />
+          <Layer
+            id="peru-distritos-line"
+            type="line"
+            layout={{ visibility: showDistritos ? "visible" : "none" }}
+            filter={
+              selectedCodes.dist
+                ? (["==", ["get", "UBIGEO"], selectedCodes.dist] as any)
+                : distritoFilter
+            }
+            paint={{
+              "line-color": lineColor,
+              "line-width": 1.2,
+              "line-opacity": 1,
+            }}
+          />
+          {selectedCodes.dist ? (
+            <Layer
+              id="peru-distritos-selected"
+              type="line"
+              layout={{ visibility: showDistritos ? "visible" : "none" }}
+              filter={["==", ["get", "UBIGEO"], selectedCodes.dist] as any}
+              paint={{
+                "line-color": lineColor,
+                "line-width": 2.4,
+                "line-opacity": 1,
+              }}
+            />
+          ) : null}
+        </Source>
+      ) : null}
+    </>
+  );
+};

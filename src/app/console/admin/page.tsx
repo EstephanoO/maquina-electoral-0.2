@@ -2,13 +2,15 @@
 
 import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { tenants, campaigns } from "@/db/constants";
+import { campaigns } from "@/db/constants";
 import { RoleGate } from "@/modules/shared/RoleGate";
+import { ClientDashboardConfigCard } from "@/modules/console/ClientDashboardConfigCard";
 
 export default function AdminPage() {
   return (
     <RoleGate action="admin" subject="admin">
       <div className="space-y-6">
+        <ClientDashboardConfigCard />
         <Card className="panel fade-rise card-hover p-6 stagger-1">
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Configuracion

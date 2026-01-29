@@ -17,12 +17,10 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { users } from "@/db/constants";
 import { useCampaignsStore } from "@/modules/campaigns/store";
-import { useAppStore } from "@/stores/app.store";
 import { useSessionStore } from "@/stores/session.store";
 import { EmptyState } from "@/modules/shared/EmptyState";
 import { RoleGate } from "@/modules/shared/RoleGate";
 import { MoreHorizontal } from "lucide-react";
-import { toast } from "sonner";
 
 const fallbackProfile = {
   image: "/2guillermo.jpg",
@@ -42,15 +40,12 @@ export default function CampaignsPage() {
   const removeCampaign = useCampaignsStore((state) => state.removeCampaign);
   const updateCampaign = useCampaignsStore((state) => state.updateCampaign);
   const updateCampaignProfile = useCampaignsStore((state) => state.updateCampaignProfile);
-  const downloadUrl = useAppStore((state) => state.downloadUrl);
-  const setDownloadUrl = useAppStore((state) => state.setDownloadUrl);
   const activeCampaignId = useSessionStore((state) => state.activeCampaignId);
   const currentUserId = useSessionStore((state) => state.currentUserId);
   const role = useSessionStore((state) => state.currentRole);
   const currentUser = users.find((user) => user.id === currentUserId) ?? users[0];
   const [editCampaignId, setEditCampaignId] = React.useState<string | null>(null);
   const [deleteCampaignId, setDeleteCampaignId] = React.useState<string | null>(null);
-  const [appUrlDraft, setAppUrlDraft] = React.useState(downloadUrl);
   const [editForm, setEditForm] = React.useState({
     name: "",
     region: "",
@@ -82,40 +77,11 @@ export default function CampaignsPage() {
   return (
     <RoleGate action="manage" subject="campaign">
       <div className="space-y-6">
-        <Card className="panel fade-rise card-hover p-6 stagger-1">
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <label
-                htmlFor="app-download-url"
-                className="text-xs font-semibold uppercase tracking-wide text-muted-foreground"
-              >
-                App descargable
-              </label>
-              <div className="flex flex-wrap items-center gap-2">
-                <Input
-                  id="app-download-url"
-                  value={appUrlDraft}
-                  onChange={(event) => setAppUrlDraft(event.target.value)}
-                  placeholder="https://.../goberna-territorio.apk"
-                />
-                <Button
-                  onClick={() => {
-                    setDownloadUrl(appUrlDraft.trim());
-                    toast.success("Link actualizado");
-                  }}
-                >
-                  Guardar
-                </Button>
-              </div>
-            </div>
-            <Input
-              placeholder="Buscar por nombre o region"
-              value={searchQuery}
-              onChange={(event) => searchCampaigns(event.target.value)}
-            />
-          </div>
-        </Card>
-
+        <Input
+          placeholder="Buscar por nombre o region"
+          value={searchQuery}
+          onChange={(event) => searchCampaigns(event.target.value)}
+        />
         {filteredCampaigns.length === 0 ? (
             <EmptyState
               title="Sin clientes"
@@ -315,7 +281,9 @@ export default function CampaignsPage() {
                                 goal: editForm.goal,
                                 image: editForm.image,
                               });
-                              toast.success("Cliente actualizado");
+                               if (typeof window !== "undefined") {
+                                 window.alert("Cliente actualizado");
+                               }
                               setEditCampaignId(null);
                             }}
                           >

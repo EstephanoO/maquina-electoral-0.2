@@ -43,7 +43,7 @@ export default async function DashboardTemplatePage({ params }: DashboardPagePro
       ) : (
         <div className="space-y-6">
           <ClientHeader activeId={client} activeTemplate={resolvedTemplate} />
-          <DashboardCatalog />
+          <DashboardCatalog client={client} />
           <KpiGrid />
           <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
             <SummaryCard />

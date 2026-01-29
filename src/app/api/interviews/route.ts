@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { and, eq, gte, isNotNull, lte } from "drizzle-orm";
+import { and, eq, gte, isNotNull, isNull, lte, or } from "drizzle-orm";
 import { db } from "@/db/connection";
 import { events, territory } from "@/db/schema";
 
@@ -211,6 +211,7 @@ export async function GET(request: Request) {
   const candidateParam = url.searchParams.get("candidate");
   const clientParam = url.searchParams.get("client");
   const eventIdParam = url.searchParams.get("eventId");
+  const includeUnassigned = url.searchParams.get("includeUnassigned") === "1";
   const startDateParam = url.searchParams.get("startDate");
   const endDateParam = url.searchParams.get("endDate");
   if (clientParam && !clientToCandidate[clientParam]) {
@@ -223,7 +224,17 @@ export async function GET(request: Request) {
     conditions.push(eq(territory.candidate, resolvedCandidate));
   }
   if (eventIdParam) {
-    conditions.push(eq(territory.eventId, eventIdParam));
+    if (includeUnassigned) {
+      const eventCondition = or(
+        eq(territory.eventId, eventIdParam),
+        isNull(territory.eventId),
+      );
+      if (eventCondition) {
+        conditions.push(eventCondition);
+      }
+    } else {
+      conditions.push(eq(territory.eventId, eventIdParam));
+    }
   }
   if (startDateParam) {
     conditions.push(gte(territory.createdAt, new Date(startDateParam)));

@@ -3,7 +3,7 @@
 import * as React from "react";
 import dynamic from "next/dynamic";
 import type { MapRef } from "@vis.gl/react-maplibre";
-import type { StyleSpecification } from "maplibre-gl";
+import type { MapLayerMouseEvent, StyleSpecification } from "maplibre-gl";
 import { mapStyleDark, mapStyleLight, defaultMapView } from "@/maps/mapConfig";
 import { useTheme } from "@/theme/ThemeProvider";
 import { cn } from "@/lib/utils";
@@ -48,8 +48,11 @@ type MapPanelProps = {
   initialViewState?: { longitude: number; latitude: number; zoom: number };
   maxBounds?: [[number, number], [number, number]];
   onMapLoad?: () => void;
+  onMapClick?: (event: MapLayerMouseEvent) => void;
+  interactiveLayerIds?: string[];
   mapRef?: React.Ref<MapRef | null>;
   children?: React.ReactNode;
+  overlay?: React.ReactNode;
   getPointColor?: (point: { lat: number; lng: number; candidate?: string | null }) => string;
   enablePointTooltip?: boolean;
   renderPointTooltip?: (point: MapPoint) => React.ReactNode;
@@ -65,8 +68,11 @@ export const MapPanel = ({
   initialViewState,
   maxBounds,
   onMapLoad,
+  onMapClick,
+  interactiveLayerIds,
   mapRef,
   children,
+  overlay,
   getPointColor,
   enablePointTooltip = false,
   renderPointTooltip,
@@ -90,6 +96,8 @@ export const MapPanel = ({
         mapStyle={resolvedStyle}
         maxBounds={maxBounds}
         onLoad={onMapLoad}
+        onClick={onMapClick}
+        interactiveLayerIds={interactiveLayerIds}
         ref={mapRef}
       >
         {children}
@@ -126,6 +134,7 @@ export const MapPanel = ({
           </MapPopup>
         ) : null}
       </MaplibreMap>
+      {overlay ? <div className="absolute bottom-4 right-4 z-10">{overlay}</div> : null}
       {showStatus ? (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-background/70 text-xs font-semibold text-foreground">
           {statusLabel ??

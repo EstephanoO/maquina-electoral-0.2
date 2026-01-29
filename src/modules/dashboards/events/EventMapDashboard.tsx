@@ -36,6 +36,7 @@ type EventMapDashboardProps = {
   eventSubtitle?: string;
   candidateLabels: string[];
   dataUrl?: string;
+  campaignId?: string | null;
   candidateProfile?: {
     name: string;
     party: string;
@@ -53,12 +54,16 @@ export const EventMapDashboard = ({
   eventSubtitle = "Actualizacion en tiempo real",
   candidateLabels,
   dataUrl = "/api/interviews",
+  campaignId = null,
   candidateProfile,
   dataGoal,
   layoutVariant = "default",
   hideMapLegend = false,
 }: EventMapDashboardProps) => {
   const isCompact = layoutVariant === "compact";
+  const [focusPoint, setFocusPoint] = React.useState<{ lat: number; lng: number } | null>(
+    null,
+  );
   // Hooks para manejo de datos y estado
   const {
     data,
@@ -71,12 +76,14 @@ export const EventMapDashboard = ({
     setResetMapView,
   } = useEventData({ dataUrl });
 
-  const { handleEdit, handleDelete, createFocusPointHandler } = useEventActions(
-    {
-      dataUrl,
-      mutate,
+  const { handleEdit, handleDelete, createFocusPointHandler } = useEventActions({
+    dataUrl,
+    mutate,
+    onFocusRecord: (record) => {
+      if (record.latitude === null || record.longitude === null) return;
+      setFocusPoint({ lat: record.latitude, lng: record.longitude });
     },
-  );
+  });
 
   const { hiddenCandidates, toggleCandidateVisibility, filteredPoints } =
     useCandidateVisibility();
@@ -258,6 +265,9 @@ export const EventMapDashboard = ({
             setResetMapView={setResetMapView}
             withLocation={withLocation}
             showLegend={!hideMapLegend}
+            focusPoint={focusPoint}
+            onClearFocusPoint={() => setFocusPoint(null)}
+            campaignId={campaignId}
           />
 
           {/* Sidebar */}

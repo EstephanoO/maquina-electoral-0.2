@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { PeruMapPanel } from "@/modules/maps/PeruMapPanel";
 import type { MapRef } from "@vis.gl/react-maplibre";
 import type { MapPoint } from "../utils/dataUtils";
+import useSWR from "swr";
 
 interface MapSectionProps {
   points: MapPoint[];
@@ -14,6 +15,9 @@ interface MapSectionProps {
   setResetMapView: React.Dispatch<React.SetStateAction<(() => void) | null>>;
   withLocation: number;
   showLegend?: boolean;
+  focusPoint?: { lat: number; lng: number } | null;
+  onClearFocusPoint?: () => void;
+  campaignId?: string | null;
 }
 
 export const MapSection: React.FC<MapSectionProps> = ({
@@ -25,6 +29,9 @@ export const MapSection: React.FC<MapSectionProps> = ({
   setResetMapView,
   withLocation,
   showLegend = true,
+  focusPoint,
+  onClearFocusPoint,
+  campaignId,
 }) => {
   const [showStreetBase, setShowStreetBase] = React.useState(true);
   const getPointColor = React.useCallback((point: MapPoint) => {
@@ -33,6 +40,17 @@ export const MapSection: React.FC<MapSectionProps> = ({
     if (point.candidate === candidateLabels[2]) return "#f97316";
     return "#64748b";
   }, [candidateLabels]);
+
+  const geojsonKey = campaignId ? `/api/geojson?campaignId=${campaignId}` : null;
+  const geojsonFetcher = React.useCallback(async (url: string) => {
+    const response = await fetch(url, { cache: "no-store" });
+    if (!response.ok) throw new Error("geojson-failed");
+    return response.json() as Promise<{ geojson: unknown }>;
+  }, []);
+
+  const { data: geojsonData } = useSWR(geojsonKey, geojsonFetcher, {
+    revalidateOnFocus: false,
+  });
 
   return (
     <div className="relative h-[70vh] min-h-[520px] rounded-2xl border border-border/60 bg-card/70 shadow-[0_20px_60px_rgba(15,23,42,0.12)]">
@@ -101,6 +119,9 @@ export const MapSection: React.FC<MapSectionProps> = ({
         useStreetBase={showStreetBase}
         restrictToPeru
         enablePointTooltip
+        focusPoint={focusPoint}
+        onClearFocusPoint={onClearFocusPoint}
+        clientGeojson={geojsonData?.geojson ? (geojsonData.geojson as any) : null}
         renderPointTooltip={(point) => (
           <div className="space-y-2 rounded-xl bg-slate-950/90 px-3 py-2 text-xs text-slate-100 shadow-lg">
             <div className="space-y-1">

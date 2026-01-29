@@ -1,4 +1,4 @@
-import { redirect } from "next/navigation";
+import { DashboardCatalog } from "@/modules/dashboards/DashboardCatalog";
 
 type DashboardPageProps = {
   params: Promise<{ client: string }>;
@@ -6,5 +6,8 @@ type DashboardPageProps = {
 
 export default async function DashboardClientPage({ params }: DashboardPageProps) {
   const { client } = await params;
-  redirect(`/dashboard/${client}/tierra`);
+
+  return (
+    <DashboardCatalog client={client} />
+  );
 }

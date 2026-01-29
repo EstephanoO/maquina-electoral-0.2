@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { users } from "@/db/constants";
 import { useSessionStore } from "@/stores/session.store";
 import { LoadingState } from "@/modules/shared/LoadingState";
@@ -16,12 +16,20 @@ const candidateRoutes: Record<string, string> = {
   "cand-guillermo": "guillermo",
 };
 
+const loginTargets: Record<string, string> = {
+  guillermo: "user-guillermo",
+  rocio: "user-rocio",
+  giovanna: "user-giovanna",
+  admin: "user-super",
+};
+
 export default function SessionSelectPage() {
   const router = useRouter();
+  const [loginValue, setLoginValue] = React.useState("");
+  const [loginError, setLoginError] = React.useState<string | null>(null);
   const hasHydrated = useSessionStore((state) => state._hasHydrated);
   const currentUserId = useSessionStore((state) => state.currentUserId);
   const currentRole = useSessionStore((state) => state.currentRole);
-  const activeCampaignId = useSessionStore((state) => state.activeCampaignId);
   const setUser = useSessionStore((state) => state.setUser);
 
   const activeUser = users.find((user) => user.id === currentUserId) ?? users[0];
@@ -29,6 +37,32 @@ export default function SessionSelectPage() {
   if (!hasHydrated) {
     return <LoadingState title="Cargando sesion" />;
   }
+
+  const handleLogin = (event?: React.FormEvent<HTMLFormElement>) => {
+    event?.preventDefault();
+    const normalizedValue = loginValue.trim().toLowerCase();
+    const targetUserId = loginTargets[normalizedValue];
+    if (!targetUserId) {
+      setLoginError("Usuario no valido. Usa guillermo, rocio, giovanna o admin.");
+      return;
+    }
+
+    const nextUser = users.find((user) => user.id === targetUserId) ?? users[0];
+    setUser(nextUser.id);
+    setLoginError(null);
+
+    if (nextUser.role === "SUPER_ADMIN") {
+      router.push("/console/campaigns");
+      return;
+    }
+    if (nextUser.role === "CONSULTOR") {
+      router.push("/console");
+      return;
+    }
+    const assignedCampaignId = nextUser.assignedCampaignIds[0] ?? "cand-guillermo";
+    const candidateSlug = candidateRoutes[assignedCampaignId] ?? "guillermo";
+    router.push(`/dashboard/${candidateSlug}`);
+  };
 
   return (
     <div className="auth-shell flex min-h-screen items-center justify-center px-6">
@@ -47,52 +81,45 @@ export default function SessionSelectPage() {
           </Badge>
         </div>
         <p className="mt-4 text-sm text-muted-foreground">
-          Selecciona el perfil para acceder a la vista correspondiente.
+          Escribe el usuario para acceder a la vista correspondiente.
         </p>
-        <div className="mt-6 grid gap-4 md:grid-cols-1">
+        <form className="mt-6 grid gap-4 md:grid-cols-1" onSubmit={handleLogin}>
           <div className="space-y-2">
             <label
               htmlFor="session-user"
               className="text-xs font-semibold uppercase tracking-wide text-muted-foreground"
             >
-              Usuario / Perfil
+              Usuario
             </label>
-            <Select value={currentUserId} onValueChange={setUser}>
-              <SelectTrigger id="session-user" className="h-11">
-                <SelectValue placeholder="Seleccionar" />
-              </SelectTrigger>
-              <SelectContent>
-                {users.map((user) => (
-                  <SelectItem key={user.id} value={user.id}>
-                    {user.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Input
+              id="session-user"
+              className="h-11"
+              value={loginValue}
+              onChange={(event) => {
+                setLoginValue(event.target.value);
+                if (loginError) {
+                  setLoginError(null);
+                }
+              }}
+              placeholder="Ingresa tu nombre/usuario"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              aria-invalid={Boolean(loginError)}
+            />
+            {loginError ? (
+              <p className="text-xs font-semibold text-destructive">{loginError}</p>
+            ) : null}
           </div>
-        </div>
-        <div className="mt-6 flex flex-wrap items-center justify-between gap-4">
-          <p className="text-sm text-muted-foreground">
-            Sesion activa: {activeUser.name} · {currentRole}
-          </p>
-          <Button
-            className="button-glow"
-            onClick={() => {
-              if (currentRole === "SUPER_ADMIN") {
-                router.push("/console/admin");
-                return;
-              }
-              if (currentRole === "CONSULTOR") {
-                router.push("/console");
-                return;
-              }
-              const candidateSlug = candidateRoutes[activeCampaignId] ?? "guillermo";
-              router.push(`/dashboard/${candidateSlug}`);
-            }}
-          >
-            Entrar
-          </Button>
-        </div>
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <p className="text-sm text-muted-foreground">
+              Sesion activa: {activeUser.name} · {currentRole}
+            </p>
+            <Button className="button-glow" type="submit">
+              Entrar
+            </Button>
+          </div>
+        </form>
       </Card>
     </div>
   );
