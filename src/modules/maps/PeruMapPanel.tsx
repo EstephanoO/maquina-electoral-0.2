@@ -4,14 +4,29 @@ import * as React from "react";
 import type { MapLayerMouseEvent } from "maplibre-gl";
 import type { MapRef } from "@vis.gl/react-maplibre";
 import { MapPanel } from "@/modules/maps/MapPanel";
-import { peruMapStyle, defaultMapView, mapStyleDark, mapStyleLight } from "@/maps/mapConfig";
+import {
+  peruMapStyle,
+  defaultMapView,
+  mapStyleDark,
+  mapStyleLight,
+} from "@/maps/mapConfig";
 import { useTheme } from "@/theme/ThemeProvider";
-import { getGeoIndex, getGeoJson, getGeoUrls } from "@/modules/maps/hierarchy/geoIndex";
+import {
+  getGeoIndex,
+  getGeoJson,
+  getGeoUrls,
+} from "@/modules/maps/hierarchy/geoIndex";
 import { MapHierarchyLayers } from "@/modules/maps/hierarchy/MapHierarchyLayers";
 import { MapHierarchyControls } from "@/modules/maps/hierarchy/MapHierarchyControls";
 import { useMapHierarchy } from "@/modules/maps/hierarchy/useMapHierarchy";
-import type { GeoFeatureCollection, GeoLevel } from "@/modules/maps/hierarchy/types";
-import { findFeatureByPoint } from "@/modules/maps/hierarchy/geoSpatial";
+import type {
+  GeoFeatureCollection,
+  GeoLevel,
+} from "@/modules/maps/hierarchy/types";
+import {
+  findFeatureByPoint,
+  isPointInGeometry,
+} from "@/modules/maps/hierarchy/geoSpatial";
 import { Source, Layer } from "@vis.gl/react-maplibre";
 
 type PeruMapPoint = {
@@ -34,7 +49,11 @@ type PeruMapPanelProps = {
   statusLabel?: string;
   mapRef?: React.RefObject<MapRef | null>;
   onResetViewReady?: (resetView: () => void) => void;
-  getPointColor?: (point: { lat: number; lng: number; candidate?: string | null }) => string;
+  getPointColor?: (point: {
+    lat: number;
+    lng: number;
+    candidate?: string | null;
+  }) => string;
   enablePointTooltip?: boolean;
   renderPointTooltip?: (point: PeruMapPoint) => React.ReactNode;
   useStreetBase?: boolean;
@@ -59,6 +78,18 @@ type PeruMapPanelProps = {
     distrito?: GeoFeatureCollection | null;
   } | null;
   onHierarchyLevelChange?: (level: GeoLevel) => void;
+  onHierarchySelectionChange?: (selection: MapHierarchySelection) => void;
+};
+
+export type MapHierarchySelection = {
+  level: GeoLevel;
+  depCode?: string;
+  provCode?: string;
+  distCode?: string;
+  depName?: string;
+  provName?: string;
+  distName?: string;
+  pointCount?: number;
 };
 
 export const PeruMapPanel = ({
@@ -82,16 +113,24 @@ export const PeruMapPanel = ({
   clientGeojsonMeta = null,
   clientGeojsonLayers = null,
   onHierarchyLevelChange,
+  onHierarchySelectionChange,
 }: PeruMapPanelProps) => {
   const { mode } = useTheme();
-  const { level, selectedCodes, breadcrumb, canGoBack, actions } = useMapHierarchy();
+  const { level, selectedCodes, breadcrumb, canGoBack, actions } =
+    useMapHierarchy();
   const localMapRef = React.useRef<MapRef | null>(null);
   const resolvedRef = mapRef ?? localMapRef;
   const appliedClientBoundsKeyRef = React.useRef<string | null>(null);
-  const [departamentos, setDepartamentos] = React.useState<GeoFeatureCollection | null>(null);
-  const [provincias, setProvincias] = React.useState<GeoFeatureCollection | null>(null);
-  const [distritos, setDistritos] = React.useState<GeoFeatureCollection | null>(null);
-  const [bounds, setBounds] = React.useState<[number, number, number, number] | null>(null);
+  const [departamentos, setDepartamentos] =
+    React.useState<GeoFeatureCollection | null>(null);
+  const [provincias, setProvincias] =
+    React.useState<GeoFeatureCollection | null>(null);
+  const [distritos, setDistritos] = React.useState<GeoFeatureCollection | null>(
+    null,
+  );
+  const [bounds, setBounds] = React.useState<
+    [number, number, number, number] | null
+  >(null);
   const [mapReady, setMapReady] = React.useState(false);
   const [hoveredCodes, setHoveredCodes] = React.useState<{
     dep?: string;
@@ -117,7 +156,8 @@ export const PeruMapPanel = ({
 
   const geoUrls = React.useMemo(() => getGeoUrls(), []);
 
-  const fillColor = mode === "dark" ? "rgba(148,163,184,0.22)" : "rgba(15,23,42,0.12)";
+  const fillColor =
+    mode === "dark" ? "rgba(148,163,184,0.22)" : "rgba(15,23,42,0.12)";
   const lineColor = "rgba(24,24,27,0.68)";
   const fillOpacity = useStreetBase ? 0 : mode === "dark" ? 0.24 : 0.2;
   const highlightFillColor = "rgba(239,68,68,0.35)";
@@ -129,7 +169,7 @@ export const PeruMapPanel = ({
     : peruMapStyle;
   const maxBounds = React.useMemo(() => {
     if (!restrictToPeru || !bounds) return undefined;
-    const padding = 2.2;
+    const padding = 7.5;
     return [
       [bounds[0] - padding, bounds[1] - padding],
       [bounds[2] + padding, bounds[3] + padding],
@@ -214,29 +254,39 @@ export const PeruMapPanel = ({
     provincias,
   ]);
 
-  const allowedCodes = React.useMemo(() => {
+  const allowedGeoCodes = React.useMemo(() => {
     const metaCodes = clientGeojsonMeta?.codes;
     if (!clientGeojsonLayers && !metaCodes) return null;
     const layers = clientGeojsonLayers ?? {};
     const deps = layers.departamento ? new Set<string>() : null;
-    const provs = layers.provincia ? new Map<string, { dep: string; prov: string }>() : null;
+    const provs = layers.provincia
+      ? new Map<string, { dep: string; prov: string }>()
+      : null;
     const dists = layers.distrito ? new Set<string>() : null;
     const depFeatures = layers.departamento?.features ?? [];
     for (const feature of depFeatures) {
-      const dep = feature.properties?.CODDEP ? String(feature.properties.CODDEP) : null;
+      const dep = feature.properties?.CODDEP
+        ? String(feature.properties.CODDEP)
+        : null;
       if (dep && deps) deps.add(dep);
     }
     const provFeatures = layers.provincia?.features ?? [];
     for (const feature of provFeatures) {
-      const dep = feature.properties?.CODDEP ? String(feature.properties.CODDEP) : null;
-      const prov = feature.properties?.CODPROV ? String(feature.properties.CODPROV) : null;
+      const dep = feature.properties?.CODDEP
+        ? String(feature.properties.CODDEP)
+        : null;
+      const prov = feature.properties?.CODPROV
+        ? String(feature.properties.CODPROV)
+        : null;
       if (dep && prov && provs) {
         provs.set(`${dep}-${prov}`, { dep, prov });
       }
     }
     const distFeatures = layers.distrito?.features ?? [];
     for (const feature of distFeatures) {
-      const dist = feature.properties?.UBIGEO ? String(feature.properties.UBIGEO) : null;
+      const dist = feature.properties?.UBIGEO
+        ? String(feature.properties.UBIGEO)
+        : null;
       if (dist && dists) dists.add(dist);
     }
     if (metaCodes?.deps && deps) {
@@ -244,7 +294,10 @@ export const PeruMapPanel = ({
     }
     if (metaCodes?.provs && provs) {
       for (const prov of metaCodes.provs) {
-        provs.set(`${prov.dep}-${prov.prov}`, { dep: prov.dep, prov: prov.prov });
+        provs.set(`${prov.dep}-${prov.prov}`, {
+          dep: prov.dep,
+          prov: prov.prov,
+        });
       }
     }
     if (metaCodes?.dists && dists) {
@@ -257,16 +310,201 @@ export const PeruMapPanel = ({
     };
   }, [clientGeojsonLayers, clientGeojsonMeta?.codes]);
 
+  const allowedPointCodes = React.useMemo(() => {
+    if (!points || points.length === 0) return null;
+    if (level === "departamento" && departamentos) {
+      const deps = new Set<string>();
+      for (const point of points) {
+        const match = findFeatureByPoint(departamentos, point);
+        const dep = match?.properties?.CODDEP
+          ? String(match.properties.CODDEP)
+          : null;
+        if (dep) deps.add(dep);
+      }
+      return { deps: Array.from(deps), provs: null, dists: null };
+    }
+    if (level === "provincia" && provincias) {
+      const provs = new Map<string, { dep: string; prov: string }>();
+      for (const point of points) {
+        const match = findFeatureByPoint(provincias, point);
+        const dep = match?.properties?.CODDEP
+          ? String(match.properties.CODDEP)
+          : null;
+        const prov = match?.properties?.CODPROV
+          ? String(match.properties.CODPROV)
+          : null;
+        if (dep && prov) {
+          provs.set(`${dep}-${prov}`, { dep, prov });
+        }
+      }
+      return { deps: null, provs: Array.from(provs.values()), dists: null };
+    }
+    if (level === "distrito" && distritos) {
+      const dists = new Set<string>();
+      for (const point of points) {
+        const match = findFeatureByPoint(distritos, point);
+        const dist = match?.properties?.UBIGEO
+          ? String(match.properties.UBIGEO)
+          : null;
+        if (dist) dists.add(dist);
+      }
+      return { deps: null, provs: null, dists: Array.from(dists) };
+    }
+    return null;
+  }, [departamentos, distritos, level, points, provincias]);
+
+  const selectionFeature = React.useMemo(() => {
+    if (level === "departamento") {
+      if (!selectedCodes.dep || !departamentos) return null;
+      return (
+        departamentos.features.find(
+          (feature) =>
+            String(feature.properties?.CODDEP ?? "") === selectedCodes.dep,
+        ) ?? null
+      );
+    }
+    if (level === "provincia") {
+      if (selectedCodes.dep && selectedCodes.prov && provincias) {
+        return (
+          provincias.features.find(
+            (feature) =>
+              String(feature.properties?.CODDEP ?? "") === selectedCodes.dep &&
+              String(feature.properties?.CODPROV ?? "") === selectedCodes.prov,
+          ) ?? null
+        );
+      }
+      if (selectedCodes.dep && departamentos) {
+        return (
+          departamentos.features.find(
+            (feature) =>
+              String(feature.properties?.CODDEP ?? "") === selectedCodes.dep,
+          ) ?? null
+        );
+      }
+      return null;
+    }
+    if (level === "distrito") {
+      if (selectedCodes.dist && distritos) {
+        return (
+          distritos.features.find(
+            (feature) =>
+              String(feature.properties?.UBIGEO ?? "") === selectedCodes.dist,
+          ) ?? null
+        );
+      }
+      if (selectedCodes.dep && selectedCodes.prov && provincias) {
+        return (
+          provincias.features.find(
+            (feature) =>
+              String(feature.properties?.CODDEP ?? "") === selectedCodes.dep &&
+              String(feature.properties?.CODPROV ?? "") === selectedCodes.prov,
+          ) ?? null
+        );
+      }
+      if (selectedCodes.dep && departamentos) {
+        return (
+          departamentos.features.find(
+            (feature) =>
+              String(feature.properties?.CODDEP ?? "") === selectedCodes.dep,
+          ) ?? null
+        );
+      }
+    }
+    return null;
+  }, [
+    departamentos,
+    distritos,
+    level,
+    provincias,
+    selectedCodes.dep,
+    selectedCodes.dist,
+    selectedCodes.prov,
+  ]);
+
+  const selectionPointCount = React.useMemo(() => {
+    if (!points || points.length === 0) return 0;
+    const hasSelection = Boolean(
+      selectedCodes.dep || selectedCodes.prov || selectedCodes.dist,
+    );
+    if (!selectionFeature?.geometry) return hasSelection ? 0 : points.length;
+    let count = 0;
+    for (const point of points) {
+      if (isPointInGeometry(selectionFeature.geometry, point)) count += 1;
+    }
+    return count;
+  }, [
+    points,
+    selectedCodes.dep,
+    selectedCodes.dist,
+    selectedCodes.prov,
+    selectionFeature,
+  ]);
+
   const activeClientLayer = React.useMemo(() => {
     if (!clientGeojsonLayers) return null;
-    if (level === "departamento") return clientGeojsonLayers.departamento ?? null;
+    if (level === "departamento")
+      return clientGeojsonLayers.departamento ?? null;
     if (level === "provincia") return clientGeojsonLayers.provincia ?? null;
     return clientGeojsonLayers.distrito ?? null;
   }, [clientGeojsonLayers, level]);
 
+  const clickablePointCodes = React.useMemo(() => {
+    if (!allowedPointCodes) return null;
+    if (!activeClientLayer || !allowedGeoCodes) return allowedPointCodes;
+    return {
+      deps: allowedPointCodes.deps
+        ? allowedPointCodes.deps.filter(
+            (code) => !allowedGeoCodes.deps?.includes(code),
+          )
+        : null,
+      provs: allowedPointCodes.provs
+        ? allowedPointCodes.provs.filter(
+            (item) =>
+              !allowedGeoCodes.provs?.some(
+                (blocked) =>
+                  blocked.dep === item.dep && blocked.prov === item.prov,
+              ),
+          )
+        : null,
+      dists: allowedPointCodes.dists
+        ? allowedPointCodes.dists.filter(
+            (code) => !allowedGeoCodes.dists?.includes(code),
+          )
+        : null,
+    };
+  }, [activeClientLayer, allowedGeoCodes, allowedPointCodes]);
+
+  const clickableCodes = React.useMemo(() => {
+    if (!clickablePointCodes && !allowedGeoCodes) return null;
+    return {
+      deps: Array.from(
+        new Set([
+          ...(allowedGeoCodes?.deps ?? []),
+          ...(clickablePointCodes?.deps ?? []),
+        ]),
+      ),
+      provs: Array.from(
+        new Map(
+          [
+            ...(allowedGeoCodes?.provs ?? []),
+            ...(clickablePointCodes?.provs ?? []),
+          ].map((item) => [`${item.dep}-${item.prov}`, item]),
+        ).values(),
+      ),
+      dists: Array.from(
+        new Set([
+          ...(allowedGeoCodes?.dists ?? []),
+          ...(clickablePointCodes?.dists ?? []),
+        ]),
+      ),
+    };
+  }, [allowedGeoCodes, clickablePointCodes]);
+
   const clientLayerFilter = React.useMemo(() => {
     if (level === "departamento") {
-      return selectedCodes.dep ? (["==", ["get", "CODDEP"], selectedCodes.dep] as any) : (null as any);
+      return selectedCodes.dep
+        ? (["==", ["get", "CODDEP"], selectedCodes.dep] as any)
+        : (null as any);
     }
     if (level === "provincia") {
       if (selectedCodes.dep && selectedCodes.prov) {
@@ -360,21 +598,77 @@ export const PeruMapPanel = ({
       { padding: 24, duration: 650 },
     );
     appliedClientBoundsKeyRef.current = clientBoundsKey;
-  }, [clientBounds, clientBoundsKey, mapReady, metaBounds, points, resolvedRef]);
+  }, [
+    clientBounds,
+    clientBoundsKey,
+    mapReady,
+    metaBounds,
+    points,
+    resolvedRef,
+  ]);
 
   React.useEffect(() => {
     if (!mapReady || !resolvedRef.current) return;
     getGeoIndex().then((payload) => {
+      if (onHierarchySelectionChange) {
+        const depCode = selectedCodes.dep;
+        const provCode = selectedCodes.prov;
+        const distCode = selectedCodes.dist;
+        const selection: MapHierarchySelection = {
+          level,
+          depCode,
+          provCode,
+          distCode,
+        };
+
+        const depId = depCode
+          ? payload.byCode.departamento[depCode]
+          : undefined;
+        const depNode = depId ? payload.nodes[depId] : undefined;
+        if (depNode) selection.depName = depNode.name;
+
+        if (depCode && provCode) {
+          const provId = payload.byCode.provincia[`${depCode}${provCode}`];
+          const provNode = provId ? payload.nodes[provId] : undefined;
+          if (provNode) selection.provName = provNode.name;
+          if (!selection.depName && provNode?.parentId) {
+            selection.depName = payload.nodes[provNode.parentId]?.name;
+          }
+        }
+
+        if (distCode) {
+          const distId = payload.byCode.distrito[distCode];
+          const distNode = distId ? payload.nodes[distId] : undefined;
+          if (distNode) selection.distName = distNode.name;
+          if (distNode?.parentId) {
+            const provNode = payload.nodes[distNode.parentId];
+            if (provNode && !selection.provName)
+              selection.provName = provNode.name;
+            if (provNode?.parentId && !selection.depName) {
+              selection.depName = payload.nodes[provNode.parentId]?.name;
+            }
+          }
+        }
+
+        selection.pointCount = selectionPointCount;
+        onHierarchySelectionChange(selection);
+      }
       let nodeId: string | undefined;
       if (level === "distrito") {
         if (selectedCodes.dist) {
           nodeId = payload.byCode.distrito[selectedCodes.dist];
         } else if (selectedCodes.prov) {
-          nodeId = payload.byCode.provincia[`${selectedCodes.dep ?? ""}${selectedCodes.prov}`];
+          nodeId =
+            payload.byCode.provincia[
+              `${selectedCodes.dep ?? ""}${selectedCodes.prov}`
+            ];
         }
       } else if (level === "provincia") {
         if (selectedCodes.prov) {
-          nodeId = payload.byCode.provincia[`${selectedCodes.dep ?? ""}${selectedCodes.prov}`];
+          nodeId =
+            payload.byCode.provincia[
+              `${selectedCodes.dep ?? ""}${selectedCodes.prov}`
+            ];
         } else if (selectedCodes.dep) {
           nodeId = payload.byCode.departamento[selectedCodes.dep];
         }
@@ -392,25 +686,88 @@ export const PeruMapPanel = ({
         { padding: 24, duration: 650 },
       );
     });
-  }, [level, mapReady, resolvedRef, selectedCodes.dep, selectedCodes.dist, selectedCodes.prov]);
+  }, [
+    level,
+    mapReady,
+    onHierarchySelectionChange,
+    resolvedRef,
+    selectedCodes.dep,
+    selectedCodes.dist,
+    selectedCodes.prov,
+    selectionPointCount,
+  ]);
+
+  React.useEffect(() => {
+    if (!mapReady) return;
+    let cancelled = false;
+    const warm = () => {
+      if (cancelled) return;
+      getGeoIndex();
+      getGeoJson(geoUrls.provincias);
+      getGeoJson(geoUrls.distritos);
+    };
+    const idle = (
+      window as typeof window & {
+        requestIdleCallback?: (
+          cb: () => void,
+          opts?: { timeout?: number },
+        ) => number;
+        cancelIdleCallback?: (id: number) => void;
+      }
+    ).requestIdleCallback;
+    if (idle) {
+      const id = idle(warm, { timeout: 2000 });
+      return () => {
+        cancelled = true;
+        (
+          window as typeof window & {
+            cancelIdleCallback?: (id: number) => void;
+          }
+        ).cancelIdleCallback?.(id);
+      };
+    }
+    const timeoutId = window.setTimeout(warm, 200);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeoutId);
+    };
+  }, [geoUrls.distritos, geoUrls.provincias, mapReady]);
 
   React.useEffect(() => {
     if (!focusPoint || !enableHierarchy) return;
     if (!departamentos) return;
-    const distMatch = distritos ? findFeatureByPoint(distritos, focusPoint) : null;
-    const provMatch = provincias ? findFeatureByPoint(provincias, focusPoint) : null;
+    const distMatch = distritos
+      ? findFeatureByPoint(distritos, focusPoint)
+      : null;
+    const provMatch = provincias
+      ? findFeatureByPoint(provincias, focusPoint)
+      : null;
     const depMatch = findFeatureByPoint(departamentos, focusPoint);
 
-    const depCode = depMatch?.properties?.CODDEP ? String(depMatch.properties.CODDEP) : null;
-    const provCode = provMatch?.properties?.CODPROV ? String(provMatch.properties.CODPROV) : null;
-    const distCode = distMatch?.properties?.UBIGEO ? String(distMatch.properties.UBIGEO) : null;
-    const allowDep = !allowedCodes?.deps || (depCode ? allowedCodes.deps.includes(depCode) : false);
+    const depCode = depMatch?.properties?.CODDEP
+      ? String(depMatch.properties.CODDEP)
+      : null;
+    const provCode = provMatch?.properties?.CODPROV
+      ? String(provMatch.properties.CODPROV)
+      : null;
+    const distCode = distMatch?.properties?.UBIGEO
+      ? String(distMatch.properties.UBIGEO)
+      : null;
+    const allowDep = depCode
+      ? Boolean(clickableCodes?.deps?.includes(depCode))
+      : false;
     const allowProv =
-      !allowedCodes?.provs ||
-      (depCode && provCode
-        ? allowedCodes.provs.some((item) => item.dep === depCode && item.prov === provCode)
-        : false);
-    const allowDist = !allowedCodes?.dists || (distCode ? allowedCodes.dists.includes(distCode) : false);
+      depCode && provCode
+        ? Boolean(
+            clickableCodes?.provs?.some(
+              (item: { dep: string; prov: string }) =>
+                item.dep === depCode && item.prov === provCode,
+            ),
+          )
+        : false;
+    const allowDist = distCode
+      ? Boolean(clickableCodes?.dists?.includes(distCode))
+      : false;
 
     if (distCode && allowDist) {
       actions.selectDistrictByCode(distCode);
@@ -423,7 +780,15 @@ export const PeruMapPanel = ({
     if (depCode && allowDep) {
       actions.selectDepartmentByCode(depCode);
     }
-  }, [actions, allowedCodes, departamentos, distritos, enableHierarchy, focusPoint, provincias]);
+  }, [
+    actions,
+    clickableCodes,
+    departamentos,
+    distritos,
+    enableHierarchy,
+    focusPoint,
+    provincias,
+  ]);
 
   React.useEffect(() => {
     if (!onResetViewReady) return;
@@ -440,13 +805,66 @@ export const PeruMapPanel = ({
     if (level !== "departamento") return;
     if (selectedCodes.dep || selectedCodes.prov || selectedCodes.dist) return;
     resetView();
-  }, [level, mapReady, resetView, selectedCodes.dep, selectedCodes.dist, selectedCodes.prov]);
+  }, [
+    level,
+    mapReady,
+    resetView,
+    selectedCodes.dep,
+    selectedCodes.dist,
+    selectedCodes.prov,
+  ]);
 
   const handleMapClick = React.useCallback(
     (event: MapLayerMouseEvent) => {
       if (!enableHierarchy) return;
       if (focusPoint) {
         onClearFocusPoint?.();
+      }
+      const pointFeature = event.features?.find(
+        (item) => item.layer.id === "peru-points",
+      );
+      if (pointFeature?.properties) {
+        const props = pointFeature.properties as Record<string, unknown>;
+        const lat =
+          typeof props.lat === "number" ? props.lat : Number(props.lat);
+        const lng =
+          typeof props.lng === "number" ? props.lng : Number(props.lng);
+        if (Number.isFinite(lat) && Number.isFinite(lng)) {
+          const point = { lat, lng };
+          if (level === "departamento" && departamentos) {
+            const match = findFeatureByPoint(departamentos, point);
+            const dep = match?.properties?.CODDEP
+              ? String(match.properties.CODDEP)
+              : "";
+            if (dep) {
+              actions.selectDepartmentByCode(dep);
+              return;
+            }
+          }
+          if (level === "provincia" && provincias) {
+            const match = findFeatureByPoint(provincias, point);
+            const dep = match?.properties?.CODDEP
+              ? String(match.properties.CODDEP)
+              : "";
+            const prov = match?.properties?.CODPROV
+              ? String(match.properties.CODPROV)
+              : "";
+            if (dep && prov) {
+              actions.selectProvinceByCodes(dep, prov);
+              return;
+            }
+          }
+          if (level === "distrito" && distritos) {
+            const match = findFeatureByPoint(distritos, point);
+            const dist = match?.properties?.UBIGEO
+              ? String(match.properties.UBIGEO)
+              : "";
+            if (dist) {
+              actions.selectDistrictByCode(dist);
+              return;
+            }
+          }
+        }
       }
       const feature = event.features?.find((item) => {
         const props = item?.properties as Record<string, unknown> | undefined;
@@ -468,32 +886,54 @@ export const PeruMapPanel = ({
         return;
       }
       if (level === "departamento") {
-        const code = String((feature.properties as Record<string, unknown>).CODDEP ?? "");
-        if (code && (!allowedCodes?.deps || allowedCodes.deps.includes(code))) {
+        const code = String(
+          (feature.properties as Record<string, unknown>).CODDEP ?? "",
+        );
+        if (code && clickableCodes?.deps?.includes(code)) {
           actions.selectDepartmentByCode(code);
         }
         return;
       }
       if (level === "provincia") {
-        const dep = String((feature.properties as Record<string, unknown>).CODDEP ?? "");
-        const prov = String((feature.properties as Record<string, unknown>).CODPROV ?? "");
+        const dep = String(
+          (feature.properties as Record<string, unknown>).CODDEP ?? "",
+        );
+        const prov = String(
+          (feature.properties as Record<string, unknown>).CODPROV ?? "",
+        );
         if (
           dep &&
           prov &&
-          (!allowedCodes?.provs || allowedCodes.provs.some((item) => item.dep === dep && item.prov === prov))
+          clickableCodes?.provs?.some(
+            (item: { dep: string; prov: string }) =>
+              item.dep === dep && item.prov === prov,
+          )
         ) {
           actions.selectProvinceByCodes(dep, prov);
         }
         return;
       }
       if (level === "distrito") {
-        const dist = String((feature.properties as Record<string, unknown>).UBIGEO ?? "");
-        if (dist && (!allowedCodes?.dists || allowedCodes.dists.includes(dist))) {
+        const dist = String(
+          (feature.properties as Record<string, unknown>).UBIGEO ?? "",
+        );
+        if (dist && clickableCodes?.dists?.includes(dist)) {
           actions.selectDistrictByCode(dist);
         }
       }
     },
-    [actions, allowedCodes, enableHierarchy, focusPoint, level, onClearFocusPoint, resetView],
+    [
+      actions,
+      clickableCodes,
+      departamentos,
+      distritos,
+      enableHierarchy,
+      focusPoint,
+      level,
+      onClearFocusPoint,
+      provincias,
+      resetView,
+    ],
   );
 
   const handleBack = React.useCallback(() => {
@@ -528,7 +968,7 @@ export const PeruMapPanel = ({
       const props = feature.properties as Record<string, unknown>;
       if (level === "departamento") {
         const dep = props.CODDEP ? String(props.CODDEP) : "";
-        if (!dep || (allowedCodes?.deps && !allowedCodes.deps.includes(dep))) {
+        if (!dep || !clickableCodes?.deps?.includes(dep)) {
           clearHover();
           return;
         }
@@ -536,9 +976,12 @@ export const PeruMapPanel = ({
       } else if (level === "provincia") {
         const dep = props.CODDEP ? String(props.CODDEP) : "";
         const prov = props.CODPROV ? String(props.CODPROV) : "";
-        const isAllowed = !allowedCodes?.provs
-          ? Boolean(dep && prov)
-          : allowedCodes.provs.some((item) => item.dep === dep && item.prov === prov);
+        const isAllowed = clickableCodes?.provs
+          ? clickableCodes.provs.some(
+              (item: { dep: string; prov: string }) =>
+                item.dep === dep && item.prov === prov,
+            )
+          : false;
         if (!isAllowed) {
           clearHover();
           return;
@@ -546,7 +989,7 @@ export const PeruMapPanel = ({
         setHoveredCodes({ dep, prov });
       } else if (level === "distrito") {
         const dist = props.UBIGEO ? String(props.UBIGEO) : "";
-        if (!dist || (allowedCodes?.dists && !allowedCodes.dists.includes(dist))) {
+        if (!dist || !clickableCodes?.dists?.includes(dist)) {
           clearHover();
           return;
         }
@@ -555,7 +998,7 @@ export const PeruMapPanel = ({
       const canvas = resolvedRef.current?.getCanvas();
       if (canvas) canvas.style.cursor = "pointer";
     },
-    [allowedCodes, clearHover, enableHierarchy, level, resolvedRef],
+    [clearHover, clickableCodes, enableHierarchy, level, resolvedRef],
   );
 
   const interactiveLayerIds = React.useMemo(() => {
@@ -596,21 +1039,24 @@ export const PeruMapPanel = ({
       renderPointsAsLayer
       pointLayerId="peru-points"
     >
-        <MapHierarchyLayers
-          departamentos={departamentos}
-          provincias={provincias}
-          distritos={distritos}
-          points={points}
-          level={level}
-          selectedCodes={selectedCodes}
-          hoverCodes={hoveredCodes}
-          fillColor={fillColor}
-          lineColor={lineColor}
-          fillOpacity={fillOpacity}
-          highlightFillColor={highlightFillColor}
-          highlightFillOpacity={highlightFillOpacity}
-          enableHighlight={!activeClientLayer}
-        />
+      <MapHierarchyLayers
+        departamentos={departamentos}
+        provincias={provincias}
+        distritos={distritos}
+        points={points}
+        level={level}
+        selectedCodes={selectedCodes}
+        hoverCodes={hoveredCodes}
+        blockedCodes={
+          activeClientLayer ? (allowedGeoCodes ?? undefined) : undefined
+        }
+        fillColor={fillColor}
+        lineColor={lineColor}
+        fillOpacity={fillOpacity}
+        highlightFillColor={highlightFillColor}
+        highlightFillOpacity={highlightFillOpacity}
+        enableHighlight
+      />
       {activeClientLayer ? (
         <Source
           id="client-geojson"
@@ -659,7 +1105,10 @@ const getGeoJsonBounds = (payload: {
 
   const walkCoordinates = (coords: unknown) => {
     if (!Array.isArray(coords)) return;
-    if (coords.length === 2 && coords.every((value) => typeof value === "number")) {
+    if (
+      coords.length === 2 &&
+      coords.every((value) => typeof value === "number")
+    ) {
       addPoint(coords as number[]);
       return;
     }

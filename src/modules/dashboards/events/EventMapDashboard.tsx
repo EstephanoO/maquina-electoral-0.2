@@ -30,6 +30,8 @@ import {
 } from "./utils/dataUtils";
 import { DashboardHeader, TotalStats } from "./components/HeaderComponents";
 import { MapSection } from "./components/MapSection";
+import datosGiovanna from "@/db/constants/datos-giovanna.json";
+import type { MapHierarchySelection } from "@/modules/maps/PeruMapPanel";
 
 type EventMapDashboardProps = {
   eventTitle: string;
@@ -37,6 +39,7 @@ type EventMapDashboardProps = {
   candidateLabels: string[];
   dataUrl?: string;
   campaignId?: string | null;
+  clientKey?: string;
   candidateProfile?: {
     name: string;
     party: string;
@@ -49,18 +52,97 @@ type EventMapDashboardProps = {
   hideMapLegend?: boolean;
 };
 
+type DataGoalRecord = {
+  departamento: string;
+  provincia: string;
+  distrito: string;
+  electores: number;
+  datos_a_recopilar: number;
+  porcentaje: number;
+};
+
+type DataGoalIndex = {
+  total: number | null;
+  byDep: Map<string, number>;
+  byProv: Map<string, number>;
+  byDist: Map<string, number>;
+};
+
+const normalizeName = (value?: string | null) => value?.trim().toUpperCase() ?? "";
+
+const buildDataGoalIndex = (
+  records: DataGoalRecord[],
+  total: number | null,
+): DataGoalIndex => {
+  const byDep = new Map<string, number>();
+  const byProv = new Map<string, number>();
+  const byDist = new Map<string, number>();
+
+  for (const record of records) {
+    const dep = normalizeName(record.departamento);
+    const prov = normalizeName(record.provincia);
+    const dist = normalizeName(record.distrito);
+    const value = Number(record.datos_a_recopilar) || 0;
+    if (dep) byDep.set(dep, (byDep.get(dep) ?? 0) + value);
+    if (dep && prov) {
+      const key = `${dep}::${prov}`;
+      byProv.set(key, (byProv.get(key) ?? 0) + value);
+    }
+    if (dep && prov && dist) {
+      const key = `${dep}::${prov}::${dist}`;
+      byDist.set(key, (byDist.get(key) ?? 0) + value);
+    }
+  }
+
+  return { total, byDep, byProv, byDist };
+};
+
+const resolveGoalForSelection = (
+  selection: MapHierarchySelection | null,
+  index: DataGoalIndex,
+) => {
+  if (!selection) return index.total;
+  const depName = normalizeName(selection.depName);
+  const provName = normalizeName(selection.provName);
+  const distName = normalizeName(selection.distName);
+
+  if (selection.level === "distrito") {
+    if (depName && provName && distName) {
+      return index.byDist.get(`${depName}::${provName}::${distName}`) ?? index.total;
+    }
+    if (depName && provName) {
+      return index.byProv.get(`${depName}::${provName}`) ?? index.total;
+    }
+    if (depName) return index.byDep.get(depName) ?? index.total;
+    return index.total;
+  }
+
+  if (selection.level === "provincia") {
+    if (depName && provName) {
+      return index.byProv.get(`${depName}::${provName}`) ?? index.total;
+    }
+    if (depName) return index.byDep.get(depName) ?? index.total;
+    return index.total;
+  }
+
+  if (depName) return index.byDep.get(depName) ?? index.total;
+  return index.total;
+};
+
 export const EventMapDashboard = ({
   eventTitle,
   eventSubtitle = "Actualizacion en tiempo real",
   candidateLabels,
   dataUrl = "/api/interviews",
   campaignId = null,
+  clientKey,
   candidateProfile,
   dataGoal,
   layoutVariant = "default",
   hideMapLegend = false,
 }: EventMapDashboardProps) => {
   const isCompact = layoutVariant === "compact";
+  const [mapSelection, setMapSelection] = React.useState<MapHierarchySelection | null>(null);
   const [focusPoint, setFocusPoint] = React.useState<{ lat: number; lng: number } | null>(
     null,
   );
@@ -116,6 +198,33 @@ export const EventMapDashboard = ({
     () => filteredPoints(points),
     [points, filteredPoints],
   );
+
+  const dataGoalIndex = React.useMemo(() => {
+    if (clientKey !== "giovanna") return null;
+    const total = typeof datosGiovanna?.resumen?.total_datos_a_recopilar === "number"
+      ? datosGiovanna.resumen.total_datos_a_recopilar
+      : null;
+    return buildDataGoalIndex(datosGiovanna.registros as DataGoalRecord[], total);
+  }, [clientKey]);
+
+  const resolvedDataGoal = React.useMemo(() => {
+    if (!dataGoalIndex) return dataGoal;
+    const goalValue = resolveGoalForSelection(mapSelection, dataGoalIndex);
+    if (!goalValue || goalValue <= 0) return dataGoal;
+    return goalValue.toLocaleString("en-US");
+  }, [dataGoal, dataGoalIndex, mapSelection]);
+
+  const selectionTotal = React.useMemo(() => {
+    if (!mapSelection) return total;
+    return typeof mapSelection.pointCount === "number" ? mapSelection.pointCount : total;
+  }, [mapSelection, total]);
+
+  const goalScopeLabel = React.useMemo(() => {
+    if (!mapSelection) return null;
+    const parts = [mapSelection.depName, mapSelection.provName, mapSelection.distName].filter(Boolean);
+    if (parts.length === 0) return null;
+    return parts.join(" · ");
+  }, [mapSelection]);
 
   // Timeline data
   const timelineData = React.useMemo(
@@ -241,7 +350,9 @@ export const EventMapDashboard = ({
           rows={rows}
           candidateLabels={candidateLabels}
           total={total}
-          dataGoal={dataGoal}
+          goalCurrent={selectionTotal}
+          goalScopeLabel={goalScopeLabel}
+          dataGoal={resolvedDataGoal}
           onEdit={handleEdit}
           onDelete={handleDelete}
           onFocusPoint={handleFocusPoint}
@@ -268,6 +379,7 @@ export const EventMapDashboard = ({
             focusPoint={focusPoint}
             onClearFocusPoint={() => setFocusPoint(null)}
             campaignId={campaignId}
+            onHierarchySelectionChange={setMapSelection}
           />
 
           {/* Sidebar */}

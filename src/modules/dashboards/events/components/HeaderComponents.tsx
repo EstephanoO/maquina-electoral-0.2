@@ -13,6 +13,8 @@ interface DashboardHeaderProps {
   rows: EventRecord[];
   candidateLabels: string[];
   total: number;
+  goalCurrent?: number | null;
+  goalScopeLabel?: string | null;
   dataGoal?: string;
   onEdit: (record: EventRecord) => void;
   onDelete: (record: EventRecord) => void;
@@ -34,6 +36,8 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   rows,
   candidateLabels,
   total,
+  goalCurrent,
+  goalScopeLabel,
   dataGoal,
   onEdit,
   onDelete,
@@ -49,8 +53,9 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   const dataGoalLabel = dataGoalValue
     ? dataGoalValue.toLocaleString("en-US")
     : dataGoal ?? "-";
-  const totalLabel = total.toLocaleString("en-US");
-  const goalProgress = dataGoalValue ? (total / dataGoalValue) * 100 : 0;
+  const currentTotal = typeof goalCurrent === "number" ? goalCurrent : total;
+  const totalLabel = currentTotal.toLocaleString("en-US");
+  const goalProgress = dataGoalValue ? (currentTotal / dataGoalValue) * 100 : 0;
   const goalProgressLabel = dataGoalValue
     ? `${Math.min(goalProgress, 100).toFixed(3)}%`
     : "-";
@@ -83,8 +88,15 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                 </div>
               </div>
               {dataGoal ? (
-                <div className="min-w-[260px] rounded-xl border border-border/60 bg-muted/20 px-5 py-4">
-                  <div className="text-xs text-muted-foreground">Objetivo de datos</div>
+                <div className="min-w-[260px] rounded-xl border border-border/60 bg-muted/20 px-5 py-4 transition-colors">
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span>Objetivo de datos</span>
+                    {goalScopeLabel ? (
+                      <span className="rounded-full border border-rose-500/30 bg-rose-500/10 px-2 py-0.5 text-[0.6rem] font-semibold uppercase tracking-[0.2em] text-rose-600">
+                        {goalScopeLabel}
+                      </span>
+                    ) : null}
+                  </div>
                   <div className="mt-3 flex items-end justify-between gap-4">
                     <p className="text-sm font-semibold text-foreground">
                       {totalLabel}/{dataGoalLabel}

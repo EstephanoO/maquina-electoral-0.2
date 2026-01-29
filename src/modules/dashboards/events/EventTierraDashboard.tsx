@@ -42,14 +42,15 @@ export const EventTierraDashboard = ({ eventId, client }: EventTierraDashboardPr
         : [];
 
   return (
-      <EventMapDashboard
-        eventTitle={event.name}
-        eventSubtitle="Actualizacion en tiempo real"
-        candidateLabels={candidateLabels}
-        campaignId={event.campaignId}
-        candidateProfile={
-          campaignProfile
-            ? {
+    <EventMapDashboard
+      eventTitle={event.name}
+      eventSubtitle="Actualizacion en tiempo real"
+      candidateLabels={candidateLabels}
+      campaignId={event.campaignId}
+      clientKey={client}
+      candidateProfile={
+        campaignProfile
+          ? {
               name: campaign?.name ?? candidateLabels[0] ?? "",
               party: campaignProfile.party,
               role: campaignProfile.role,

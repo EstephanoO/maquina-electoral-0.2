@@ -19,6 +19,11 @@ type MapHierarchyLayersProps = {
     prov?: string;
     dist?: string;
   } | null;
+  blockedCodes?: {
+    deps?: string[] | null;
+    provs?: Array<{ dep: string; prov: string }> | null;
+    dists?: string[] | null;
+  } | null;
   fillColor: string;
   lineColor: string;
   fillOpacity: number;
@@ -38,6 +43,7 @@ export const MapHierarchyLayers = ({
   points = [],
   selectedCodes,
   hoverCodes = null,
+  blockedCodes = null,
   fillColor,
   lineColor,
   fillOpacity,
@@ -77,7 +83,7 @@ export const MapHierarchyLayers = ({
       return { deptCodes: [], provPairs: [], distPairs: [] };
     }
 
-    if (departamentos) {
+    if (level === "departamento" && departamentos) {
       for (const point of points) {
         const match = findFeatureByPoint(departamentos, point);
         const dep = match?.properties?.CODDEP ? String(match.properties.CODDEP) : null;
@@ -85,7 +91,7 @@ export const MapHierarchyLayers = ({
       }
     }
 
-    if (provincias) {
+    if (level === "provincia" && provincias) {
       for (const point of points) {
         const match = findFeatureByPoint(provincias, point);
         const dep = match?.properties?.CODDEP ? String(match.properties.CODDEP) : null;
@@ -96,7 +102,7 @@ export const MapHierarchyLayers = ({
       }
     }
 
-    if (distritos) {
+    if (level === "distrito" && distritos) {
       for (const point of points) {
         const match = findFeatureByPoint(distritos, point);
         const dep = match?.properties?.CODDEP ? String(match.properties.CODDEP) : null;
@@ -113,22 +119,38 @@ export const MapHierarchyLayers = ({
       provPairs: Array.from(provPairs.values()),
       distPairs: Array.from(distPairs.values()),
     };
-  }, [departamentos, distritos, points, provincias]);
+  }, [departamentos, distritos, level, points, provincias]);
+
+  const filteredHighlightCodes = React.useMemo(() => {
+    const blockedDeps = new Set(blockedCodes?.deps ?? []);
+    const blockedProvs = new Set(
+      (blockedCodes?.provs ?? []).map((item) => `${item.dep}-${item.prov}`),
+    );
+    const blockedDists = new Set(blockedCodes?.dists ?? []);
+
+    return {
+      deptCodes: highlightCodes.deptCodes.filter((code) => !blockedDeps.has(code)),
+      provPairs: highlightCodes.provPairs.filter(
+        (item) => !blockedProvs.has(`${item.dep}-${item.prov}`),
+      ),
+      distPairs: highlightCodes.distPairs.filter((item) => !blockedDists.has(item.dist)),
+    };
+  }, [blockedCodes?.deps, blockedCodes?.dists, blockedCodes?.provs, highlightCodes]);
 
   const departamentoHighlightFilter = React.useMemo(() => {
-    if (highlightCodes.deptCodes.length === 0) return ["==", ["get", "CODDEP"], ""] as any;
+    if (filteredHighlightCodes.deptCodes.length === 0) return ["==", ["get", "CODDEP"], ""] as any;
     if (selectedCodes.dep) {
-      return highlightCodes.deptCodes.includes(selectedCodes.dep)
+      return filteredHighlightCodes.deptCodes.includes(selectedCodes.dep)
         ? (["==", ["get", "CODDEP"], selectedCodes.dep] as any)
         : (["==", ["get", "CODDEP"], ""] as any);
     }
-    return ["in", ["get", "CODDEP"], ["literal", highlightCodes.deptCodes]] as any;
-  }, [highlightCodes.deptCodes, selectedCodes.dep]);
+    return ["in", ["get", "CODDEP"], ["literal", filteredHighlightCodes.deptCodes]] as any;
+  }, [filteredHighlightCodes.deptCodes, selectedCodes.dep]);
 
   const provinciaHighlightFilter = React.useMemo(() => {
     if (!selectedCodes.dep) return ["==", ["get", "CODDEP"], ""] as any;
-    if (highlightCodes.provPairs.length === 0) return ["==", ["get", "CODDEP"], ""] as any;
-    const provCodes = highlightCodes.provPairs
+    if (filteredHighlightCodes.provPairs.length === 0) return ["==", ["get", "CODDEP"], ""] as any;
+    const provCodes = filteredHighlightCodes.provPairs
       .filter((item) => item.dep === selectedCodes.dep)
       .map((item) => item.prov);
     if (provCodes.length === 0) return ["==", ["get", "CODDEP"], ""] as any;
@@ -137,12 +159,12 @@ export const MapHierarchyLayers = ({
       ["==", ["get", "CODDEP"], selectedCodes.dep],
       ["in", ["get", "CODPROV"], ["literal", provCodes]],
     ] as any;
-  }, [highlightCodes.provPairs, selectedCodes.dep]);
+  }, [filteredHighlightCodes.provPairs, selectedCodes.dep]);
 
   const distritoHighlightFilter = React.useMemo(() => {
     if (!selectedCodes.dep || !selectedCodes.prov) return ["==", ["get", "CODDEP"], ""] as any;
-    if (highlightCodes.distPairs.length === 0) return ["==", ["get", "CODDEP"], ""] as any;
-    const distCodes = highlightCodes.distPairs
+    if (filteredHighlightCodes.distPairs.length === 0) return ["==", ["get", "CODDEP"], ""] as any;
+    const distCodes = filteredHighlightCodes.distPairs
       .filter((item) => item.dep === selectedCodes.dep && item.prov === selectedCodes.prov)
       .map((item) => item.dist);
     if (distCodes.length === 0) return ["==", ["get", "CODDEP"], ""] as any;
@@ -152,7 +174,7 @@ export const MapHierarchyLayers = ({
       ["==", ["get", "CODPROV"], selectedCodes.prov],
       ["in", ["get", "UBIGEO"], ["literal", distCodes]],
     ] as any;
-  }, [highlightCodes.distPairs, selectedCodes.dep, selectedCodes.prov]);
+  }, [filteredHighlightCodes.distPairs, selectedCodes.dep, selectedCodes.prov]);
 
   const departamentoHoverFilter = React.useMemo(() => {
     if (!hoverCodes?.dep) return ["==", ["get", "CODDEP"], ""] as any;

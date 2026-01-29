@@ -11,7 +11,7 @@ export const findFeatureByPoint = (
   return null;
 };
 
-const isPointInGeometry = (
+export const isPointInGeometry = (
   geometry: { type: string; coordinates: unknown },
   point: { lat: number; lng: number },
 ) => {

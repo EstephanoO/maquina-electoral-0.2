@@ -5,6 +5,7 @@ import { PeruMapPanel } from "@/modules/maps/PeruMapPanel";
 import type { MapRef } from "@vis.gl/react-maplibre";
 import type { MapPoint } from "../utils/dataUtils";
 import type { GeoFeatureCollection, GeoLevel } from "@/modules/maps/hierarchy/types";
+import type { MapHierarchySelection } from "@/modules/maps/PeruMapPanel";
 import useSWR from "swr";
 
 interface MapSectionProps {
@@ -19,6 +20,7 @@ interface MapSectionProps {
   focusPoint?: { lat: number; lng: number } | null;
   onClearFocusPoint?: () => void;
   campaignId?: string | null;
+  onHierarchySelectionChange?: (selection: MapHierarchySelection) => void;
 }
 
 export const MapSection: React.FC<MapSectionProps> = ({
@@ -33,6 +35,7 @@ export const MapSection: React.FC<MapSectionProps> = ({
   focusPoint,
   onClearFocusPoint,
   campaignId,
+  onHierarchySelectionChange,
 }) => {
   const [showStreetBase, setShowStreetBase] = React.useState(true);
   const [currentLevel, setCurrentLevel] = React.useState<GeoLevel>("departamento");
@@ -158,29 +161,6 @@ export const MapSection: React.FC<MapSectionProps> = ({
         >
           {showStreetBase ? "Ocultar fondo" : "Mostrar fondo"}
         </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => {
-            if (resetMapView) {
-              resetMapView();
-              return;
-            }
-            mapRef.current?.flyTo({
-              center: [-75.02, -9.19],
-              zoom: 5.2,
-              essential: true,
-            });
-          }}
-          className="bg-background/80 backdrop-blur"
-        >
-          Centrar Peru
-        </Button>
-        {geojsonFeatureCount !== null ? (
-          <div className="rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-1 text-[11px] font-semibold text-emerald-700">
-            GeoJSON: {geojsonFeatureCount}
-          </div>
-        ) : null}
       </div>
       <div className="absolute left-4 top-4 z-10 rounded-2xl border border-border/60 bg-background/75 px-3 py-2 text-xs text-muted-foreground shadow-sm backdrop-blur">
         <p className="font-semibold text-foreground">Mapa Peru</p>
@@ -220,6 +200,7 @@ export const MapSection: React.FC<MapSectionProps> = ({
         focusPoint={focusPoint}
         onClearFocusPoint={onClearFocusPoint}
         onHierarchyLevelChange={setCurrentLevel}
+        onHierarchySelectionChange={onHierarchySelectionChange}
         clientGeojson={activeGeojson}
         clientGeojsonMeta={activeMeta}
         clientGeojsonLayers={resolvedClientLayers}
