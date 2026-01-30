@@ -1,4 +1,10 @@
+"use client";
+
 import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { useSessionStore } from "@/stores/session.store";
+import { logout } from "@/lib/auth/logout";
 import { CONTACTOS_FORMULARIOS, voteGoal, voteProgress } from "../constants/dashboard";
 import { formatNumber } from "../utils/dashboardFormat";
 
@@ -26,7 +32,18 @@ export default function DashboardHeader({
   progressValue = voteProgress,
   goalValue = voteGoal,
 }: DashboardHeaderProps) {
+  const router = useRouter();
+  const setSessionUser = useSessionStore((state) => state.setSessionUser);
   const progress = Math.min((progressValue / goalValue) * 100, 100);
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } finally {
+      setSessionUser(null);
+      router.replace("/login");
+    }
+  };
   return (
     <header className="bg-card/70 shadow-[0_10px_30px_-20px_rgba(15,23,42,0.18)] backdrop-blur">
       <div className="flex flex-col gap-5 px-6 py-6 md:flex-row md:items-center md:px-10">
@@ -52,47 +69,54 @@ export default function DashboardHeader({
             </p>
           </div>
         </div>
-        <div className="ml-auto grid gap-3 md:grid-cols-3">
-          <div className="rounded-2xl bg-card/70 px-4 py-3 shadow-sm ring-0">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-              Contactos conseguidos
-            </p>
-            <p className="text-lg font-semibold text-foreground">
-              {formatNumber(contactsTotal)}
-            </p>
-            <div className="mt-2 h-2 rounded-full bg-muted/60">
-              <div
-                className="h-2 rounded-full bg-gradient-to-r from-emerald-400 to-emerald-600"
-                style={{ width: `${Math.min(progress, 100)}%` }}
-              />
-            </div>
+        <div className="ml-auto flex w-full flex-col gap-3 md:w-auto">
+          <div className="flex justify-start md:justify-end">
+            <Button variant="outline" size="sm" onClick={handleLogout}>
+              Cerrar sesion
+            </Button>
           </div>
-          <div className="rounded-2xl bg-card/70 px-4 py-3 shadow-sm ring-0">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-              Proyeccion votos
-            </p>
-            <p className="text-lg font-semibold text-foreground">
-              {formatNumber(progressValue)}
-            </p>
-            <div className="mt-2 h-2 rounded-full bg-muted/60">
-              <div
-                className="h-2 rounded-full bg-gradient-to-r from-sky-400 to-blue-600"
-                style={{ width: `${Math.min(progress, 100)}%` }}
-              />
+          <div className="grid gap-3 md:grid-cols-3">
+            <div className="rounded-2xl bg-card/70 px-4 py-3 shadow-sm ring-0">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+                Contactos conseguidos
+              </p>
+              <p className="text-lg font-semibold text-foreground">
+                {formatNumber(contactsTotal)}
+              </p>
+              <div className="mt-2 h-2 rounded-full bg-muted/60">
+                <div
+                  className="h-2 rounded-full bg-gradient-to-r from-emerald-400 to-emerald-600"
+                  style={{ width: `${Math.min(progress, 100)}%` }}
+                />
+              </div>
             </div>
-          </div>
-          <div className="rounded-2xl bg-card/70 px-4 py-3 shadow-sm ring-0">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-              Meta total
-            </p>
-            <p className="text-lg font-semibold text-foreground">
-              {formatNumber(goalValue)}
-            </p>
-            <div className="mt-2 h-2 rounded-full bg-muted/60">
-              <div
-                className="h-2 rounded-full bg-gradient-to-r from-amber-400 to-orange-500"
-                style={{ width: `${Math.min(progress, 100)}%` }}
-              />
+            <div className="rounded-2xl bg-card/70 px-4 py-3 shadow-sm ring-0">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+                Proyeccion votos
+              </p>
+              <p className="text-lg font-semibold text-foreground">
+                {formatNumber(progressValue)}
+              </p>
+              <div className="mt-2 h-2 rounded-full bg-muted/60">
+                <div
+                  className="h-2 rounded-full bg-gradient-to-r from-sky-400 to-blue-600"
+                  style={{ width: `${Math.min(progress, 100)}%` }}
+                />
+              </div>
+            </div>
+            <div className="rounded-2xl bg-card/70 px-4 py-3 shadow-sm ring-0">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+                Meta total
+              </p>
+              <p className="text-lg font-semibold text-foreground">
+                {formatNumber(goalValue)}
+              </p>
+              <div className="mt-2 h-2 rounded-full bg-muted/60">
+                <div
+                  className="h-2 rounded-full bg-gradient-to-r from-amber-400 to-orange-500"
+                  style={{ width: `${Math.min(progress, 100)}%` }}
+                />
+              </div>
             </div>
           </div>
         </div>

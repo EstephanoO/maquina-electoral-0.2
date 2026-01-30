@@ -7,6 +7,8 @@ import { ThemeToggle } from "@/modules/layout/ThemeToggle";
 import { campaigns } from "@/db/constants";
 import { useCampaignsStore } from "@/modules/campaigns/store";
 import { useSessionStore } from "@/stores/session.store";
+import { useRouter } from "next/navigation";
+import { logout } from "@/lib/auth/logout";
 
 const fallbackProfile = {
   name: "Guillermo Aliaga",
@@ -20,7 +22,9 @@ const fallbackProfile = {
 export const CandidatePanel = () => {
   const activeCampaignId = useSessionStore((state) => state.activeCampaignId);
   const role = useSessionStore((state) => state.currentRole);
+  const setSessionUser = useSessionStore((state) => state.setSessionUser);
   const campaignProfiles = useCampaignsStore((state) => state.campaignProfiles);
+  const router = useRouter();
   const campaign = campaigns.find((item) => item.id === activeCampaignId) ?? campaigns[0];
   const profile = {
     ...fallbackProfile,
@@ -31,6 +35,15 @@ export const CandidatePanel = () => {
   const obtainedValue = 0;
   const progressValue = goalValue > 0 ? Math.round((obtainedValue / goalValue) * 100) : 0;
   const canUpdate = role === "CONSULTOR" || role === "SUPER_ADMIN";
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } finally {
+      setSessionUser(null);
+      router.replace("/login");
+    }
+  };
 
   return (
     <Card className="-mx-6 -mt-8 rounded-none border-x-0 border-t-0 border-border/60 bg-card/70 p-6 shadow-sm shadow-black/5 lg:pr-[300px]">
@@ -57,8 +70,8 @@ export const CandidatePanel = () => {
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="min-w-[240px] rounded-2xl border border-primary/20 bg-primary/10 px-5 py-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="min-w-[240px] rounded-2xl border border-primary/20 bg-primary/10 px-5 py-4">
               <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 <span>Datos</span>
                 <span>Obtenidos / objetivo</span>
@@ -88,6 +101,9 @@ export const CandidatePanel = () => {
                 <RefreshCw className="h-4 w-4" />
               </Button>
             ) : null}
+            <Button variant="outline" size="sm" onClick={handleLogout}>
+              Cerrar sesion
+            </Button>
             <ThemeToggle />
           </div>
         </div>
