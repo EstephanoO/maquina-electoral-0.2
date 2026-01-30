@@ -1,23 +1,30 @@
 # AGENTS.md
 
-## Module overview
-Owns the main app shell and top-of-screen candidate panel.
+## Contexto global
+- Ver contexto completo en `AGENTS.md` (raiz).
+- Modulo de layout y shell principal.
 
 ## Design system
-- Source of truth: `design-system/MASTER.md`.
+- Fuente de verdad: `design-system/MASTER.md`.
 
-## Responsibilities
-- App shell composition for candidate/estratega/consultor views.
-- Candidate header panel with photo, metadata, and vote goal.
-- Admin-only header behavior.
+## Responsabilidades
+- App shell para candidato/estratega/consultor.
+- Candidate panel (foto, metadata, objetivo).
+- Header/admin-only behavior.
 - Theme toggle UI.
 
-## Boundaries
-- No routing decisions beyond layout composition.
-- No domain mutations; read-only props/state.
+## Limites
+- No routing (solo composicion de layout).
+- Sin mutaciones de dominio; props/state read-only.
+
+## Dependencias esperadas
+- `src/theme/*` para ThemeProvider/ThemeScript.
+- `src/modules/shared` para estados.
 
 ## Key files
 - `src/modules/layout/ThemeToggle.tsx`
+- `src/modules/layout/AppShell.tsx`
+- `src/modules/layout/AppHeader.tsx`
 
 ## Skills
 - .agents/skills/frontend-design/SKILL.md

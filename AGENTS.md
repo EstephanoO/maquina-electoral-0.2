@@ -1,92 +1,61 @@
 # AGENTS.md
 
-## Project overview
-GOBERNA is the company behind MAQUINA-ELECTORAL, a political campaign management dashboard app. It serves five user roles:
+## Contexto global
+- MAQUINA-ELECTORAL (GOBERNA) es un dashboard de gestion de campanas politicas tipo war room.
+- Roles clave: SUPER_ADMIN, CONSULTOR, CANDIDATO, ESTRATEGA, DISENADOR, ENTREVISTADOR.
+- Stack: Next.js App Router (src/app), React 19, TypeScript strict, Tailwind 4.
+- UI-first, pero con backend Neon/Drizzle activo para territory, events, geojson y auth.
 
-- Consultores
-- Clientes
-- Admin
-- Disenadores
-- Entrevistadores
+## Arquitectura (mapa rapido)
+- `src/app`: rutas, layouts, loaders y API route handlers.
+- `src/modules/*`: UI por dominio (console, dashboards, layout, maps, shared, campaigns, events).
+- `src/stores`: estado global (session, assets, app).
+- `src/db`: schema, connection Neon, seeds/constants.
+- `src/lib`: tipos, auth, RBAC y helpers compartidos.
+- `src/theme`: ThemeProvider/ThemeScript y tokens.
+- `src/components/ui`: primitives shadcn/ui.
+- `src/ui`, `src/management`, `src/dashboards`, `src/maps`: legacy, no expandir.
 
-The app focuses on managing dashboards, data, and campaign operations (“war room”). For now, the scope is UI-only; data ingestion is documented as planned work.
+## Datos
+- Neon: `territory`, `events`, `campaign_geojson`, `auth_users`, `auth_sessions`.
+- Seeds UI: `src/db/constants/*` (campaigns, events, forms, responses, users, assets).
+- Planificados: Excel, GeoJSON, Google Sheets.
 
-### Key responsibilities by role
-- **Admin**: manages consultants, tasks, permissions, and consultant-client assignments.
-- **Consultores**: manage and update dashboard data for candidates.
-- **Clientes**: view modern, elegant dashboards with campaign summaries, maps, timelines, and operational metrics.
-- **Disenadores**: collaborate on creative assets and references used in campaign tasks.
-- **Entrevistadores**: capture field responses for campaign events.
+## UI y layout
+- Fuente de verdad: `design-system/MASTER.md`.
+- Tipografia: Manrope (UI) + Fraunces (display).
+- Consola para admin/consultor; dashboard para candidato.
+- Tierra: MapLibre + sidebar; otros templates son card-based.
 
-### Data sources (planned, not implemented yet)
-- Excel uploads
-- Specific data fields
-- GeoJSON
-- Google Sheets API
+## Estado y fetching
+- Zustand para stores y persistencia local.
+- SWR para polling/dedup; evitar setInterval en UI.
+- Cargas pesadas con `next/dynamic` (MapLibre, Recharts).
 
-### Data sources (current)
-- Neon `territory` table for tierra interview intake (event_id supported).
-- Neon `events` table for persistent event definitions and ranges.
+## Seguridad y roles
+- RBAC en `src/lib/rbac.ts`.
+- Sesion via cookie httpOnly; `SessionHydrator` consume `/api/auth/me`.
 
-## UI layout strategy
-- Admin/consultor use console shell; candidates use dashboard shell.
-- Candidate panel sits at top with photo, metadata, and vote goal.
-- Candidate navigation sidebar lists enabled dashboards.
-- Tierra dashboards include MapLibre + right sidebar; other templates are card-based.
-- Event overview dashboards can be mapless when needed.
+## Rutas clave
+- Fullscreen tierra: `src/app/(fullscreen)/eventos/[eventId]/dashboard/page.tsx`.
+- Consola eventos: `src/app/console/events/[eventId]/page.tsx`.
+- Dashboards: `src/app/(app)/dashboard/[client]/[template]/page.tsx`.
+- APIs: `src/app/api/auth/*`, `src/app/api/events/route.ts`,
+  `src/app/api/interviews/route.ts`, `src/app/api/geojson/route.ts`,
+  `src/app/api/territory-summary/route.ts`.
 
-## Design system
-- Source of truth: `design-system/MASTER.md`.
-- Typography: Manrope for UI, Fraunces for display.
-- Panels and shells rely on `globals.css` tokens and utility classes.
-- States (empty/error/loading) must use shared components with centered layout.
-
-## Event flow
-- Events can exist without dashboards (agenda-only).
-- Tierra dashboards require a linked event and a form with required location.
-- Event auto-assignment can be resolved server-side by event date ranges.
-
-## Modular architecture
-The project is organized under `src/modules/*` by domain. Each module has its own `AGENTS.md` with responsibilities and boundaries.
-
-### Current modules
-- `modules/console`: admin/consultor console UI
-- `modules/dashboards`: candidate dashboard UI + access gate
-- `modules/layout`: app shell + candidate panel
-- `modules/maps`: MapLibre panel
-- `modules/shared`: empty/error/loading/access states
-- `modules/campaigns`: campaign state + candidate profiles
-- `modules/events`: agenda + form + response stores
-
-## Build and test commands
+## Comandos
 - `npm run build`
+- `npm run lint`
 
-## Code style guidelines
-TBD. Keep modules isolated, prefer explicit interfaces, and avoid implicit cross-module dependencies.
+## Reglas de modularidad
+- Modulos aislados con interfaces explicitas.
+- Evitar dependencias cruzadas implicitas entre modulos.
+- Estados Empty/Error/Loading deben usar `src/modules/shared`.
 
-## Data fetching and performance
-- UI polling uses SWR with refresh intervals and deduplication.
-- Heavy client libraries (MapLibre, Recharts) are lazy-loaded via `next/dynamic`.
-- Avoid client waterfall on initial render; prefer server fetches where possible.
-
-## Key routes and services
-- Fullscreen tierra dashboard: `src/app/(fullscreen)/eventos/[eventId]/dashboard/page.tsx`
-- Console event dashboard: `src/app/console/events/[eventId]/page.tsx`
-- Events API: `src/app/api/events/route.ts`
-- Interviews API: `src/app/api/interviews/route.ts`
-
-## Key files
-- `src/modules/dashboards/events/EventMapDashboard.tsx`
-- `src/modules/maps/PeruMapPanel.tsx`
-- `src/db/schema.ts`
-
-## Testing instructions
-TBD. No automated tests defined yet.
-
-## Security considerations
-- User roles are core to access control; UI should reflect permissions clearly.
-- Data sources may contain sensitive campaign data; treat as confidential.
-- Plan for audit trails when data editing is implemented.
+## Consideraciones de seguridad
+- Los datos son sensibles; evitar exponer payloads completos innecesarios.
+- Auditar acciones cuando se implementen writes.
 
 ## Skills
 - .agents/skills/frontend-design/SKILL.md

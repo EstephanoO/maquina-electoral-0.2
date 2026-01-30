@@ -1,27 +1,28 @@
 # AGENTS.md
 
-## Module overview
-Map visual layer for MapLibre-based dashboards.
+## Contexto global
+- Ver contexto completo en `AGENTS.md` (raiz).
+- Capa visual de mapas para dashboards tierra.
 
 ## Design system
-- Source of truth: `design-system/MASTER.md`.
+- Fuente de verdad: `design-system/MASTER.md`.
 
-## Responsibilities
-- MapPanel component, style wiring, marker rendering.
-- Keep map styling consistent with app theme.
-- Provide loading/error/empty overlays for map panels.
-- PeruMapPanel provides Peru silhouette, fitBounds, and point tooltips.
+## Responsabilidades
+- MapPanel y estilo base de MapLibre.
+- Markers, tooltips y overlays de estado.
+- PeruMapPanel: silhouette, fitBounds y tooltips.
 
 ## Performance
-- MapLibre is lazy-loaded via `next/dynamic`.
+- MapLibre debe ser lazy-loaded con `next/dynamic`.
 
-## Boundaries
-- No data fetching or event logic.
-- Parent provides coordinates and any overlays.
+## Limites
+- Sin data fetching ni logica de eventos.
+- El parent provee coordenadas y overlays.
 
 ## Key files
 - `src/modules/maps/MapPanel.tsx`
 - `src/modules/maps/PeruMapPanel.tsx`
+- `src/modules/maps/hierarchy/*`
 - `src/maps/mapConfig.ts`
 
 ## Skills

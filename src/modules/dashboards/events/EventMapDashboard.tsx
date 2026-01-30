@@ -9,9 +9,6 @@ import {
   XAxis,
   YAxis,
   Tooltip,
-  BarChart,
-  Bar,
-  Cell,
   ReferenceLine,
 } from "recharts";
 import { useEventData } from "./hooks/useEventData";
@@ -22,11 +19,8 @@ import {
   calculateCandidateCounts,
   calculateInterviewerCounts,
   calculateInterviewerRanking,
-  generateCandidateTimelineData,
   generateInterviewerTimelineData,
-  generateCandidateBarData,
   getLastUpdated,
-  getCandidateColor,
 } from "./utils/dataUtils";
 import { DashboardHeader, TotalStats } from "./components/HeaderComponents";
 import { MapSection } from "./components/MapSection";
@@ -238,42 +232,28 @@ export const EventMapDashboard = ({
     return parts.join(" · ");
   }, [mapSelection]);
 
-  // Timeline data
-  const timelineData = React.useMemo(
-    () => generateCandidateTimelineData(rows, candidateLabels),
-    [rows, candidateLabels],
-  );
-
   const interviewerTimelineData = React.useMemo(
     () => generateInterviewerTimelineData(rows, topInterviewerForChart),
     [rows, topInterviewerForChart],
   );
-
-  const candidateBarData = React.useMemo(
-    () => generateCandidateBarData(candidateLabels, counts),
-    [candidateLabels, counts],
-  );
-
-  const candidateTimelineWithTrend = React.useMemo(() => {
-    if (timelineData.length === 0) return timelineData;
-    const totals = timelineData.map((entry) =>
-      candidateLabels.reduce((sum, candidate) => {
-        const value = entry[candidate];
-        return sum + (typeof value === "number" ? value : 0);
-      }, 0),
+  const goalValueNumber = React.useMemo(() => {
+    if (!dataGoalIndex) return null;
+    const hasSelection = Boolean(
+      mapSelection?.depCode ||
+        mapSelection?.provCode ||
+        mapSelection?.distCode ||
+        mapSelection?.depName ||
+        mapSelection?.provName ||
+        mapSelection?.distName,
     );
-    const windowSize = 3;
-    const trend = totals.map((_, index) => {
-      const start = Math.max(0, index - windowSize + 1);
-      const slice = totals.slice(start, index + 1);
-      const avg = slice.reduce((sum, value) => sum + value, 0) / slice.length;
-      return Number(avg.toFixed(2));
-    });
-    return timelineData.map((entry, index) => ({
-      ...entry,
-      tendencia: trend[index],
-    }));
-  }, [timelineData, candidateLabels]);
+    if (!hasSelection) return dataGoalIndex.total ?? null;
+    return resolveGoalForSelection(mapSelection, dataGoalIndex);
+  }, [dataGoalIndex, mapSelection]);
+
+  const zoneProgress = React.useMemo(() => {
+    if (!goalValueNumber || goalValueNumber <= 0) return 0;
+    return (selectionTotal / goalValueNumber) * 100;
+  }, [goalValueNumber, selectionTotal]);
 
   // Estado del mapa
   const mapStatus = isLoading
@@ -453,76 +433,40 @@ export const EventMapDashboard = ({
               </div>
             </Card>
 
-            {/* Candidate Progress Dialog (replaced interviewer) */}
+            {/* Zone Coverage */}
             <Card className="border-border/60 bg-card/70 p-4">
               <div className="flex items-center justify-between">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                  {isCompact ? "Progreso" : "Progreso por candidato"}
+                  Cobertura de zona
                 </p>
               </div>
-              {/* Candidate Timeline Chart */}
               <div className="mt-4 space-y-3">
-                {candidateLabels.length > 1 ? (
-                  <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                    {candidateLabels.map((candidate, index) => {
-                      const legendColors = ["bg-emerald-500", "bg-blue-500", "bg-orange-500"];
-                      const dotColor = legendColors[index] ?? "bg-slate-400";
-                      return (
-                        <span key={candidate} className="flex items-center gap-2">
-                          <span className={`h-2 w-2 rounded-full ${dotColor}`} />
-                          {candidate}
-                        </span>
-                      );
-                    })}
+                <div className="rounded-2xl border border-border/60 bg-muted/20 px-4 py-3">
+                  <p className="text-xs text-muted-foreground">Zona actual</p>
+                  <p className="mt-1 text-sm font-semibold text-foreground">
+                    {goalScopeLabel ?? "Peru"}
+                  </p>
+                  <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
+                    <span>Puntos en zona</span>
+                    <span className="text-sm font-semibold text-foreground">
+                      {selectionTotal.toLocaleString("en-US")}
+                    </span>
                   </div>
-                ) : null}
-                <div className="h-[160px] w-full rounded-2xl border border-border/60 bg-gradient-to-br from-background to-muted/20 p-3">
-                  <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-                    <LineChart
-                      data={candidateTimelineWithTrend}
-                      margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
-                    >
-                      <XAxis
-                        dataKey="time"
-                        tick={{ fontSize: 10 }}
-                        axisLine={false}
-                        tickLine={false}
-                      />
-                      <YAxis hide />
-                      <ReferenceLine
-                        x={nowLabel}
-                        stroke="rgba(148,163,184,0.6)"
-                        strokeDasharray="4 4"
-                      />
-                      <Tooltip
-                        contentStyle={{
-                          background: "rgba(15,23,42,0.92)",
-                          border: "1px solid rgba(148,163,184,0.2)",
-                          borderRadius: "12px",
-                          color: "#e2e8f0",
-                        }}
-                        labelStyle={{ color: "#f8fafc" }}
-                      />
-                      <Line
-                        type="monotone"
-                        dataKey="tendencia"
-                        stroke="#94a3b8"
-                        strokeDasharray="6 6"
-                        strokeWidth={2}
-                        dot={false}
-                      />
-                      {candidateLabels.map((candidate) => (
-                        <Line
-                          key={candidate}
-                          type="monotone"
-                          dataKey={candidate}
-                          stroke={getCandidateColor(candidate, candidateLabels)}
-                          strokeWidth={2.2}
-                          dot={false}
-                        />
-                      ))}
-                    </LineChart>
-                  </ResponsiveContainer>
+                  <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
+                    <span>Objetivo zona</span>
+                    <span className="text-sm font-semibold text-foreground">
+                      {goalValueNumber ? goalValueNumber.toLocaleString("en-US") : "-"}
+                    </span>
+                  </div>
+                  <div className="mt-3 h-2 w-full rounded-full bg-muted/40">
+                    <div
+                      className="h-2 rounded-full bg-gradient-to-r from-rose-400 via-red-400 to-amber-400"
+                      style={{ width: `${Math.min(zoneProgress, 100)}%` }}
+                    />
+                  </div>
+                  <div className="mt-2 text-right text-xs font-semibold text-foreground">
+                    {goalValueNumber ? `${Math.min(zoneProgress, 100).toFixed(2)}%` : "-"}
+                  </div>
                 </div>
               </div>
             </Card>
@@ -584,51 +528,7 @@ export const EventMapDashboard = ({
               </div>
             </div>
 
-            {/* Candidate Bar Chart (moved here) */}
-            {isCompact ? null : (
-              <div>
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                    Comparativo candidatos
-                  </p>
-                  <span className="text-xs text-muted-foreground">Barras</span>
-                </div>
-                <div className="mt-4 h-[220px] w-full rounded-2xl border border-border/60 bg-gradient-to-br from-background to-muted/20 p-3">
-                  <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-                    <BarChart
-                      data={candidateBarData}
-                      margin={{ top: 0, right: 10, left: 0, bottom: 0 }}
-                      barCategoryGap={12}
-                    >
-                      <XAxis
-                        dataKey="name"
-                        tick={{ fontSize: 10 }}
-                        axisLine={false}
-                        tickLine={false}
-                      />
-                      <YAxis hide />
-                      <Tooltip
-                        contentStyle={{
-                          background: "rgba(15,23,42,0.92)",
-                          border: "1px solid rgba(148,163,184,0.2)",
-                          borderRadius: "12px",
-                          color: "#e2e8f0",
-                        }}
-                        labelStyle={{ color: "#f8fafc" }}
-                      />
-                      <Bar dataKey="value" radius={[8, 8, 8, 8]} barSize={18}>
-                        {candidateBarData.map((entry) => (
-                          <Cell
-                            key={entry.name}
-                            fill={getCandidateColor(entry.name, candidateLabels)}
-                          />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            )}
+            {isCompact ? null : null}
           </div>
         </Card>
       </div>

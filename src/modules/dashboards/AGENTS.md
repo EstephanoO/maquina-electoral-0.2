@@ -1,28 +1,28 @@
 # AGENTS.md
 
-## Module overview
-Dashboard UI building blocks and access gates for candidate-facing dashboards.
+## Contexto global
+- Ver contexto completo en `AGENTS.md` (raiz).
+- Modulo de UI para dashboards candidato y gating.
 
 ## Design system
-- Source of truth: `design-system/MASTER.md`.
+- Fuente de verdad: `design-system/MASTER.md`.
 
-## Responsibilities
-- Candidate dashboard fragments (KPI grid, summary, timeline).
-- Dashboard navigation sidebar and access gating.
-- Tierra sidebar and map-ready layout fragments.
-- Event overview dashboard blocks for tierra campaigns.
-- EventMapDashboard is the reusable tierra event layout.
+## Responsabilidades
+- Fragments de dashboard (KPI grid, summary, timeline).
+- Sidebar de navegacion y acceso por rol.
+- Tierra sidebar y layout map-ready.
+- EventMapDashboard como layout reutilizable de eventos tierra.
 
-## Data fetching
-- Use SWR for polling and deduplication in client components.
-- Charts are lazy-loaded via `next/dynamic`.
+## Data fetching y performance
+- Usar SWR para polling y dedup en client components.
+- Cargas pesadas (Recharts) deben ser lazy via `next/dynamic`.
 
-## Notes
-- Draft dashboards are hidden from candidates until activated.
+## Notas
+- Dashboards DRAFT no visibles para candidatos.
 
-## Boundaries
-- No domain writes. Reads are allowed via stores for gating only.
-- No routing; use in app routes.
+## Limites
+- Sin writes de dominio. Lecturas solo para gating.
+- Sin routing; se usa desde `src/app`.
 
 ## Key files
 - `src/modules/dashboards/events/EventMapDashboard.tsx`

@@ -1,9 +1,18 @@
+import { redirect } from "next/navigation";
 import { AppShell } from "@/modules/layout/AppShell";
+import { getSessionUser } from "@/lib/auth/session";
 
-export default function DashboardLayout({
+export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const user = await getSessionUser();
+  if (!user) {
+    redirect("/login");
+  }
+  if (user.role !== "candidato") {
+    redirect("/console/campaigns");
+  }
   return <AppShell>{children}</AppShell>;
 }

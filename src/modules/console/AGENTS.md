@@ -1,18 +1,23 @@
 # AGENTS.md
 
-## Module overview
-Console UI for admin and consultor roles.
+## Contexto global
+- Ver contexto completo en `AGENTS.md` (raiz).
+- Modulo de UI para consola admin/consultor.
 
 ## Design system
-- Source of truth: `design-system/MASTER.md`.
+- Fuente de verdad: `design-system/MASTER.md`.
 
-## Responsibilities
-- Console shell, sidebar, topbar, and access gate.
-- Console cards and campaign detail summaries.
+## Responsabilidades
+- Console shell, sidebar, topbar y access gate.
+- Cards y resumenes de campaña para operaciones.
 
-## Boundaries
-- No routing decisions; app routes own navigation.
-- No direct data fetching; use stores or props.
+## Limites
+- No decisiones de routing; `src/app` manda.
+- No data fetching directo; usar stores o props.
+
+## Dependencias esperadas
+- `src/modules/shared` para estados Empty/Error/Loading.
+- `src/stores/*` y `src/modules/campaigns` para estado UI (solo lectura).
 
 ## Key files
 - `src/modules/console/*`

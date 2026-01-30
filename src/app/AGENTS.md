@@ -1,28 +1,34 @@
 # AGENTS.md
 
-## Module overview
-Next.js app routes, layouts, and navigation flow.
+## Contexto global
+- Ver contexto completo en `AGENTS.md` (raiz).
+- Este modulo orquesta routing, layouts y API routes.
 
-## Responsibilities
-- Route-level layouts for console and dashboards.
-- Candidate dashboard routing (`/dashboard/[client]/[template]`).
-- Console routes for admin/consultor (`/console/*`).
+## Responsabilidades
+- Layouts por ruta (console, dashboards, fullscreen, auth).
+- Routing de dashboards candidato (`/dashboard/[client]/[template]`).
+- Rutas de consola para admin/consultor (`/console/*`).
+- API route handlers (`/api/*`).
 
-## Non-responsibilities
-- No domain logic or store definitions.
-- No low-level UI components.
+## Limites
+- No logica de dominio ni stores.
+- No UI primitives ni componentes de bajo nivel.
 
-## Routing notes
-- `/` is the session selector entry.
-- `/console` and `/console/admin` are role-gated.
-- Dynamic route params are async (Next 16) and must be awaited.
+## Notas de routing
+- `/` es la entrada (session selector).
+- `/console` y `/console/admin` deben estar role-gated.
+- Los params dinamicos son async (Next 16) y se deben await.
 
-## Key files
+## Rutas clave
+- `src/app/(app)/dashboard/[client]/[template]/page.tsx`
 - `src/app/(fullscreen)/eventos/[eventId]/dashboard/page.tsx`
 - `src/app/console/events/[eventId]/page.tsx`
 - `src/app/console/campaigns/[campaignId]/events/page.tsx`
-- `src/app/api/interviews/route.ts`
+- `src/app/api/auth/*`
 - `src/app/api/events/route.ts`
+- `src/app/api/interviews/route.ts`
+- `src/app/api/geojson/route.ts`
+- `src/app/api/territory-summary/route.ts`
 
 ## Skills
 - .agents/skills/frontend-design/SKILL.md

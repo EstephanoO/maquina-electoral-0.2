@@ -15,7 +15,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { users } from "@/db/constants";
 import { useCampaignsStore } from "@/modules/campaigns/store";
 import { useSessionStore } from "@/stores/session.store";
 import { EmptyState } from "@/modules/shared/EmptyState";
@@ -41,9 +40,8 @@ export default function CampaignsPage() {
   const updateCampaign = useCampaignsStore((state) => state.updateCampaign);
   const updateCampaignProfile = useCampaignsStore((state) => state.updateCampaignProfile);
   const activeCampaignId = useSessionStore((state) => state.activeCampaignId);
-  const currentUserId = useSessionStore((state) => state.currentUserId);
+  const assignedCampaignIds = useSessionStore((state) => state.assignedCampaignIds);
   const role = useSessionStore((state) => state.currentRole);
-  const currentUser = users.find((user) => user.id === currentUserId) ?? users[0];
   const [editCampaignId, setEditCampaignId] = React.useState<string | null>(null);
   const [deleteCampaignId, setDeleteCampaignId] = React.useState<string | null>(null);
   const [editForm, setEditForm] = React.useState({
@@ -70,9 +68,9 @@ export default function CampaignsPage() {
       return matchingCampaigns;
     }
     return matchingCampaigns.filter((campaign) =>
-      currentUser.assignedCampaignIds.includes(campaign.id),
+      assignedCampaignIds.includes(campaign.id),
     );
-  }, [currentUser.assignedCampaignIds, matchingCampaigns, role]);
+  }, [assignedCampaignIds, matchingCampaigns, role]);
 
   return (
     <RoleGate action="manage" subject="campaign">

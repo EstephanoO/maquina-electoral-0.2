@@ -1,25 +1,28 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import type { Role } from "@/lib/types";
-import { users, tenants, campaigns } from "@/db/constants";
+import { campaigns, tenants } from "@/db/constants";
+import type { SessionUser } from "@/lib/auth/types";
 
 type SessionState = {
   currentUserId: string;
+  currentUserName: string;
+  currentUserEmail: string;
   currentRole: Role;
+  assignedCampaignIds: string[];
   activeTenantId: string;
   activeCampaignId: string;
   _hasHydrated: boolean;
 };
 
 type SessionActions = {
-  setUser: (userId: string) => void;
+  setSessionUser: (user: SessionUser | null) => void;
   setRole: (role: Role) => void;
   setActiveCampaign: (campaignId: string) => void;
   setActiveTenant: (tenantId: string) => void;
   setHasHydrated: (hydrated: boolean) => void;
 };
 
-const defaultUser = users[0];
 const defaultCampaign = campaigns[0];
 const defaultTenant = tenants[0];
 
@@ -30,21 +33,35 @@ const isString = (value: unknown): value is string => typeof value === "string";
 export const useSessionStore = create<SessionState & SessionActions>()(
   persist(
     (set) => ({
-      currentUserId: defaultUser.id,
-      currentRole: defaultUser.role,
+      currentUserId: "",
+      currentUserName: "",
+      currentUserEmail: "",
+      currentRole: "CANDIDATO",
+      assignedCampaignIds: [],
       activeTenantId: defaultTenant.id,
       activeCampaignId: defaultCampaign.id,
       _hasHydrated: false,
-      setUser: (userId) =>
+      setSessionUser: (user) =>
         set(() => {
-          const user = users.find((item) => item.id === userId) ?? users[0];
+          if (!user) {
+            return {
+              currentUserId: "",
+              currentUserName: "",
+              currentUserEmail: "",
+              currentRole: "CANDIDATO",
+              assignedCampaignIds: [],
+              activeCampaignId: defaultCampaign.id,
+            };
+          }
           const nextCampaign =
-            campaigns.find((campaign) =>
-              user.assignedCampaignIds.includes(campaign.id),
-            ) ?? campaigns[0];
+            campaigns.find((campaign) => user.assignedCampaignIds.includes(campaign.id)) ??
+            campaigns[0];
           return {
             currentUserId: user.id,
-            currentRole: user.role,
+            currentUserName: user.name,
+            currentUserEmail: user.email,
+            currentRole: user.role === "admin" ? "SUPER_ADMIN" : "CANDIDATO",
+            assignedCampaignIds: user.assignedCampaignIds,
             activeCampaignId: nextCampaign.id,
           };
         }),
@@ -60,16 +77,26 @@ export const useSessionStore = create<SessionState & SessionActions>()(
       migrate: (persistedState) => {
         const state = isRecord(persistedState) ? (persistedState as Partial<SessionState>) : {};
         return {
-          currentUserId: isString(state.currentUserId) ? state.currentUserId : defaultUser.id,
-          currentRole: (state.currentRole ?? defaultUser.role) as Role,
+          currentUserId: isString(state.currentUserId) ? state.currentUserId : "",
+          currentUserName: isString(state.currentUserName) ? state.currentUserName : "",
+          currentUserEmail: isString(state.currentUserEmail) ? state.currentUserEmail : "",
+          currentRole: (state.currentRole ?? "CANDIDATO") as Role,
+          assignedCampaignIds: Array.isArray(state.assignedCampaignIds)
+            ? (state.assignedCampaignIds as string[])
+            : [],
           activeTenantId: isString(state.activeTenantId) ? state.activeTenantId : defaultTenant.id,
-          activeCampaignId: isString(state.activeCampaignId) ? state.activeCampaignId : defaultCampaign.id,
+          activeCampaignId: isString(state.activeCampaignId)
+            ? state.activeCampaignId
+            : defaultCampaign.id,
           _hasHydrated: false,
         } as SessionState;
       },
       partialize: (state) => ({
         currentUserId: state.currentUserId,
+        currentUserName: state.currentUserName,
+        currentUserEmail: state.currentUserEmail,
         currentRole: state.currentRole,
+        assignedCampaignIds: state.assignedCampaignIds,
         activeTenantId: state.activeTenantId,
         activeCampaignId: state.activeCampaignId,
       }),
