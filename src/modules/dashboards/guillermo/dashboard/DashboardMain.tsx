@@ -1,5 +1,4 @@
-import CampaignsPie from "./CampaignsPie";
-import GuillermoMap, { type MapData } from "./GuillermoMap";
+import * as React from "react";
 import {
   DASHBOARD_THEME,
   type DashboardTheme,
@@ -8,12 +7,14 @@ import {
 import type {
   DailyPoint,
   GrowthSeriesItem,
-  PanoramaCity,
+  LandingsPaymentPoint,
+  PanoramaDailyMetric,
   PanoramaPageChart,
   SentimentStackDatum,
 } from "../types/dashboard";
 import {
   formatDate,
+  formatCurrencyPen,
   formatNumber,
   formatPercent,
   formatRatioPercent,
@@ -33,10 +34,9 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import ResultsPie from "./ResultsPie";
 
 interface DashboardMainProps {
-  mapData: MapData | null;
-  mapError: string | null;
   trendSeries: DailyPoint[];
   reachPeak: DailyPoint | null;
   trendStroke: string;
@@ -46,17 +46,17 @@ interface DashboardMainProps {
   panoramaLoading: boolean;
   panoramaError: string | null;
   topPages: PanoramaPageChart[];
-  topCities: PanoramaCity[];
+  panoramaDailyActive: PanoramaDailyMetric[];
   sentimentData: SentimentDatum[];
   sentimentStack: SentimentStackDatum[];
+  landingsPayments: LandingsPaymentPoint[];
+  landingsLoading: boolean;
+  landingsError: string | null;
   hasDailyData?: boolean;
   hasPanoramaData?: boolean;
-  hasCitiesData?: boolean;
 }
 
 export default function DashboardMain({
-  mapData,
-  mapError,
   trendSeries,
   reachPeak,
   trendStroke,
@@ -66,17 +66,58 @@ export default function DashboardMain({
   panoramaLoading,
   panoramaError,
   topPages,
-  topCities,
+  panoramaDailyActive,
   sentimentData,
   sentimentStack,
+  landingsPayments,
+  landingsLoading,
+  landingsError,
 }: DashboardMainProps) {
+  const lastLanding = landingsPayments[landingsPayments.length - 1];
+  const firstLanding = landingsPayments[0];
+  const landingsChartData = landingsPayments.map((item) => ({
+    ...item,
+    label: formatShortDate(new Date(item.dateKey)),
+  }));
+  const landingsTotals = landingsPayments.reduce(
+    (acc, item) => ({
+      facebook: acc.facebook + item.facebook,
+    }),
+    { facebook: 0 },
+  );
+  const landingsCumulative = landingsPayments.reduce<
+    Array<LandingsPaymentPoint & { cumFacebook: number; label: string }>
+  >((acc, item) => {
+    const previous = acc[acc.length - 1];
+    const cumFacebook = (previous?.cumFacebook ?? 0) + item.facebook;
+    return [
+      ...acc,
+      {
+        ...item,
+        label: formatShortDate(new Date(item.dateKey)),
+        cumFacebook,
+      },
+    ];
+  }, []);
+  const growthBefore = growthSeries.find((item) => item.id === "before");
+  const growthAfter = growthSeries.find((item) => item.id === "after");
+  const maxGrowthAverage = Math.max(
+    1,
+    ...growthSeries.map((item) => item.averageReach),
+  );
+  const growthDeltaRatio =
+    growthBefore && growthBefore.averageReach > 0 && growthAfter
+      ? (growthAfter.averageReach - growthBefore.averageReach) / growthBefore.averageReach
+      : 0;
+
+  React.useEffect(() => {
+    if (!landingsPayments.length) return;
+    console.info("[landings] registros", landingsPayments);
+  }, [landingsPayments]);
   return (
     <div className="w-full px-4 pb-12 pt-6 md:px-6">
-      <div className="mb-6">
-        <GuillermoMap data={mapData} error={mapError} />
-      </div>
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
-        <div className="group w-full rounded-3xl bg-card/70 p-5 shadow-[0_18px_40px_rgba(15,23,42,0.06)] ring-1 ring-black/5 transition hover:-translate-y-0.5 hover:shadow-[0_22px_48px_rgba(15,23,42,0.08)]">
+        <div className="group w-full rounded-3xl bg-card/70 p-5 shadow-[0_18px_40px_rgba(15,23,42,0.06)] ring-0 transition hover:-translate-y-0.5 hover:shadow-[0_22px_48px_rgba(15,23,42,0.08)]">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <p
@@ -200,7 +241,7 @@ export default function DashboardMain({
           </div>
         </div>
 
-        <div className="group w-full rounded-3xl bg-card/70 p-5 shadow-[0_18px_40px_rgba(15,23,42,0.06)] ring-1 ring-black/5 transition hover:-translate-y-0.5 hover:shadow-[0_22px_48px_rgba(15,23,42,0.08)]">
+        <div className="group w-full rounded-3xl bg-card/70 p-5 shadow-[0_18px_40px_rgba(15,23,42,0.06)] ring-0 transition hover:-translate-y-0.5 hover:shadow-[0_22px_48px_rgba(15,23,42,0.08)]">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <p
@@ -209,68 +250,243 @@ export default function DashboardMain({
               >
                 Promedio de alcance por publicacion
               </p>
-              <p className="text-xs" style={{ color: "var(--text-2)" }}>
-                Antes vs despues del corte
-              </p>
-              <p className="mt-1 text-xs" style={{ color: "var(--text-2)" }}>
-                Base: porcentaje del promedio total
-              </p>
             </div>
           </div>
-          <div className="mt-2 h-52">
-            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-              <BarChart data={growthSeries} layout="vertical" margin={{ left: 12, right: 12, top: 10, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="growthBefore" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#38bdf8" stopOpacity={0.9} />
-                    <stop offset="100%" stopColor="#38bdf8" stopOpacity={0.2} />
-                  </linearGradient>
-                  <linearGradient id="growthAfter" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#22c55e" stopOpacity={0.9} />
-                    <stop offset="100%" stopColor="#22c55e" stopOpacity={0.2} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid stroke="rgba(15, 23, 42, 0.08)" vertical={false} />
-                <XAxis
-                  type="number"
-                  tick={{ fontSize: 11, fill: "#5b6472" }}
-                  tickFormatter={(value) => formatPercent(Number(value))}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <YAxis
-                  type="category"
-                  dataKey="label"
-                  tick={{ fontSize: 11, fill: "#5b6472" }}
-                  axisLine={false}
-                  tickLine={false}
-                  width={110}
-                />
-                <Tooltip
-                  cursor={{ fill: "rgba(148, 163, 184, 0.18)" }}
-                  contentStyle={{
-                    borderRadius: 12,
-                    borderColor: "#d0d4dc",
-                    background: "#ffffff",
-                  }}
-                  formatter={(value) => formatPercent(Number(value ?? 0))}
-                />
-                <Bar dataKey="value" radius={[8, 12, 12, 8]} maxBarSize={36}>
-                  {growthSeries.map((entry) => (
-                    <Cell
-                      key={entry.id}
-                      fill={entry.id === "before" ? "url(#growthBefore)" : "url(#growthAfter)"}
+          <div className="mt-4 grid gap-3">
+            {growthSeries.map((entry) => {
+              const barWidth = Math.max(
+                8,
+                Math.round((entry.averageReach / maxGrowthAverage) * 100),
+              );
+              const isAfter = entry.id === "after";
+              return (
+                <div
+                  key={entry.id}
+                  className="rounded-2xl border border-transparent bg-muted/20 p-4 transition"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p
+                        className="text-[10px] font-semibold uppercase tracking-[0.22em]"
+                        style={{ color: "var(--text-2)" }}
+                      >
+                        {entry.label}
+                      </p>
+                      <p className="mt-2 text-2xl font-semibold" style={{ color: "var(--text-1)" }}>
+                        {formatNumber(entry.averageReach)}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.2em]" style={{ color: "var(--text-2)" }}>
+                        Base
+                      </p>
+                      <p className="mt-2 text-sm font-semibold" style={{ color: "var(--text-1)" }}>
+                        {formatPercent(entry.value)}
+                      </p>
+                      {isAfter ? (
+                        <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.2em]" style={{ color: "#16a34a" }}>
+                          Despues {growthDeltaRatio >= 0 ? "+" : ""}{formatRatioPercent(growthDeltaRatio)}
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
+                  <div className="mt-3 h-2 w-full rounded-full bg-slate-200/70 dark:bg-slate-800">
+                    <div
+                      className="h-2 rounded-full"
+                      style={{
+                        width: `${barWidth}%`,
+                        background: isAfter
+                          ? "linear-gradient(90deg, rgba(34,197,94,0.95), rgba(34,197,94,0.35))"
+                          : "linear-gradient(90deg, rgba(56,189,248,0.95), rgba(56,189,248,0.35))",
+                      }}
                     />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
 
+      <div className="mt-6">
+        <section className="group w-full rounded-3xl bg-card/70 p-5 shadow-[0_18px_40px_rgba(15,23,42,0.06)] ring-0 transition hover:-translate-y-0.5 hover:bg-card/80 hover:shadow-[0_22px_48px_rgba(15,23,42,0.08)]">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p
+                className="text-sm font-semibold uppercase tracking-[0.28em]"
+                style={{ color: "var(--text-1)" }}
+              >
+                Inversion diaria en landings
+              </p>
+              <p className="text-xs" style={{ color: "var(--text-2)" }}>
+                Montos reportados en Facebook vs banco
+              </p>
+            </div>
+            <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em]" style={{ color: "var(--text-2)" }}>
+              <span
+                className="rounded-full border px-2 py-1"
+                style={{ borderColor: "var(--border)" }}
+              >
+                Solo Facebook
+              </span>
+            </div>
+          </div>
+          {landingsLoading ? (
+            <p className="mt-4 text-xs font-semibold uppercase tracking-[0.2em]" style={{ color: "var(--text-2)" }}>
+              Cargando datos de landings...
+            </p>
+          ) : landingsError ? (
+            <p className="mt-4 text-sm font-semibold" style={{ color: "var(--text-1)" }}>
+              {landingsError}
+            </p>
+          ) : landingsPayments.length === 0 ? (
+            <p className="mt-4 text-sm" style={{ color: "var(--text-2)" }}>
+              Sin movimientos disponibles para el periodo.
+            </p>
+          ) : (
+            <div className="mt-4 grid gap-4">
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="rounded-2xl border border-transparent bg-muted/20 p-4 transition">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.22em]" style={{ color: "var(--text-2)" }}>
+                    Total Facebook
+                  </p>
+                  <p className="mt-2 text-xl font-semibold" style={{ color: "var(--text-1)" }}>
+                    {formatCurrencyPen(landingsTotals.facebook)}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-transparent bg-muted/20 p-4 transition">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.22em]" style={{ color: "var(--text-2)" }}>
+                    Periodo
+                  </p>
+                  <p className="mt-2 text-base font-semibold" style={{ color: "var(--text-1)" }}>
+                    {firstLanding ? formatDate(new Date(firstLanding.dateKey)) : "-"}
+                  </p>
+                  <p className="mt-1 text-[11px]" style={{ color: "var(--text-2)" }}>
+                    Ultimo registro {lastLanding ? formatDate(new Date(lastLanding.dateKey)) : "-"}
+                  </p>
+                </div>
+              </div>
+              <div className="grid gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,0.9fr)]">
+                <div className="h-64 rounded-2xl border border-transparent bg-muted/20 p-3 transition">
+                  <div className="flex items-center justify-between gap-2 px-2">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.22em]" style={{ color: "var(--text-2)" }}>
+                      Diario (Facebook)
+                    </p>
+                    <div className="flex items-center gap-3 text-[10px] font-semibold uppercase tracking-[0.2em]" style={{ color: "var(--text-2)" }}>
+                      <span className="flex items-center gap-2">
+                        <span className="h-2 w-2 rounded-full" style={{ background: "#38bdf8" }} />
+                        Facebook
+                      </span>
+                    </div>
+                  </div>
+                  <div className="mt-2 h-52">
+                    <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+                      <BarChart data={landingsChartData} margin={{ left: 0, right: 16, top: 6, bottom: 0 }}>
+                        <defs>
+                          <linearGradient id="landingsFb" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#38bdf8" stopOpacity={0.9} />
+                            <stop offset="100%" stopColor="#38bdf8" stopOpacity={0.2} />
+                          </linearGradient>
+                          <linearGradient id="landingsBank" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#f97316" stopOpacity={0.9} />
+                            <stop offset="100%" stopColor="#f97316" stopOpacity={0.2} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid stroke="rgba(148, 163, 184, 0.2)" vertical={false} />
+                        <XAxis
+                          dataKey="label"
+                          tick={{ fontSize: 10, fill: "#5b6472" }}
+                          axisLine={false}
+                          tickLine={false}
+                        />
+                        <YAxis
+                          tick={{ fontSize: 10, fill: "#5b6472" }}
+                          tickFormatter={(value) => `S/.${formatNumber(Number(value))}`}
+                          axisLine={false}
+                          tickLine={false}
+                        />
+                        <Tooltip
+                          cursor={{ fill: "rgba(148, 163, 184, 0.18)" }}
+                          contentStyle={{ borderRadius: 12, borderColor: "#d0d4dc", background: "#ffffff" }}
+                          formatter={(value, name) => [
+                            formatCurrencyPen(Number(value ?? 0)),
+                            name === "facebook" ? "Facebook" : "Banco",
+                          ]}
+                          labelFormatter={(_label, payload) => {
+                            const record = payload?.[0]?.payload as { dateKey?: string } | undefined;
+                            return record?.dateKey ? formatDate(new Date(record.dateKey)) : "";
+                          }}
+                        />
+                        <Bar
+                          dataKey="facebook"
+                          name="Facebook"
+                          fill="url(#landingsFb)"
+                          radius={[6, 6, 0, 0]}
+                          barSize={18}
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-transparent bg-muted/20 p-3 transition">
+                  <div className="flex items-center justify-between gap-2 px-2">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.22em]" style={{ color: "var(--text-2)" }}>
+                      Acumulado
+                    </p>
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.2em]" style={{ color: "var(--text-2)" }}>
+                      Total Facebook {formatCurrencyPen(landingsTotals.facebook)}
+                    </span>
+                  </div>
+                  <div className="mt-2 h-52">
+                    <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+                      <AreaChart data={landingsCumulative} margin={{ left: 0, right: 12, top: 8, bottom: 0 }}>
+                        <defs>
+                          <linearGradient id="landingsCumTotal" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#2563eb" stopOpacity={0.35} />
+                            <stop offset="100%" stopColor="#2563eb" stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid stroke="rgba(148, 163, 184, 0.2)" vertical={false} />
+                        <XAxis
+                          dataKey="label"
+                          tick={{ fontSize: 10, fill: "#5b6472" }}
+                          axisLine={false}
+                          tickLine={false}
+                        />
+                        <YAxis
+                          tick={{ fontSize: 10, fill: "#5b6472" }}
+                          tickFormatter={(value) => `S/.${formatNumber(Number(value))}`}
+                          axisLine={false}
+                          tickLine={false}
+                        />
+                        <Tooltip
+                          cursor={{ fill: "rgba(148, 163, 184, 0.18)" }}
+                          contentStyle={{ borderRadius: 12, borderColor: "#d0d4dc", background: "#ffffff" }}
+                          formatter={(value, _name) => [formatCurrencyPen(Number(value ?? 0)), "Total Facebook"]}
+                          labelFormatter={(_label, payload) => {
+                            const record = payload?.[0]?.payload as { dateKey?: string } | undefined;
+                            return record?.dateKey ? formatDate(new Date(record.dateKey)) : "";
+                          }}
+                        />
+                          <Area
+                            type="monotone"
+                            dataKey="cumFacebook"
+                            stroke="#2563eb"
+                            strokeWidth={2}
+                            fill="url(#landingsCumTotal)"
+                          />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </section>
+      </div>
+
       <div className="mt-6 grid items-start gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
-        <section className="group w-full rounded-3xl bg-card/70 p-5 shadow-[0_18px_40px_rgba(15,23,42,0.06)] ring-1 ring-black/5 transition hover:-translate-y-0.5 hover:shadow-[0_22px_48px_rgba(15,23,42,0.08)]">
+        <section className="group w-full rounded-3xl bg-card/70 p-5 shadow-[0_18px_40px_rgba(15,23,42,0.06)] ring-0 transition hover:-translate-y-0.5 hover:shadow-[0_22px_48px_rgba(15,23,42,0.08)]">
           <div className="flex flex-wrap items-start justify-between gap-2">
             <div>
               <p
@@ -298,111 +514,142 @@ export default function DashboardMain({
             <p className="mt-4 text-sm font-semibold" style={{ color: "var(--text-1)" }}>
               {panoramaError}
             </p>
-          ) : topPages.length === 0 ? (
+          ) : topPages.length === 0 && panoramaDailyActive.length === 0 ? (
             <p className="mt-4 text-sm" style={{ color: "var(--text-2)" }}>
               Sin datos disponibles en el informe panoramico.
             </p>
           ) : (
-            <div className="mt-3 rounded-2xl bg-muted/30 p-3 ring-1 ring-black/5">
-              <div className="flex items-center justify-between gap-2">
-                <p
-                  className="text-[11px] font-semibold uppercase tracking-[0.24em]"
-                  style={{ color: "var(--text-1)" }}
-                >
-                  Top paginas por vistas
-                </p>
-                <span
-                  className="text-[10px] font-semibold uppercase tracking-[0.2em]"
-                  style={{ color: "var(--text-2)" }}
-                >
-                  {formatNumber(topPages.reduce((sum, item) => sum + item.vistas, 0))} vistas
-                </span>
-              </div>
-              <div className="mt-2 h-64">
-                <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-                  <BarChart data={topPages} layout="vertical" margin={{ left: 6, right: 16 }}>
-                    <defs>
-                      <linearGradient id="pageViewsFill" x1="0" y1="0" x2="1" y2="0">
-                        <stop offset="0%" stopColor="#38bdf8" stopOpacity={0.9} />
-                        <stop offset="100%" stopColor="#2563eb" stopOpacity={0.25} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid stroke="rgba(148, 163, 184, 0.2)" horizontal={false} />
-                    <XAxis
-                      type="number"
-                      tick={{ fontSize: 10, fill: "#5b6472" }}
-                      tickFormatter={(value) => formatNumber(Number(value))}
-                      axisLine={false}
-                      tickLine={false}
-                    />
-                    <YAxis
-                      type="category"
-                      dataKey="tituloCorto"
-                      width={160}
-                      tick={{ fontSize: 10, fill: "#5b6472" }}
-                      axisLine={false}
-                      tickLine={false}
-                    />
-                    <Tooltip
-                      cursor={{ fill: "rgba(148, 163, 184, 0.18)" }}
-                      contentStyle={{ borderRadius: 12, borderColor: "#d0d4dc", background: "#ffffff" }}
-                      formatter={(value, _name, props) => {
-                        const record = props.payload as PanoramaPageChart | undefined;
-                        return [
-                          `${formatNumber(Number(value))} vistas | ${formatRatioPercent(record?.rebote ?? 0)} rebote`,
-                          record?.titulo ?? "",
-                        ];
-                      }}
-                    />
-                    <Bar dataKey="vistas" fill="url(#pageViewsFill)" radius={[6, 10, 10, 6]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-          )}
-        </section>
-
-        <div />
-      </div>
-
-      <div className="mt-6">
-        <section className="group w-full rounded-3xl bg-card/70 p-5 shadow-[0_18px_40px_rgba(15,23,42,0.06)] ring-1 ring-black/5 transition hover:-translate-y-0.5 hover:shadow-[0_22px_48px_rgba(15,23,42,0.08)]">
-          <div>
-            <p
-              className="text-sm font-semibold uppercase tracking-[0.28em]"
-              style={{ color: "var(--text-1)" }}
-            >
-              Ciudades destacadas
-            </p>
-            <p className="text-xs" style={{ color: "var(--text-2)" }}>
-              Usuarios activos por ciudad
-            </p>
-          </div>
-          {topCities.length ? (
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              {topCities.map((city) => (
-                <div
-                  key={city.ciudad}
-                  className="flex items-center justify-between rounded-2xl bg-muted/30 px-3 py-2 text-xs font-semibold"
-                  style={{ color: "var(--text-1)" }}
-                >
-                  <span className="truncate text-[11px]" style={{ color: "var(--text-2)" }}>
-                    {city.ciudad}
-                  </span>
-                  <span className="text-sm">{formatNumber(city.usuarios)}</span>
+            <div className="mt-3 grid gap-4">
+              {topPages.length ? (
+                <div className="rounded-2xl bg-muted/30 p-3 ring-0 transition">
+                  <div className="flex items-center justify-between gap-2">
+                    <p
+                      className="text-[11px] font-semibold uppercase tracking-[0.24em]"
+                      style={{ color: "var(--text-1)" }}
+                    >
+                      Top paginas por vistas
+                    </p>
+                    <span
+                      className="text-[10px] font-semibold uppercase tracking-[0.2em]"
+                      style={{ color: "var(--text-2)" }}
+                    >
+                      {formatNumber(topPages.reduce((sum, item) => sum + item.vistas, 0))} vistas
+                    </span>
+                  </div>
+                  <div className="mt-2 h-64">
+                    <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+                      <BarChart data={topPages} layout="vertical" margin={{ left: 6, right: 16 }}>
+                        <defs>
+                          <linearGradient id="pageViewsFill" x1="0" y1="0" x2="1" y2="0">
+                            <stop offset="0%" stopColor="#38bdf8" stopOpacity={0.9} />
+                            <stop offset="100%" stopColor="#2563eb" stopOpacity={0.25} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid stroke="rgba(148, 163, 184, 0.2)" horizontal={false} />
+                        <XAxis
+                          type="number"
+                          tick={{ fontSize: 10, fill: "#5b6472" }}
+                          tickFormatter={(value) => formatNumber(Number(value))}
+                          axisLine={false}
+                          tickLine={false}
+                        />
+                        <YAxis
+                          type="category"
+                          dataKey="tituloCorto"
+                          width={160}
+                          tick={{ fontSize: 10, fill: "#5b6472" }}
+                          axisLine={false}
+                          tickLine={false}
+                        />
+                        <Tooltip
+                          cursor={{ fill: "rgba(148, 163, 184, 0.18)" }}
+                          wrapperStyle={{ zIndex: 40 }}
+                          contentStyle={{
+                            borderRadius: 12,
+                            borderColor: "#d0d4dc",
+                            background: "#ffffff",
+                            maxWidth: 260,
+                            whiteSpace: "normal",
+                          }}
+                          formatter={(value, _name, props) => {
+                            const record = props.payload as PanoramaPageChart | undefined;
+                            return `${formatNumber(Number(value))} vistas | ${formatRatioPercent(record?.rebote ?? 0)} rebote`;
+                          }}
+                          labelFormatter={(_label, payload) => {
+                            const record = payload?.[0]?.payload as PanoramaPageChart | undefined;
+                            return record?.titulo ?? "";
+                          }}
+                        />
+                        <Bar dataKey="vistas" fill="url(#pageViewsFill)" radius={[6, 10, 10, 6]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
                 </div>
-              ))}
+              ) : null}
+              {panoramaDailyActive.length ? (
+                <div className="rounded-2xl bg-muted/30 p-3 ring-0 transition">
+                  <div className="flex items-center justify-between gap-2">
+                    <p
+                      className="text-[11px] font-semibold uppercase tracking-[0.24em]"
+                      style={{ color: "var(--text-1)" }}
+                    >
+                      Usuarios activos diarios
+                    </p>
+                    <span
+                      className="text-[10px] font-semibold uppercase tracking-[0.2em]"
+                      style={{ color: "var(--text-2)" }}
+                    >
+                      Ultimos {formatNumber(panoramaDailyActive.length)} dias
+                    </span>
+                  </div>
+                  <div className="mt-2 h-40">
+                    <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+                      <AreaChart data={panoramaDailyActive} margin={{ left: 0, right: 12, top: 8, bottom: 0 }}>
+                        <defs>
+                          <linearGradient id="panoramaActiveFill" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#38bdf8" stopOpacity={0.35} />
+                            <stop offset="100%" stopColor="#38bdf8" stopOpacity={0.02} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid stroke="rgba(148, 163, 184, 0.2)" vertical={false} />
+                        <XAxis
+                          dataKey="label"
+                          tick={{ fontSize: 10, fill: "#5b6472" }}
+                          axisLine={false}
+                          tickLine={false}
+                        />
+                        <YAxis
+                          tick={{ fontSize: 10, fill: "#5b6472" }}
+                          tickFormatter={(value) => formatNumber(Number(value))}
+                          axisLine={false}
+                          tickLine={false}
+                        />
+                        <Tooltip
+                          cursor={{ fill: "rgba(148, 163, 184, 0.18)" }}
+                          contentStyle={{ borderRadius: 12, borderColor: "#d0d4dc", background: "#ffffff" }}
+                          formatter={(value) => formatNumber(Number(value ?? 0))}
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="value"
+                          stroke="#38bdf8"
+                          strokeWidth={2}
+                          fill="url(#panoramaActiveFill)"
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              ) : null}
             </div>
-          ) : (
-            <p className="mt-3 text-xs" style={{ color: "var(--text-2)" }}>
-              Sin ciudades disponibles en el informe panoramico.
-            </p>
           )}
         </section>
+
+        <ResultsPie />
       </div>
 
       <div className="mt-6">
-        <section className="group w-full rounded-3xl bg-card/70 p-5 shadow-[0_18px_40px_rgba(15,23,42,0.06)] ring-1 ring-black/5 transition hover:-translate-y-0.5 hover:shadow-[0_22px_48px_rgba(15,23,42,0.08)]">
+        <section className="group w-full rounded-3xl bg-card/70 p-5 shadow-[0_18px_40px_rgba(15,23,42,0.06)] ring-0 transition hover:-translate-y-0.5 hover:shadow-[0_22px_48px_rgba(15,23,42,0.08)]">
           <div className="flex flex-wrap items-start justify-between gap-2">
             <div>
               <p

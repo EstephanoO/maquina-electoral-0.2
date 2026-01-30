@@ -1,6 +1,13 @@
 export const formatNumber = (value: number) =>
   new Intl.NumberFormat("en-US").format(Math.round(value));
 
+export const formatCurrencyPen = (value: number) =>
+  new Intl.NumberFormat("es-PE", {
+    style: "currency",
+    currency: "PEN",
+    maximumFractionDigits: 2,
+  }).format(value);
+
 export const formatPercent = (value: number) => `${value.toFixed(1)}%`;
 
 export const formatRatioPercent = (value: number) => `${(value * 100).toFixed(1)}%`;

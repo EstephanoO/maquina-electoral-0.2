@@ -1,13 +1,15 @@
 # AGENTS.md
 
-## Module overview
-Legacy management feature module (deprecated).
+## Contexto global
+- Ver contexto completo en `AGENTS.md` (raiz).
+- Modulo legacy de management.
 
-## Responsibilities
-- Keep existing admin/consultor management sections stable.
+## Responsabilidades
+- Mantener secciones legacy estables.
 
-## Boundaries
-- No new features; migrate to `src/modules/console` when updating.
+## Limites
+- No agregar features nuevas.
+- Migrar cambios a `src/modules/console`.
 
 ## Key files
 - `src/management/*`

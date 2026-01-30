@@ -35,6 +35,9 @@
 ## Seguridad y roles
 - RBAC en `src/lib/rbac.ts`.
 - Sesion via cookie httpOnly; `SessionHydrator` consume `/api/auth/me`.
+- Auth completo con email/password y tablas `auth_users`, `auth_sessions`.
+- Login en `/login` con API `/api/auth/login` y logout en `/api/auth/logout`.
+- Guards server-side en layouts de `/console` y `/dashboard`.
 
 ## Rutas clave
 - Fullscreen tierra: `src/app/(fullscreen)/eventos/[eventId]/dashboard/page.tsx`.

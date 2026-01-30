@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { AppHeader } from "@/modules/layout/AppHeader";
 import { CandidatePanel } from "@/modules/layout/CandidatePanel";
 import { DashboardSidebar } from "@/modules/dashboards/DashboardSidebar";
@@ -9,8 +9,10 @@ import { useSessionStore } from "@/stores/session.store";
 
 export const AppShell = ({ children }: { children: ReactNode }) => {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const role = useSessionStore((state) => state.currentRole);
-  const showHeader = role === "SUPER_ADMIN";
+  const isPreview = searchParams?.get("preview") === "1";
+  const showHeader = role === "SUPER_ADMIN" && !isPreview;
   const showSidebarBase =
     role === "CANDIDATO" || role === "ESTRATEGA" || role === "CONSULTOR";
   const pathParts = pathname?.split("/").filter(Boolean) ?? [];

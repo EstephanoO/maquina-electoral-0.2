@@ -1,26 +1,29 @@
 # AGENTS.md
 
-## Module overview
-Reusable UI primitives for state and access control.
+## Contexto global
+- Ver contexto completo en `AGENTS.md` (raiz).
+- Primitivas UI para estados y acceso.
 
 ## Design system
-- Source of truth: `design-system/MASTER.md`.
+- Fuente de verdad: `design-system/MASTER.md`.
 
-## Responsibilities
-- RoleGate and UnauthorizedState.
+## Responsabilidades
+- RoleGate y UnauthorizedState.
 - EmptyState / LoadingState / ErrorState.
+- SessionHydrator (hidrata session desde `/api/auth/me`).
 
 ## Layout
-- Shared states render centered with max-width.
+- Estados compartidos render centrado y max-width.
 
-## Boundaries
-- No feature logic; keep generic.
+## Limites
+- Sin logica de feature; mantener generico.
 
 ## Key files
 - `src/modules/shared/EmptyState.tsx`
 - `src/modules/shared/LoadingState.tsx`
 - `src/modules/shared/ErrorState.tsx`
 - `src/modules/shared/RoleGate.tsx`
+- `src/modules/shared/SessionHydrator.tsx`
 
 ## Skills
 - .agents/skills/frontend-design/SKILL.md

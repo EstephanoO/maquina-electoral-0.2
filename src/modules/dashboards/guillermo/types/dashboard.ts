@@ -8,7 +8,9 @@ export type DailyPoint = {
 };
 
 export type FacebookPost = {
+  url?: string;
   time?: string;
+  text?: string;
   comments?: number;
   likes?: number;
   shares?: number;
@@ -37,11 +39,10 @@ export type PanoramaSourceChart = {
   fuenteCorta?: string;
 };
 
-export type PanoramaDaySeries = {
+export type PanoramaDailyMetric = {
   dayIndex: number;
-  dayLabel: string;
-  nuevos: number;
-  recurrentes: number;
+  label: string;
+  value: number;
 };
 
 export type PanoramaCity = {
@@ -54,7 +55,9 @@ export type PanoramaData = {
   pages: PanoramaPageChart[];
   userSources: PanoramaSourceChart[];
   sessionSources: PanoramaSourceChart[];
-  daySeries: PanoramaDaySeries[];
+  dailyActive: PanoramaDailyMetric[];
+  dailyNew: PanoramaDailyMetric[];
+  dailyEngagement: PanoramaDailyMetric[];
   cities: PanoramaCity[];
 };
 
@@ -68,6 +71,13 @@ export type GrowthSeriesItem = {
   id: string;
   label: string;
   value: number;
+  averageReach: number;
+};
+
+export type LandingsPaymentPoint = {
+  dateKey: string;
+  facebook: number;
+  banco: number;
 };
 
 export type SentimentStackDatum = {

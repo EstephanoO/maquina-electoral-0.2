@@ -1,25 +1,26 @@
 # AGENTS.md
 
-## Module overview
-Data access layer for Neon-backed reads plus local UI seeds.
+## Contexto global
+- Ver contexto completo en `AGENTS.md` (raiz).
+- Capa de datos para Neon + seeds locales.
 
-## Responsibilities
-- Neon connection via Drizzle for `territory` reads/writes.
-- Local storage keys and helpers.
-- Client-side constants for UI seed data.
+## Responsabilidades
+- Conexion Neon via Drizzle (server-side).
+- Schema: territory, events, campaign_geojson, auth_users, auth_sessions.
+- Seeds UI en `src/db/constants/*`.
 
-## Notes
-- Campaigns/events/forms/responses seed the UI-only flow.
-- Dashboard states live in `src/modules/campaigns` store.
+## Notas
+- Campaigns/events/forms/responses seed el flujo UI.
+- Dashboard state vive en `src/modules/campaigns`.
+
+## Limites
+- Sin UI components.
+- Sin logica de feature.
 
 ## Key files
 - `src/db/schema.ts`
 - `src/db/connection.ts`
 - `src/db/constants/*`
-
-## Boundaries
-- No UI components.
-- No feature-specific logic.
 
 ## Skills
 - .agents/skills/zustand-state-management/SKILL.md

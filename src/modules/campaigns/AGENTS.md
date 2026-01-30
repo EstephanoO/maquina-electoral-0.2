@@ -1,19 +1,20 @@
 # AGENTS.md
 
-## Module overview
-Campaign domain state and profile metadata for candidates.
+## Contexto global
+- Ver contexto completo en `AGENTS.md` (raiz).
+- Estado de dominio para campañas y perfiles.
 
-## Responsibilities
-- Store campaign list, dashboard status, and candidate metadata.
-- Dashboards can be ACTIVE or DRAFT and optionally linked to events.
-- Expose actions to update status and profiles.
+## Responsabilidades
+- Store de campañas, estados de dashboard y metadata de candidatos.
+- Dashboards ACTIVE/DRAFT con event links opcionales.
+- Acciones para update de status/perfiles.
 
-## Persistence
-- Local state only; `localStorage` persistence uses versioned schema with migrate.
+## Persistencia
+- Estado local con `localStorage` y schema versionado + migrate.
 
-## Boundaries
-- No UI rendering.
-- Persist only UI state (localStorage).
+## Limites
+- Sin UI rendering.
+- Persistir solo estado de UI.
 
 ## Key files
 - `src/modules/campaigns/store.ts`

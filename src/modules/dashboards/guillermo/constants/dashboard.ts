@@ -28,11 +28,22 @@ export const SUMMARY_FORMAT = {
 export type SummaryFormat =
   (typeof SUMMARY_FORMAT)[keyof typeof SUMMARY_FORMAT];
 
-export const PANORAMA_REPORT_PATH = "/guillermo/Informe_panor\u00e1mico.csv";
-export const PANORAMA_REPORT_PATH_ALT = "/guillermo/Informe_panoramico.csv";
+export const PANORAMA_REPORT_PATH =
+  "/guillermo/Hoja%20de%20c%C3%A1lculo%20sin%20t%C3%ADtulo%20-%20Hoja%201.csv";
+export const PANORAMA_REPORT_PATH_ALT = PANORAMA_REPORT_PATH;
+
+export const LANDINGS_TSV_URL =
+  "https://docs.google.com/spreadsheets/d/e/2PACX-1vS1ZfnXMBrIId0-hghZvQIRZngJyXIDIdr1YWY9jkVrN62bFrqcHCYX6L8Iur9MzeEobft0JxfN04bw/pub?gid=0&single=true&output=csv";
 
 export const FACEBOOK_DATASET_PATH =
   "/guillermo/dataset_facebook-posts-scraper_2026-01-21_18-02-27-654.json";
+export const FACEBOOK_DATASET_PATHS = [
+  "/guillermo/dataset_facebook-posts-scraper_2026-01-21_18-02-27-654.json",
+  "/guillermo/dataset_facebook-posts-scraper_2026-01-30_16-29-29-366.json",
+];
+
+export const CAMPAIGNS_RESULTS_CSV_PATH =
+  "/guillermo/Campaña-Aliaga-Campañas-30-dic.-2022-30-ene.-2026.csv";
 
 export const GUILLERMO_MAP_DATASETS = [
   "departamentos",
@@ -97,9 +108,9 @@ export const VOLUNTARIOS = [
 ] as const;
 
 export const VOLUNTARIOS_TOTAL = 150;
-export const WHATSAPP_FOLLOWERS = 1206;
+export const WHATSAPP_FOLLOWERS = 1265;
 export const FOLLOWERS_BEFORE = 11236;
-export const FOLLOWERS_NOW = 31232;
+export const FOLLOWERS_NOW = 34529;
 
 export const TEMAS_CLAVE = [
   {

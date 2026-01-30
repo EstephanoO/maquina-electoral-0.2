@@ -1,17 +1,23 @@
 import * as React from "react";
-import { FACEBOOK_DATASET_PATH } from "../constants/dashboard";
+import { FACEBOOK_DATASET_PATHS } from "../constants/dashboard";
 import type { DailyPoint, FacebookPost } from "../types/dashboard";
 
 type DailySeriesOptions = {
   file?: File | null;
   datasetPath?: string;
+  datasetPaths?: string[];
 };
 
 export const useDailySeries = (options: DailySeriesOptions = {}) => {
   const [dailySeries, setDailySeries] = React.useState<DailyPoint[]>([]);
   const [error, setError] = React.useState<string | null>(null);
   const fileRef = React.useRef<File | null>(null);
-  const datasetPath = options.datasetPath ?? FACEBOOK_DATASET_PATH;
+  const datasetPaths = React.useMemo(
+    () =>
+      options.datasetPaths
+        ?? (options.datasetPath ? [options.datasetPath] : FACEBOOK_DATASET_PATHS),
+    [options.datasetPaths, options.datasetPath],
+  );
   const fileKey = React.useMemo(
     () =>
       options.file
@@ -33,9 +39,22 @@ export const useDailySeries = (options: DailySeriesOptions = {}) => {
         const payload = hasFile && file
           ? ((JSON.parse(await file.text()) as unknown) as FacebookPost[])
           : await (async () => {
-              const response = await fetch(datasetPath, { cache: "force-cache" });
-              if (!response.ok) throw new Error("facebook-dataset");
-              return (await response.json()) as FacebookPost[];
+              const responses = await Promise.all(
+                datasetPaths.map((path) =>
+                  fetch(path, { cache: "force-cache" }).then((response) => {
+                    if (!response.ok) throw new Error("facebook-dataset");
+                    return response.json() as Promise<FacebookPost[]>;
+                  }),
+                ),
+              );
+              const merged = new Map<string, FacebookPost>();
+              responses.flat().forEach((post) => {
+                const key = post.url
+                  ?? `${post.time ?? ""}-${post.text ?? ""}-${post.likes ?? 0}`;
+                if (!key) return;
+                if (!merged.has(key)) merged.set(key, post);
+              });
+              return Array.from(merged.values());
             })();
         if (!isMounted) return;
         const grouped = new Map<string, { reach: number; interactions: number }>();
@@ -68,7 +87,7 @@ export const useDailySeries = (options: DailySeriesOptions = {}) => {
     return () => {
       isMounted = false;
     };
-  }, [datasetPath, fileKey]);
+  }, [datasetPaths, fileKey]);
 
   return { dailySeries, dailyError: error };
 };

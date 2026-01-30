@@ -1,13 +1,15 @@
 # AGENTS.md
 
-## Module overview
-Legacy management UI cards (superseded by `src/modules/console`).
+## Contexto global
+- Ver contexto completo en `AGENTS.md` (raiz).
+- Modulo legacy de UI para management.
 
-## Responsibilities
-- Preserve existing management cards used in admin configuration screens.
+## Responsabilidades
+- Preservar cards legacy usados en admin config.
 
-## Boundaries
-- Avoid adding new features here; use `src/modules/console` instead.
+## Limites
+- No agregar features nuevas.
+- Usar `src/modules/console` para UI actual.
 
 ## Key files
 - `src/ui/management/*`

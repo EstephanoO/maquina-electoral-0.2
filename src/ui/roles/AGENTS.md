@@ -1,16 +1,17 @@
 # AGENTS.md
 
-## Module overview
-UI components for role labels and permission visibility cues.
+## Contexto global
+- Ver contexto completo en `AGENTS.md` (raiz).
+- Modulo legacy de UI para roles.
 
-## Responsibilities
-- Role badges and small visual indicators.
+## Responsabilidades
+- Badges e indicadores visuales de rol.
 
-## Boundaries
-- No business logic beyond props.
+## Limites
+- Sin logica de negocio mas alla de props.
 
-## Notes
-- Roles include SUPER_ADMIN, CONSULTOR, CANDIDATO, ESTRATEGA.
+## Notas
+- Roles incluyen SUPER_ADMIN, CONSULTOR, CANDIDATO, ESTRATEGA.
 
 ## Key files
 - `src/ui/roles/*`

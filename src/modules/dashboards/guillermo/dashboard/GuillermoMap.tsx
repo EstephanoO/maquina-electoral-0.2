@@ -27,7 +27,7 @@ export default function GuillermoMap({ data, error }: GuillermoMapProps) {
     setLayers((current) => ({ ...current, [key]: !current[key] }));
   };
   return (
-    <div className="rounded-3xl bg-card/70 p-5 shadow-[0_18px_40px_rgba(15,23,42,0.08)] ring-1 ring-black/5">
+    <div className="rounded-3xl bg-card/70 p-5 shadow-[0_18px_40px_rgba(15,23,42,0.08)] ring-1 ring-border/5 transition hover:ring-border/15">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
@@ -52,7 +52,7 @@ export default function GuillermoMap({ data, error }: GuillermoMapProps) {
               className={`flex items-center gap-2 rounded-full border px-3 py-1 transition ${
                 layers[item.key]
                   ? "border-transparent bg-foreground/5 text-foreground"
-                  : "border-border/30 bg-transparent text-muted-foreground"
+                  : "border-border/15 bg-transparent text-muted-foreground"
               }`}
             >
               <span className={`h-2.5 w-2.5 rounded-full ${item.color}`} />

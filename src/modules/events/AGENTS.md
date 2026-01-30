@@ -1,15 +1,16 @@
 # AGENTS.md
 
-## Module overview
-Event domain state: agenda, forms, and response points.
+## Contexto global
+- Ver contexto completo en `AGENTS.md` (raiz).
+- Modulo de estado para dominio de eventos.
 
-## Responsibilities
-- Event store (agenda board). Events may or may not link to dashboards.
-- Form schema store and response store (location required for Tierra).
+## Responsabilidades
+- Store de eventos (agenda). Puede existir sin dashboard.
+- Store de schemas de formulario y respuestas (location obligatoria en tierra).
 
-## Boundaries
-- No UI rendering.
-- No UI rendering. Store layer only.
+## Limites
+- Sin UI rendering. Store layer only.
+- Sin data fetching directo; el fetch vive en `src/app/api/*`.
 
 ## Key files
 - `src/modules/events/events.store.ts`

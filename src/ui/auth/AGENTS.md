@@ -1,13 +1,15 @@
 # AGENTS.md
 
-## Module overview
-Legacy auth UI (login screen removed).
+## Contexto global
+- Ver contexto completo en `AGENTS.md` (raiz).
+- Modulo legacy de auth UI.
 
-## Responsibilities
-- None. Kept for reference only.
+## Responsabilidades
+- Ninguna. Se mantiene como referencia.
 
-## Boundaries
-- Session selection now lives in `src/app/page.tsx`.
+## Limites
+- El login actual vive en `src/app/(auth)/login`.
+- Session selection en `src/app/page.tsx`.
 
 ## Key files
 - `src/ui/auth/*`

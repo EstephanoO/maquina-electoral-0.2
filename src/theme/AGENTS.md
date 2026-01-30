@@ -1,15 +1,16 @@
 # AGENTS.md
 
-## Module overview
-Theme system for light/dark mode.
+## Contexto global
+- Ver contexto completo en `AGENTS.md` (raiz).
+- Sistema de tema y tokens globales.
 
-## Responsibilities
-- Theme tokens and client-side theme state.
-- Persisting theme preference.
+## Responsabilidades
+- ThemeProvider/ThemeScript y tokens.
+- Persistencia de preferencia de tema.
 
-## Boundaries
-- No UI layout ownership.
-- Theme toggle UI lives in `src/modules/layout`.
+## Limites
+- No ownership de layout.
+- Theme toggle UI vive en `src/modules/layout`.
 
 ## Key files
 - `src/theme/ThemeProvider.tsx`

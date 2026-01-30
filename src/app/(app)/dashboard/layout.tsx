@@ -11,7 +11,7 @@ export default async function DashboardLayout({
   if (!user) {
     redirect("/login");
   }
-  if (user.role !== "candidato") {
+  if (user.role !== "candidato" && user.role !== "admin") {
     redirect("/console/campaigns");
   }
   return <AppShell>{children}</AppShell>;

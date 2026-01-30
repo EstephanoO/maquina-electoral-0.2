@@ -1,13 +1,15 @@
 # AGENTS.md
 
-## Module overview
-Legacy dashboard feature notes (moved to `src/modules/dashboards`).
+## Contexto global
+- Ver contexto completo en `AGENTS.md` (raiz).
+- Modulo legacy de dashboards.
 
-## Responsibilities
-- Keep legacy notes for planned ingestion.
+## Responsabilidades
+- Mantener notas legacy y referencias.
 
-## Boundaries
-- No new code here; use `src/modules/dashboards` for UI.
+## Limites
+- No agregar features nuevas.
+- Usar `src/modules/dashboards` para UI actual.
 
 ## Key files
 - `src/modules/dashboards/*`

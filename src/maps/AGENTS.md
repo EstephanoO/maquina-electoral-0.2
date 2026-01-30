@@ -1,15 +1,17 @@
 # AGENTS.md
 
-## Module overview
-Feature module for map-related configuration (legacy).
+## Contexto global
+- Ver contexto completo en `AGENTS.md` (raiz).
+- Modulo legacy de configuracion de mapas.
 
-## Responsibilities
-- Map configuration defaults.
-- Shared types and helpers for map features.
+## Responsabilidades
+- Defaults y helpers de configuracion de mapas.
+- Types compartidos para features de mapas.
 
-## Boundaries
-- UI components live in `src/modules/maps`.
-- No dashboard-specific composition.
+## Limites
+- UI vive en `src/modules/maps`.
+- Sin composicion de dashboards.
+- No expandir; mantener solo soporte legacy.
 
 ## Key files
 - `src/maps/mapConfig.ts`

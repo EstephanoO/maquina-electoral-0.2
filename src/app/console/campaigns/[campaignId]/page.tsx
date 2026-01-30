@@ -80,6 +80,7 @@ const buildGeojsonSpecs = (slug: string): DashboardFileSpec[] => [
 const buildDashboards = (campaignId: string): DashboardItem[] => {
   const slug = candidateSlugById[campaignId] ?? "cliente";
   const eventId = eventByCampaignId[campaignId] ?? "event";
+  const includeGeojsonInAnalytics = campaignId !== "cand-guillermo";
   const sharedFiles: DashboardFileSpec[] = [
     {
       id: "panorama",
@@ -93,7 +94,7 @@ const buildDashboards = (campaignId: string): DashboardItem[] => {
       accept: ".json",
       hint: `/public/${slug}/dataset_facebook-posts.json`,
     },
-    ...buildGeojsonSpecs(slug),
+    ...(includeGeojsonInAnalytics ? buildGeojsonSpecs(slug) : []),
     {
       id: "landings",
       label: "Landings / Campanas (XLSX o CSV)",
@@ -350,7 +351,7 @@ export default function CampaignDetailPage() {
                       Configurar
                     </Button>
                     <Button asChild>
-                      <Link href={dashboard.href}>Entrar</Link>
+                      <Link href={isAdmin ? `${dashboard.href}?preview=1` : dashboard.href}>Entrar</Link>
                     </Button>
                   </div>
                 </div>

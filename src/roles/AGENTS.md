@@ -1,18 +1,19 @@
 # AGENTS.md
 
-## Module overview
-Role and permission definitions for MAQUINA-ELECTORAL.
+## Contexto global
+- Ver contexto completo en `AGENTS.md` (raiz).
+- Definiciones de roles y permisos.
 
-## Responsibilities
-- Role types and permission mapping.
-- Helper utilities for access checks.
+## Responsabilidades
+- Types de roles.
+- Helpers para access checks.
 
-## Boundaries
-- No UI components.
-- No routing or data fetching.
+## Limites
+- Sin UI components.
+- Sin routing ni data fetching.
 
-## Notes
-- Role list includes ESTRATEGA alongside CANDIDATO.
+## Notas
+- Roles incluyen ESTRATEGA junto a CANDIDATO.
 
 ## Key files
 - `src/roles/*`

@@ -19,6 +19,12 @@
 - `/console` y `/console/admin` deben estar role-gated.
 - Los params dinamicos son async (Next 16) y se deben await.
 
+## Auth y sesiones
+- Auth con email/password en `/login`.
+- API: `/api/auth/login`, `/api/auth/logout`, `/api/auth/me`.
+- Cookie httpOnly con sesion en `auth_sessions`.
+- Guards server-side en layouts de `/console` y `/dashboard`.
+
 ## Rutas clave
 - `src/app/(app)/dashboard/[client]/[template]/page.tsx`
 - `src/app/(fullscreen)/eventos/[eventId]/dashboard/page.tsx`

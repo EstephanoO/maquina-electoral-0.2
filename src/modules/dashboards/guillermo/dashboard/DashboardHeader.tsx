@@ -31,7 +31,7 @@ export default function DashboardHeader({
     <header className="bg-card/70 shadow-[0_10px_30px_-20px_rgba(15,23,42,0.18)] backdrop-blur">
       <div className="flex flex-col gap-5 px-6 py-6 md:flex-row md:items-center md:px-10">
         <div className="flex items-center gap-4">
-          <div className="relative h-20 w-20 overflow-hidden rounded-2xl bg-white/80 shadow-[0_12px_30px_-18px_rgba(15,23,42,0.2)] ring-1 ring-black/5">
+          <div className="relative h-20 w-20 overflow-hidden rounded-2xl bg-white/80 shadow-[0_12px_30px_-18px_rgba(15,23,42,0.2)] ring-0">
             <Image
               src={imageSrc}
               alt={candidateName}
@@ -53,7 +53,7 @@ export default function DashboardHeader({
           </div>
         </div>
         <div className="ml-auto grid gap-3 md:grid-cols-3">
-          <div className="rounded-2xl bg-card/70 px-4 py-3 shadow-sm ring-1 ring-black/5">
+          <div className="rounded-2xl bg-card/70 px-4 py-3 shadow-sm ring-0">
             <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
               Contactos conseguidos
             </p>
@@ -67,7 +67,7 @@ export default function DashboardHeader({
               />
             </div>
           </div>
-          <div className="rounded-2xl bg-card/70 px-4 py-3 shadow-sm ring-1 ring-black/5">
+          <div className="rounded-2xl bg-card/70 px-4 py-3 shadow-sm ring-0">
             <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
               Proyeccion votos
             </p>
@@ -81,7 +81,7 @@ export default function DashboardHeader({
               />
             </div>
           </div>
-          <div className="rounded-2xl bg-card/70 px-4 py-3 shadow-sm ring-1 ring-black/5">
+          <div className="rounded-2xl bg-card/70 px-4 py-3 shadow-sm ring-0">
             <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
               Meta total
             </p>
