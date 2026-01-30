@@ -316,7 +316,7 @@ export default function DashboardMain({
                 className="text-sm font-semibold uppercase tracking-[0.28em]"
                 style={{ color: "var(--text-1)" }}
               >
-                Inversion diaria en landings
+                Inversion diaria
               </p>
               <p className="text-xs" style={{ color: "var(--text-2)" }}>
                 Montos reportados en Facebook vs banco
