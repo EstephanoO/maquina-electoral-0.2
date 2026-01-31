@@ -21,6 +21,10 @@ interface MapSectionProps {
   onClearFocusPoint?: () => void;
   campaignId?: string | null;
   onHierarchySelectionChange?: (selection: MapHierarchySelection) => void;
+  showMovingOnly?: boolean;
+  onToggleMovingOnly?: () => void;
+  trackingCount?: number;
+  movingTrackingCount?: number;
 }
 
 export const MapSection: React.FC<MapSectionProps> = ({
@@ -36,10 +40,17 @@ export const MapSection: React.FC<MapSectionProps> = ({
   onClearFocusPoint,
   campaignId,
   onHierarchySelectionChange,
+  showMovingOnly,
+  onToggleMovingOnly,
+  trackingCount,
+  movingTrackingCount,
 }) => {
   const [showStreetBase, setShowStreetBase] = React.useState(true);
   const [currentLevel, setCurrentLevel] = React.useState<GeoLevel>("departamento");
   const getPointColor = React.useCallback((point: MapPoint) => {
+    if (point.kind === "tracking") {
+      return point.mode === "moving" ? "#f43f5e" : "#94a3b8";
+    }
     if (point.candidate === candidateLabels[0]) return "#10b981";
     if (point.candidate === candidateLabels[1]) return "#3b82f6";
     if (point.candidate === candidateLabels[2]) return "#f97316";
@@ -161,10 +172,25 @@ export const MapSection: React.FC<MapSectionProps> = ({
         >
           {showStreetBase ? "Ocultar fondo" : "Mostrar fondo"}
         </Button>
+        {onToggleMovingOnly ? (
+          <Button
+            size="sm"
+            variant={showMovingOnly ? "default" : "outline"}
+            onClick={onToggleMovingOnly}
+            className="backdrop-blur"
+          >
+            {showMovingOnly ? "Ver todo" : "Solo en movimiento"}
+          </Button>
+        ) : null}
       </div>
       <div className="absolute left-4 top-4 z-10 rounded-2xl border border-border/60 bg-background/75 px-3 py-2 text-xs text-muted-foreground shadow-sm backdrop-blur">
         <p className="font-semibold text-foreground">Mapa Peru</p>
         <p>{withLocation} puntos activos</p>
+        {typeof trackingCount === "number" ? (
+          <p className="text-[11px] text-muted-foreground">
+            Tracking: {trackingCount} · En movimiento: {movingTrackingCount ?? 0}
+          </p>
+        ) : null}
       </div>
       {showLegend ? (
         <div className="absolute bottom-4 left-4 z-10 rounded-2xl border border-border/60 bg-background/80 px-3 py-2 text-xs text-muted-foreground shadow-sm backdrop-blur">
@@ -205,37 +231,90 @@ export const MapSection: React.FC<MapSectionProps> = ({
         clientGeojsonMeta={activeMeta}
         clientGeojsonLayers={resolvedClientLayers}
         renderPointTooltip={(point) => (
-          <div className="space-y-2 rounded-xl bg-slate-950/90 px-3 py-2 text-xs text-slate-100 shadow-lg">
-            <div className="space-y-1">
-              <p className="text-[0.65rem] uppercase tracking-[0.2em] text-slate-300">
-                Entrevistado
-              </p>
-              <p className="text-sm font-semibold text-white">
-                {point.name ?? "-"}
-              </p>
-            </div>
-            <div className="flex items-center justify-between gap-4">
-              <div>
+          point.kind === "tracking" ? (
+            <div className="space-y-2 rounded-xl bg-slate-950/90 px-3 py-2 text-xs text-slate-100 shadow-lg">
+              <div className="space-y-1">
                 <p className="text-[0.65rem] uppercase tracking-[0.2em] text-slate-300">
-                  WhatsApp
+                  Entrevistador
                 </p>
-                <p className="text-xs text-white">{point.phone ?? "-"}</p>
+                <p className="text-sm font-semibold text-white">
+                  {point.interviewer ?? "-"}
+                </p>
+                <p className="text-[11px] text-slate-300">{point.signature ?? ""}</p>
               </div>
-              <div className="text-right">
-                <p className="text-[0.65rem] uppercase tracking-[0.2em] text-slate-300">
-                  Hora
-                </p>
-                <p className="text-xs text-white">
-                  {point.createdAt
-                    ? new Date(point.createdAt).toLocaleTimeString("es-PE", {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })
-                    : "-"}
-                </p>
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-[0.65rem] uppercase tracking-[0.2em] text-slate-300">
+                    Estado
+                  </p>
+                  <p className="text-xs text-white">{point.mode ?? "-"}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[0.65rem] uppercase tracking-[0.2em] text-slate-300">
+                    Velocidad
+                  </p>
+                  <p className="text-xs text-white">
+                    {typeof point.speed === "number" ? `${point.speed.toFixed(1)} m/s` : "-"}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-[0.65rem] uppercase tracking-[0.2em] text-slate-300">
+                    Precision
+                  </p>
+                  <p className="text-xs text-white">
+                    {typeof point.accuracy === "number" ? `${point.accuracy.toFixed(1)} m` : "-"}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[0.65rem] uppercase tracking-[0.2em] text-slate-300">
+                    Hora
+                  </p>
+                  <p className="text-xs text-white">
+                    {point.createdAt
+                      ? new Date(point.createdAt).toLocaleTimeString("es-PE", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })
+                      : "-"}
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
+          ) : (
+            <div className="space-y-2 rounded-xl bg-slate-950/90 px-3 py-2 text-xs text-slate-100 shadow-lg">
+              <div className="space-y-1">
+                <p className="text-[0.65rem] uppercase tracking-[0.2em] text-slate-300">
+                  Entrevistado
+                </p>
+                <p className="text-sm font-semibold text-white">
+                  {point.name ?? "-"}
+                </p>
+              </div>
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-[0.65rem] uppercase tracking-[0.2em] text-slate-300">
+                    WhatsApp
+                  </p>
+                  <p className="text-xs text-white">{point.phone ?? "-"}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[0.65rem] uppercase tracking-[0.2em] text-slate-300">
+                    Hora
+                  </p>
+                  <p className="text-xs text-white">
+                    {point.createdAt
+                      ? new Date(point.createdAt).toLocaleTimeString("es-PE", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })
+                      : "-"}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )
         )}
         getPointColor={getPointColor}
       />

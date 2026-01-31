@@ -10,6 +10,13 @@ export interface MapPoint {
   east?: number | null;
   north?: number | null;
   phone?: string | null;
+  kind?: "interview" | "tracking" | null;
+  mode?: string | null;
+  signature?: string | null;
+  accuracy?: number | null;
+  altitude?: number | null;
+  speed?: number | null;
+  heading?: number | null;
 }
 
 export const convertRowsToPoints = (rows: EventRecord[]): MapPoint[] => {
@@ -25,6 +32,7 @@ export const convertRowsToPoints = (rows: EventRecord[]): MapPoint[] => {
       east: point.east ?? null,
       north: point.north ?? null,
       phone: point.phone ?? null,
+      kind: "interview",
     }));
 };
 

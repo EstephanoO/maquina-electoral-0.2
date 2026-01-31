@@ -46,6 +46,7 @@ export const EventTierraDashboard = ({ eventId, client }: EventTierraDashboardPr
       eventTitle={event.name}
       eventSubtitle="Actualizacion en tiempo real"
       candidateLabels={candidateLabels}
+      eventId={event.id}
       campaignId={event.campaignId}
       clientKey={client}
       candidateProfile={

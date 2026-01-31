@@ -47,6 +47,24 @@ export const campaignGeojson = pgTable(
   }),
 );
 
+export const interviewerTracking = pgTable("interviewer_tracking", {
+  id: text("id").primaryKey(),
+  eventId: text("event_id"),
+  interviewer: text("interviewer").notNull(),
+  candidate: text("candidate").notNull(),
+  signature: text("signature").notNull(),
+  interviewerKey: text("interviewer_key").notNull(),
+  mode: text("mode").notNull(),
+  trackedAt: timestamp("tracked_at", { withTimezone: true }).notNull(),
+  latitude: doublePrecision("latitude").notNull(),
+  longitude: doublePrecision("longitude").notNull(),
+  accuracy: doublePrecision("accuracy"),
+  altitude: doublePrecision("altitude"),
+  speed: doublePrecision("speed"),
+  heading: doublePrecision("heading"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const authUsers = pgTable("auth_users", {
   id: text("id").primaryKey(),
   email: text("email").notNull().unique(),

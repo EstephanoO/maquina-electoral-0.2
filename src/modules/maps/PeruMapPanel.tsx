@@ -39,6 +39,13 @@ type PeruMapPoint = {
   createdAt?: string | null;
   east?: number | null;
   north?: number | null;
+  kind?: "interview" | "tracking" | null;
+  mode?: string | null;
+  signature?: string | null;
+  accuracy?: number | null;
+  altitude?: number | null;
+  speed?: number | null;
+  heading?: number | null;
 };
 
 type PeruMapPanelProps = {

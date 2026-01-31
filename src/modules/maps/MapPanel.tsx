@@ -37,6 +37,13 @@ type MapPoint = {
   createdAt?: string | null;
   east?: number | null;
   north?: number | null;
+  kind?: "interview" | "tracking" | null;
+  mode?: string | null;
+  signature?: string | null;
+  accuracy?: number | null;
+  altitude?: number | null;
+  speed?: number | null;
+  heading?: number | null;
 };
 
 type MapPanelProps = {
@@ -113,6 +120,13 @@ export const MapPanel = ({
           name: point.name ?? null,
           phone: point.phone ?? null,
           createdAt: point.createdAt ?? null,
+          kind: point.kind ?? null,
+          mode: point.mode ?? null,
+          signature: point.signature ?? null,
+          accuracy: point.accuracy ?? null,
+          altitude: point.altitude ?? null,
+          speed: point.speed ?? null,
+          heading: point.heading ?? null,
           color: getPointColor ? getPointColor(point) : "hsl(var(--primary))",
         },
       }));
@@ -150,6 +164,13 @@ export const MapPanel = ({
           name: (props.name as string | null | undefined) ?? null,
           phone: (props.phone as string | null | undefined) ?? null,
           createdAt: (props.createdAt as string | null | undefined) ?? null,
+          kind: (props.kind as "interview" | "tracking" | null | undefined) ?? null,
+          mode: (props.mode as string | null | undefined) ?? null,
+          signature: (props.signature as string | null | undefined) ?? null,
+          accuracy: (props.accuracy as number | null | undefined) ?? null,
+          altitude: (props.altitude as number | null | undefined) ?? null,
+          speed: (props.speed as number | null | undefined) ?? null,
+          heading: (props.heading as number | null | undefined) ?? null,
         };
       });
     },
@@ -205,6 +226,24 @@ export const MapPanel = ({
                 "circle-opacity": pointLayerOpacity,
                 "circle-stroke-color": "rgba(2,6,23,0.35)",
                 "circle-stroke-width": 2,
+              }}
+            />
+            <Layer
+              id={`${resolvedPointLayerId}-labels`}
+              type="symbol"
+              filter={["==", ["get", "kind"], "tracking"]}
+              layout={{
+                "text-field": ["get", "interviewer"],
+                "text-size": 11,
+                "text-offset": [0, 1.2],
+                "text-anchor": "top",
+                "text-allow-overlap": true,
+                "text-ignore-placement": true,
+              }}
+              paint={{
+                "text-color": "#f8fafc",
+                "text-halo-color": "rgba(15,23,42,0.75)",
+                "text-halo-width": 1.4,
               }}
             />
           </Source>

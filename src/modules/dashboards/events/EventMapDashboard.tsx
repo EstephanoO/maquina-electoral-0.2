@@ -14,6 +14,7 @@ import {
 import { useEventData } from "./hooks/useEventData";
 import { useEventActions } from "./hooks/useEventActions";
 import { useCandidateVisibility } from "./hooks/useCandidateVisibility";
+import { useInterviewerTracking } from "./hooks/useInterviewerTracking";
 import {
   convertRowsToPoints,
   calculateCandidateCounts,
@@ -32,6 +33,7 @@ type EventMapDashboardProps = {
   eventSubtitle?: string;
   candidateLabels: string[];
   dataUrl?: string;
+  eventId?: string | null;
   campaignId?: string | null;
   clientKey?: string;
   candidateProfile?: {
@@ -128,6 +130,7 @@ export const EventMapDashboard = ({
   eventSubtitle = "Actualizacion en tiempo real",
   candidateLabels,
   dataUrl = "/api/interviews",
+  eventId = null,
   campaignId = null,
   clientKey,
   candidateProfile,
@@ -140,6 +143,7 @@ export const EventMapDashboard = ({
   const [focusPoint, setFocusPoint] = React.useState<{ lat: number; lng: number } | null>(
     null,
   );
+  const [showMovingOnly, setShowMovingOnly] = React.useState(false);
   // Hooks para manejo de datos y estado
   const {
     data,
@@ -164,6 +168,19 @@ export const EventMapDashboard = ({
   const { hiddenCandidates, toggleCandidateVisibility, filteredPoints } =
     useCandidateVisibility();
 
+  const trackingUrl = React.useMemo(() => {
+    if (!eventId) return null;
+    const params = new URLSearchParams({ eventId });
+    if (clientKey) params.set("client", clientKey);
+    return `/api/interviewer-tracking?${params.toString()}`;
+  }, [clientKey, eventId]);
+
+  const {
+    points: trackingRows,
+    isLoading: trackingLoading,
+    error: trackingError,
+  } = useInterviewerTracking({ dataUrl: trackingUrl });
+
   // Cálculos de datos
   const points = React.useMemo(() => convertRowsToPoints(rows), [rows]);
   const counts = React.useMemo(() => calculateCandidateCounts(rows), [rows]);
@@ -179,7 +196,6 @@ export const EventMapDashboard = ({
     () => Object.values(counts).reduce((sum, value) => sum + value, 0),
     [counts],
   );
-  const withLocation = points.length;
   const topInterviewer = interviewerRanking[0];
   const lowInterviewer = interviewerRanking[interviewerRanking.length - 1];
   const topInterviewers = interviewerRanking.slice(0, 5);
@@ -191,6 +207,35 @@ export const EventMapDashboard = ({
   const filteredMapPoints = React.useMemo(
     () => filteredPoints(points),
     [points, filteredPoints],
+  );
+
+  const trackingPoints = React.useMemo(
+    () =>
+      trackingRows.map((row) => ({
+        lat: row.latitude,
+        lng: row.longitude,
+        interviewer: row.interviewer,
+        candidate: row.candidate,
+        createdAt: row.trackedAt,
+        kind: "tracking" as const,
+        mode: row.mode,
+        signature: row.signature,
+        accuracy: row.accuracy,
+        altitude: row.altitude,
+        speed: row.speed,
+        heading: row.heading,
+      })),
+    [trackingRows],
+  );
+
+  const movingTrackingPoints = React.useMemo(
+    () => trackingPoints.filter((point) => point.mode?.toLowerCase() === "moving"),
+    [trackingPoints],
+  );
+
+  const displayMapPoints = React.useMemo(
+    () => (showMovingOnly ? movingTrackingPoints : [...filteredMapPoints, ...trackingPoints]),
+    [filteredMapPoints, movingTrackingPoints, showMovingOnly, trackingPoints],
   );
 
   const dataGoalIndex = React.useMemo(() => {
@@ -256,13 +301,21 @@ export const EventMapDashboard = ({
   }, [goalValueNumber, selectionTotal]);
 
   // Estado del mapa
-  const mapStatus = isLoading
+  const baseMapStatus = isLoading
     ? "loading"
     : error
       ? "error"
       : filteredMapPoints.length > 0
         ? undefined
         : "empty";
+  const trackingMapStatus = trackingLoading
+    ? "loading"
+    : trackingError
+      ? "error"
+      : movingTrackingPoints.length > 0
+        ? undefined
+        : "empty";
+  const mapStatus = showMovingOnly ? trackingMapStatus : baseMapStatus;
 
   // Manejo de foco en puntos del mapa
   const handleFocusPoint = React.useMemo(
@@ -360,18 +413,22 @@ export const EventMapDashboard = ({
         >
           {/* Map Section */}
           <MapSection
-            points={filteredMapPoints}
+            points={displayMapPoints}
             candidateLabels={candidateLabels}
             mapStatus={mapStatus}
             mapRef={mapRef}
             resetMapView={resetMapView}
             setResetMapView={setResetMapView}
-            withLocation={withLocation}
+            withLocation={displayMapPoints.length}
             showLegend={false}
             focusPoint={focusPoint}
             onClearFocusPoint={() => setFocusPoint(null)}
             campaignId={campaignId}
             onHierarchySelectionChange={setMapSelection}
+            showMovingOnly={showMovingOnly}
+            onToggleMovingOnly={() => setShowMovingOnly((value) => !value)}
+            trackingCount={trackingPoints.length}
+            movingTrackingCount={movingTrackingPoints.length}
           />
 
           {/* Sidebar */}
