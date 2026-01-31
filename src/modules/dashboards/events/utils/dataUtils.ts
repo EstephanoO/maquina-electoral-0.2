@@ -11,6 +11,7 @@ export interface MapPoint {
   north?: number | null;
   phone?: string | null;
   kind?: "interview" | "tracking" | null;
+  online?: boolean | null;
   mode?: string | null;
   signature?: string | null;
   accuracy?: number | null;

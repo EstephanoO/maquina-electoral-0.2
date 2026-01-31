@@ -430,19 +430,21 @@ export const PeruMapPanel = ({
     selectedCodes.prov,
   ]);
 
+  const hierarchyPointsForCount = hierarchyPoints ?? points ?? [];
+
   const selectionPointCount = React.useMemo(() => {
-    if (!points || points.length === 0) return 0;
+    if (!hierarchyPointsForCount || hierarchyPointsForCount.length === 0) return 0;
     const hasSelection = Boolean(
       selectedCodes.dep || selectedCodes.prov || selectedCodes.dist,
     );
-    if (!selectionFeature?.geometry) return hasSelection ? 0 : points.length;
+    if (!selectionFeature?.geometry) return hasSelection ? 0 : hierarchyPointsForCount.length;
     let count = 0;
-    for (const point of points) {
+    for (const point of hierarchyPointsForCount) {
       if (isPointInGeometry(selectionFeature.geometry, point)) count += 1;
     }
     return count;
   }, [
-    points,
+    hierarchyPointsForCount,
     selectedCodes.dep,
     selectedCodes.dist,
     selectedCodes.prov,

@@ -209,6 +209,7 @@ export const EventMapDashboard = ({
   );
 
   const trackingPoints = React.useMemo(() => {
+    const now = Date.now();
     const candidateSet = new Set(
       candidateLabels.map((label) => label.trim().toLowerCase()).filter(Boolean),
     );
@@ -219,6 +220,9 @@ export const EventMapDashboard = ({
         return candidateValue ? candidateSet.has(candidateValue) : false;
       })
       .map((row) => ({
+        online:
+          Number.isFinite(new Date(row.trackedAt).getTime()) &&
+          now - new Date(row.trackedAt).getTime() <= 2 * 60 * 1000,
         lat: row.latitude,
         lng: row.longitude,
         interviewer: row.interviewer,
@@ -240,6 +244,7 @@ export const EventMapDashboard = ({
   );
 
   const staleThresholdMs = 10 * 60 * 1000;
+  const presenceThresholdMs = 2 * 60 * 1000;
   const interviewerStatus = React.useMemo(() => {
     const now = Date.now();
     return trackingRows
@@ -247,6 +252,9 @@ export const EventMapDashboard = ({
         const trackedAt = new Date(row.trackedAt).getTime();
         const isStale = Number.isFinite(trackedAt) ? now - trackedAt > staleThresholdMs : true;
         const isMoving = row.mode?.toLowerCase() === "moving";
+        const isOnline = Number.isFinite(trackedAt)
+          ? now - trackedAt <= presenceThresholdMs
+          : false;
         return {
           key: row.interviewerKey,
           interviewer: row.interviewer,
@@ -254,10 +262,11 @@ export const EventMapDashboard = ({
           trackedAt: row.trackedAt,
           isMoving,
           isStale,
+          isOnline,
         };
       })
       .sort((a, b) => {
-        if (a.isMoving !== b.isMoving) return a.isMoving ? -1 : 1;
+        if (a.isOnline !== b.isOnline) return a.isOnline ? -1 : 1;
         if (a.isStale !== b.isStale) return a.isStale ? 1 : -1;
         return a.interviewer.localeCompare(b.interviewer);
       });
@@ -532,10 +541,10 @@ export const EventMapDashboard = ({
                       <div className="flex items-center gap-3">
                         <span
                           className={`h-2.5 w-2.5 rounded-full ${
-                            item.isStale
-                              ? "bg-amber-400"
-                              : item.isMoving
-                                ? "bg-emerald-500"
+                            item.isOnline
+                              ? "bg-emerald-500"
+                              : item.isStale
+                                ? "bg-amber-400"
                                 : "bg-slate-400"
                           }`}
                         />

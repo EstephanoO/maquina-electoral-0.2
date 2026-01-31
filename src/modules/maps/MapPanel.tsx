@@ -38,6 +38,7 @@ type MapPoint = {
   east?: number | null;
   north?: number | null;
   kind?: "interview" | "tracking" | null;
+  online?: boolean | null;
   mode?: string | null;
   signature?: string | null;
   accuracy?: number | null;
@@ -120,6 +121,7 @@ export const MapPanel = ({
           name: point.name ?? null,
           phone: point.phone ?? null,
           createdAt: point.createdAt ?? null,
+          online: point.online ?? null,
           kind: point.kind ?? null,
           mode: point.mode ?? null,
           signature: point.signature ?? null,
@@ -164,6 +166,7 @@ export const MapPanel = ({
           name: (props.name as string | null | undefined) ?? null,
           phone: (props.phone as string | null | undefined) ?? null,
           createdAt: (props.createdAt as string | null | undefined) ?? null,
+          online: (props.online as boolean | null | undefined) ?? null,
           kind: (props.kind as "interview" | "tracking" | null | undefined) ?? null,
           mode: (props.mode as string | null | undefined) ?? null,
           signature: (props.signature as string | null | undefined) ?? null,
@@ -217,6 +220,16 @@ export const MapPanel = ({
         {children}
         {renderPointsAsLayer && pointFeatureCollection ? (
           <Source id={`${resolvedPointLayerId}-source`} type="geojson" data={pointFeatureCollection as any}>
+            <Layer
+              id={`${resolvedPointLayerId}-online`}
+              type="circle"
+              filter={["all", ["==", ["get", "kind"], "tracking"], ["==", ["get", "online"], true]]}
+              paint={{
+                "circle-radius": 10,
+                "circle-color": "#22c55e",
+                "circle-opacity": 0.25,
+              }}
+            />
             <Layer
               id={resolvedPointLayerId}
               type="circle"
