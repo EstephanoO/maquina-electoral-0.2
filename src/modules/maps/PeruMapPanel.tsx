@@ -52,6 +52,7 @@ type PeruMapPanelProps = {
   height?: number | null;
   className?: string;
   points?: PeruMapPoint[];
+  hierarchyPoints?: PeruMapPoint[];
   status?: "loading" | "error" | "empty";
   statusLabel?: string;
   mapRef?: React.RefObject<MapRef | null>;
@@ -103,6 +104,7 @@ export const PeruMapPanel = ({
   height,
   className,
   points,
+  hierarchyPoints,
   status,
   statusLabel,
   mapRef,
@@ -1015,6 +1017,8 @@ export const PeruMapPanel = ({
     return ["peru-distritos-fill"];
   }, [enableHierarchy, level]);
 
+  const resolvedHierarchyPoints = hierarchyPoints ?? points ?? [];
+
   return (
     <MapPanel
       height={height}
@@ -1050,7 +1054,7 @@ export const PeruMapPanel = ({
         departamentos={departamentos}
         provincias={provincias}
         distritos={distritos}
-        points={points}
+        points={resolvedHierarchyPoints}
         level={level}
         selectedCodes={selectedCodes}
         hoverCodes={hoveredCodes}

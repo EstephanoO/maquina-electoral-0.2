@@ -17,7 +17,7 @@ Request body:
   "timestamp": "2026-01-30T12:34:56.789Z",
   "mode": "moving",
   "coords": {
-    "la titude": -34.603722,
+    "latitude": -34.603722,
     "longitude": -58.381592,
     "accuracy": 12.5,
     "altitude": 25.4,
@@ -29,7 +29,7 @@ Request body:
 
 Notes:
 - `interviewer_key` is derived as `"${interviewer} | ${signature}"`.
-- `coords["la titude"]` is accepted to match the current mobile payload.
+- Backend still accepts `coords["la titude"]` for backward compatibility but will log a warning.
 
 Response:
 ```json

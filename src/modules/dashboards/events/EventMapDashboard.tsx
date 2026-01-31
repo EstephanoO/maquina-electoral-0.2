@@ -169,11 +169,10 @@ export const EventMapDashboard = ({
     useCandidateVisibility();
 
   const trackingUrl = React.useMemo(() => {
-    if (!eventId) return null;
-    const params = new URLSearchParams({ eventId });
-    if (clientKey) params.set("client", clientKey);
+    if (!clientKey) return "/api/interviewer-tracking";
+    const params = new URLSearchParams({ client: clientKey });
     return `/api/interviewer-tracking?${params.toString()}`;
-  }, [clientKey, eventId]);
+  }, [clientKey]);
 
   const {
     points: trackingRows,
@@ -209,9 +208,17 @@ export const EventMapDashboard = ({
     [points, filteredPoints],
   );
 
-  const trackingPoints = React.useMemo(
-    () =>
-      trackingRows.map((row) => ({
+  const trackingPoints = React.useMemo(() => {
+    const candidateSet = new Set(
+      candidateLabels.map((label) => label.trim().toLowerCase()).filter(Boolean),
+    );
+    return trackingRows
+      .filter((row) => {
+        if (candidateSet.size === 0) return true;
+        const candidateValue = row.candidate?.trim().toLowerCase();
+        return candidateValue ? candidateSet.has(candidateValue) : false;
+      })
+      .map((row) => ({
         lat: row.latitude,
         lng: row.longitude,
         interviewer: row.interviewer,
@@ -224,14 +231,37 @@ export const EventMapDashboard = ({
         altitude: row.altitude,
         speed: row.speed,
         heading: row.heading,
-      })),
-    [trackingRows],
-  );
+      }));
+  }, [candidateLabels, trackingRows]);
 
   const movingTrackingPoints = React.useMemo(
     () => trackingPoints.filter((point) => point.mode?.toLowerCase() === "moving"),
     [trackingPoints],
   );
+
+  const staleThresholdMs = 10 * 60 * 1000;
+  const interviewerStatus = React.useMemo(() => {
+    const now = Date.now();
+    return trackingRows
+      .map((row) => {
+        const trackedAt = new Date(row.trackedAt).getTime();
+        const isStale = Number.isFinite(trackedAt) ? now - trackedAt > staleThresholdMs : true;
+        const isMoving = row.mode?.toLowerCase() === "moving";
+        return {
+          key: row.interviewerKey,
+          interviewer: row.interviewer,
+          mode: row.mode,
+          trackedAt: row.trackedAt,
+          isMoving,
+          isStale,
+        };
+      })
+      .sort((a, b) => {
+        if (a.isMoving !== b.isMoving) return a.isMoving ? -1 : 1;
+        if (a.isStale !== b.isStale) return a.isStale ? 1 : -1;
+        return a.interviewer.localeCompare(b.interviewer);
+      });
+  }, [trackingRows]);
 
   const displayMapPoints = React.useMemo(
     () => (showMovingOnly ? movingTrackingPoints : [...filteredMapPoints, ...trackingPoints]),
@@ -281,24 +311,6 @@ export const EventMapDashboard = ({
     () => generateInterviewerTimelineData(rows, topInterviewerForChart),
     [rows, topInterviewerForChart],
   );
-  const goalValueNumber = React.useMemo(() => {
-    if (!dataGoalIndex) return null;
-    const hasSelection = Boolean(
-      mapSelection?.depCode ||
-        mapSelection?.provCode ||
-        mapSelection?.distCode ||
-        mapSelection?.depName ||
-        mapSelection?.provName ||
-        mapSelection?.distName,
-    );
-    if (!hasSelection) return dataGoalIndex.total ?? null;
-    return resolveGoalForSelection(mapSelection, dataGoalIndex);
-  }, [dataGoalIndex, mapSelection]);
-
-  const zoneProgress = React.useMemo(() => {
-    if (!goalValueNumber || goalValueNumber <= 0) return 0;
-    return (selectionTotal / goalValueNumber) * 100;
-  }, [goalValueNumber, selectionTotal]);
 
   // Estado del mapa
   const baseMapStatus = isLoading
@@ -414,6 +426,7 @@ export const EventMapDashboard = ({
           {/* Map Section */}
           <MapSection
             points={displayMapPoints}
+            hierarchyPoints={filteredMapPoints}
             candidateLabels={candidateLabels}
             mapStatus={mapStatus}
             mapRef={mapRef}
@@ -490,41 +503,54 @@ export const EventMapDashboard = ({
               </div>
             </Card>
 
-            {/* Zone Coverage */}
+            {/* Interviewer Status */}
             <Card className="border-border/60 bg-card/70 p-4">
               <div className="flex items-center justify-between">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                  Cobertura de zona
+                  Entrevistadores
                 </p>
               </div>
               <div className="mt-4 space-y-3">
-                <div className="rounded-2xl border border-border/60 bg-muted/20 px-4 py-3">
-                  <p className="text-xs text-muted-foreground">Zona actual</p>
-                  <p className="mt-1 text-sm font-semibold text-foreground">
-                    {goalScopeLabel ?? "Peru"}
-                  </p>
-                  <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
-                    <span>Puntos en zona</span>
-                    <span className="text-sm font-semibold text-foreground">
-                      {selectionTotal.toLocaleString("en-US")}
-                    </span>
+                {interviewerStatus.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-border/60 bg-muted/10 px-4 py-6 text-center text-xs text-muted-foreground">
+                    Sin tracking activo.
                   </div>
-                  <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
-                    <span>Objetivo zona</span>
-                    <span className="text-sm font-semibold text-foreground">
-                      {goalValueNumber ? goalValueNumber.toLocaleString("en-US") : "-"}
-                    </span>
-                  </div>
-                  <div className="mt-3 h-2 w-full rounded-full bg-muted/40">
+                ) : (
+                  interviewerStatus.map((item) => (
                     <div
-                      className="h-2 rounded-full bg-gradient-to-r from-rose-400 via-red-400 to-amber-400"
-                      style={{ width: `${Math.min(zoneProgress, 100)}%` }}
-                    />
-                  </div>
-                  <div className="mt-2 text-right text-xs font-semibold text-foreground">
-                    {goalValueNumber ? `${Math.min(zoneProgress, 100).toFixed(2)}%` : "-"}
-                  </div>
-                </div>
+                      key={item.key}
+                      className="flex items-center justify-between rounded-2xl border border-border/60 bg-muted/20 px-4 py-3"
+                    >
+                      <div>
+                        <p className="text-sm font-semibold text-foreground">
+                          {item.interviewer}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {item.mode ?? "-"}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span
+                          className={`h-2.5 w-2.5 rounded-full ${
+                            item.isStale
+                              ? "bg-amber-400"
+                              : item.isMoving
+                                ? "bg-emerald-500"
+                                : "bg-slate-400"
+                          }`}
+                        />
+                        <span className="text-[11px] text-muted-foreground">
+                          {item.trackedAt
+                            ? new Date(item.trackedAt).toLocaleTimeString("es-PE", {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })
+                            : "-"}
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </Card>
           </aside>

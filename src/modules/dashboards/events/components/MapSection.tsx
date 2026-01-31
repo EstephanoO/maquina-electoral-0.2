@@ -10,6 +10,7 @@ import useSWR from "swr";
 
 interface MapSectionProps {
   points: MapPoint[];
+  hierarchyPoints?: MapPoint[];
   candidateLabels: string[];
   mapStatus: "loading" | "error" | "empty" | undefined;
   mapRef: React.MutableRefObject<MapRef | null>;
@@ -29,6 +30,7 @@ interface MapSectionProps {
 
 export const MapSection: React.FC<MapSectionProps> = ({
   points,
+  hierarchyPoints,
   candidateLabels,
   mapStatus,
   mapRef,
@@ -217,6 +219,7 @@ export const MapSection: React.FC<MapSectionProps> = ({
         height={null}
         className="h-full w-full rounded-2xl"
         points={points}
+        hierarchyPoints={hierarchyPoints}
         status={resolvedMapStatus}
         mapRef={mapRef}
         onResetViewReady={setResetMapView}

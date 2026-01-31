@@ -75,6 +75,10 @@ export async function POST(request: Request) {
     );
   }
 
+  if (coords["la titude"] !== undefined && coords.latitude === undefined) {
+    console.warn("[tracking] deprecated coords field: la titude");
+  }
+
   const timestamp = new Date(body.timestamp as string);
   if (Number.isNaN(timestamp.getTime())) {
     return NextResponse.json(
