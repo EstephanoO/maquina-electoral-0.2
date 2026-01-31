@@ -225,7 +225,7 @@ export const MapPanel = ({
               type="circle"
               filter={["all", ["==", ["get", "kind"], "tracking"], ["==", ["get", "online"], true]]}
               paint={{
-                "circle-radius": 9,
+                "circle-radius": 45,
                 "circle-color": "#3b82f6",
                 "circle-opacity": 0.22,
               }}
@@ -237,7 +237,7 @@ export const MapPanel = ({
                 "circle-radius": [
                   "case",
                   ["==", ["get", "kind"], "tracking"],
-                  3,
+                  4,
                   pointLayerRadius,
                 ],
                 "circle-color": ["get", "color"],
@@ -245,13 +245,13 @@ export const MapPanel = ({
                 "circle-stroke-color": [
                   "case",
                   ["==", ["get", "kind"], "tracking"],
-                  "rgba(59,130,246,0.6)",
+                  "rgba(255,255,255,0.9)",
                   "rgba(2,6,23,0.35)",
                 ],
                 "circle-stroke-width": [
                   "case",
                   ["==", ["get", "kind"], "tracking"],
-                  1.2,
+                  1.6,
                   2,
                 ],
               }}
