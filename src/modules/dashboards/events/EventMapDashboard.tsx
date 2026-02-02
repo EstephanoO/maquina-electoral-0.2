@@ -262,18 +262,31 @@ export const EventMapDashboard = ({
         const lastSeenActiveAt = telemetry?.lastSeenActiveAt
           ? new Date(telemetry.lastSeenActiveAt).getTime()
           : null;
+        const lastState = telemetry?.lastState?.toLowerCase() ?? null;
         const trackedAt = new Date(row.trackedAt).getTime();
         const trackedRecent = Number.isFinite(trackedAt)
           ? now - trackedAt <= presenceThresholdMs
           : false;
-        const isActive = lastSeenActiveAt
-          ? now - lastSeenActiveAt <= presenceThresholdMs
-          : trackedRecent;
+        const isActive = lastState && lastState !== "active"
+          ? false
+          : lastSeenActiveAt
+            ? now - lastSeenActiveAt <= presenceThresholdMs
+            : trackedRecent;
+        const isConnected =
+          telemetry?.lastIsInternetReachable === true ||
+          telemetry?.lastIsConnected === true;
         const distanceMeters = row.distanceMeters;
         const hasDistance = typeof distanceMeters === "number" && Number.isFinite(distanceMeters);
         const isMoving = hasDistance
           ? distanceMeters > 10
           : row.mode?.toLowerCase() === "moving";
+        const status = !isActive
+          ? ("inactive" as const)
+          : !isMoving
+            ? ("stationary" as const)
+            : isConnected
+              ? ("connected" as const)
+              : ("inactive" as const);
         return {
           online: isActive,
           lat: row.latitude,
@@ -289,6 +302,9 @@ export const EventMapDashboard = ({
           speed: row.speed,
           heading: row.heading,
           isMoving,
+          isActive,
+          isConnected,
+          status,
         };
       });
   }, [candidateLabels, telemetryBySignature, trackingRows]);
@@ -308,13 +324,16 @@ export const EventMapDashboard = ({
         const lastSeenActiveAt = telemetry?.lastSeenActiveAt
           ? new Date(telemetry.lastSeenActiveAt).getTime()
           : null;
+        const lastState = telemetry?.lastState?.toLowerCase() ?? null;
         const trackedAt = new Date(row.trackedAt).getTime();
         const trackedRecent = Number.isFinite(trackedAt)
           ? now - trackedAt <= presenceThresholdMs
           : false;
-        const isActive = lastSeenActiveAt
-          ? now - lastSeenActiveAt <= presenceThresholdMs
-          : trackedRecent;
+        const isActive = lastState && lastState !== "active"
+          ? false
+          : lastSeenActiveAt
+            ? now - lastSeenActiveAt <= presenceThresholdMs
+            : trackedRecent;
         const isConnected =
           telemetry?.lastIsInternetReachable === true ||
           telemetry?.lastIsConnected === true;

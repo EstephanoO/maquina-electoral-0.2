@@ -45,6 +45,9 @@ type MapPoint = {
   altitude?: number | null;
   speed?: number | null;
   heading?: number | null;
+  status?: "connected" | "stationary" | "inactive" | null;
+  isActive?: boolean;
+  isConnected?: boolean;
 };
 
 type MapPanelProps = {
@@ -64,7 +67,7 @@ type MapPanelProps = {
   mapRef?: React.Ref<MapRef | null>;
   children?: React.ReactNode;
   overlay?: React.ReactNode;
-  getPointColor?: (point: { lat: number; lng: number; candidate?: string | null }) => string;
+  getPointColor?: (point: MapPoint) => string;
   enablePointTooltip?: boolean;
   renderPointTooltip?: (point: MapPoint) => React.ReactNode;
   renderPointsAsLayer?: boolean;

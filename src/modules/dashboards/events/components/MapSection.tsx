@@ -51,7 +51,13 @@ export const MapSection: React.FC<MapSectionProps> = ({
   const [currentLevel, setCurrentLevel] = React.useState<GeoLevel>("departamento");
   const getPointColor = React.useCallback((point: MapPoint) => {
     if (point.kind === "tracking") {
-      return "#3b82f6";
+      if (point.status === "connected") return "#10b981";
+      if (point.status === "stationary") return "#f97316";
+      if (point.status === "inactive") return "#94a3b8";
+      if (point.isActive && point.isConnected) return "#10b981";
+      if (point.isActive && point.isMoving === false) return "#f97316";
+      if (point.isActive) return "#10b981";
+      return "#94a3b8";
     }
     if (point.candidate === candidateLabels[0]) return "#10b981";
     if (point.candidate === candidateLabels[1]) return "#3b82f6";

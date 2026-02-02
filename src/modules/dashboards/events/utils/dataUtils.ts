@@ -19,6 +19,9 @@ export interface MapPoint {
   speed?: number | null;
   heading?: number | null;
   isMoving?: boolean;
+  status?: "connected" | "stationary" | "inactive" | null;
+  isActive?: boolean;
+  isConnected?: boolean;
 }
 
 export const convertRowsToPoints = (rows: EventRecord[]): MapPoint[] => {
