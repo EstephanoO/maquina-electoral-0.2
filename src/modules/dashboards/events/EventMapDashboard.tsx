@@ -36,6 +36,11 @@ type EventMapDashboardProps = {
   eventId?: string | null;
   campaignId?: string | null;
   clientKey?: string;
+  contextNote?: {
+    title: string;
+    description: string;
+    details?: string[];
+  };
   candidateProfile?: {
     name: string;
     party: string;
@@ -133,6 +138,7 @@ export const EventMapDashboard = ({
   eventId = null,
   campaignId = null,
   clientKey,
+  contextNote,
   candidateProfile,
   dataGoal,
   layoutVariant = "default",
@@ -425,6 +431,24 @@ export const EventMapDashboard = ({
           onDownloadCSV={downloadCSV}
           candidateProfile={candidateProfile}
         />
+
+        {contextNote ? (
+          <Card className="border-border/60 bg-card/70 p-4">
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                {contextNote.title}
+              </p>
+              <p className="text-sm text-foreground">{contextNote.description}</p>
+              {contextNote.details && contextNote.details.length > 0 ? (
+                <div className="space-y-1 text-xs text-muted-foreground">
+                  {contextNote.details.map((detail) => (
+                    <p key={detail}>- {detail}</p>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          </Card>
+        ) : null}
 
         {/* Main grid: Map + Sidebar */}
         <div

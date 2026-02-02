@@ -1,17 +1,26 @@
 "use client";
 
 import * as React from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { EventMapDashboard } from "@/modules/dashboards/events/EventMapDashboard";
 import { useEventsStore } from "@/modules/events/events.store";
 import { useCampaignsStore } from "@/modules/campaigns/store";
 import { EmptyState } from "@/modules/shared/EmptyState";
+import { LoadingState } from "@/modules/shared/LoadingState";
 import { RoleGate } from "@/modules/shared/RoleGate";
 import { toast } from "sonner";
+
+const EventMapDashboard = dynamic(
+  () => import("@/modules/dashboards/events/EventMapDashboard").then((mod) => mod.EventMapDashboard),
+  {
+    ssr: false,
+    loading: () => <LoadingState title="Cargando dashboard" />,
+  },
+);
 
 export default function EventDashboardPage() {
   const params = useParams();

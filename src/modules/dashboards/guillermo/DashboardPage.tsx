@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import dynamic from "next/dynamic";
 import type { CSSProperties } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -14,7 +15,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import DashboardHeader from "./dashboard/DashboardHeader";
-import DashboardMain from "./dashboard/DashboardMain";
 import DashboardSidebar from "./dashboard/DashboardSidebar";
 import ThemeToggleButton from "./dashboard/ThemeToggleButton";
 import {
@@ -37,6 +37,15 @@ import type {
 } from "./types/dashboard";
 import { truncateText } from "./utils/dashboardFormat";
 import { calculateAverageReach, calculateTrendSeries } from "./utils/dashboardMath";
+
+const DashboardMain = dynamic(() => import("./dashboard/DashboardMain"), {
+  ssr: false,
+  loading: () => (
+    <div className="px-6 py-8 text-xs uppercase tracking-[0.2em] text-muted-foreground">
+      Cargando dashboard...
+    </div>
+  ),
+});
 
 export default function DashboardPage() {
   const searchParams = useSearchParams();

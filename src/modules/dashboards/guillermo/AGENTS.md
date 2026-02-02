@@ -19,6 +19,7 @@
 - `/api/landings` proxy server-side con parser robusto.
 - `useLandingsPayments` usa SWR con `refreshInterval: 60000`.
 - `DashboardMain` muestra badges de debug en el header del chart.
+- `DashboardMain` se carga via `next/dynamic` desde `DashboardPage` para lazy-load de charts.
 
 ## Pendientes sugeridos
 1. Verificar si el container del chart tiene altura efectiva en el cliente (CSS/layout).

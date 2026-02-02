@@ -35,6 +35,7 @@
 - `src/app/api/interviews/route.ts`
 - `src/app/api/geojson/route.ts`
 - `src/app/api/territory-summary/route.ts`
+- `src/app/api/v1/telemetry/app-state/route.ts`
 
 ## Skills
 - .agents/skills/frontend-design/SKILL.md

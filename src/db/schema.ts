@@ -1,4 +1,4 @@
-import { integer, pgTable, text, timestamp, doublePrecision, jsonb, primaryKey } from "drizzle-orm/pg-core";
+import { boolean, integer, pgTable, text, timestamp, doublePrecision, jsonb, primaryKey, index } from "drizzle-orm/pg-core";
 
 export const territory = pgTable("territory", {
   id: text("id").primaryKey(),
@@ -82,4 +82,44 @@ export const authSessions = pgTable("auth_sessions", {
   token: text("token").notNull().unique(),
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const appStateEvents = pgTable(
+  "app_state_events",
+  {
+    id: text("id").primaryKey(),
+    signature: text("signature").notNull(),
+    interviewer: text("interviewer"),
+    candidate: text("candidate"),
+    appState: text("app_state").notNull(),
+    timestamp: timestamp("timestamp", { withTimezone: true }).notNull(),
+    isConnected: boolean("is_connected"),
+    isInternetReachable: boolean("is_internet_reachable"),
+    connectionType: text("connection_type"),
+    deviceOs: text("device_os"),
+    deviceOsVersion: text("device_os_version"),
+    deviceModel: text("device_model"),
+    appVersion: text("app_version"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    signatureIdx: index("app_state_events_signature_idx").on(table.signature),
+  }),
+);
+
+export const appStateCurrent = pgTable("app_state_current", {
+  signature: text("signature").primaryKey(),
+  interviewer: text("interviewer"),
+  candidate: text("candidate"),
+  lastState: text("last_state"),
+  lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
+  lastSeenActiveAt: timestamp("last_seen_active_at", { withTimezone: true }),
+  lastIsConnected: boolean("last_is_connected"),
+  lastIsInternetReachable: boolean("last_is_internet_reachable"),
+  lastConnectionType: text("last_connection_type"),
+  deviceOs: text("device_os"),
+  deviceOsVersion: text("device_os_version"),
+  deviceModel: text("device_model"),
+  appVersion: text("app_version"),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

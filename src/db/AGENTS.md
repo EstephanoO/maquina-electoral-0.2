@@ -6,7 +6,8 @@
 
 ## Responsabilidades
 - Conexion Neon via Drizzle (server-side).
-- Schema: territory, events, campaign_geojson, auth_users, auth_sessions.
+- Schema: territory, events, campaign_geojson, auth_users, auth_sessions,
+  app_state_events, app_state_current.
 - Seeds UI en `src/db/constants/*`.
 
 ## Notas
