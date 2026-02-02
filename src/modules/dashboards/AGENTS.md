@@ -21,7 +21,7 @@
 
 ## Notas
 - Dashboards DRAFT no visibles para candidatos.
-- Estado de entrevistadores usa telemetria app-state + tracking:
+- Estado de agentes de campo usa telemetria app-state + tracking:
   verde conectado activo, naranja activo sin movimiento, plomo inactivo.
 - Presencia activa: ventana de 15 segundos.
 - Movimiento: naranja si el ultimo tramo <= 10m.

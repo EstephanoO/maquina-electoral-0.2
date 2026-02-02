@@ -49,20 +49,6 @@ export const EventTierraDashboard = ({ eventId, client }: EventTierraDashboardPr
         ? [campaign.name]
         : [];
 
-  const contextNote =
-    event.id === "event-giovanna-01" && client === "giovanna"
-      ? {
-          title: "Contexto de telemetria",
-          description:
-            "Se habilito el registro de actividad y conectividad de la app para este evento.",
-          details: [
-            "Endpoint: /api/v1/telemetry/app-state",
-            "Idempotencia por eventId (duplicados -> 409 OK).",
-            "Activo si last_seen_active_at < 2 min.",
-            "Conectado si el ultimo active tuvo isInternetReachable=true.",
-          ],
-        }
-      : undefined;
 
   return (
     <EventMapDashboard
@@ -72,7 +58,6 @@ export const EventTierraDashboard = ({ eventId, client }: EventTierraDashboardPr
       eventId={event.id}
       campaignId={event.campaignId}
       clientKey={client}
-      contextNote={contextNote}
       candidateProfile={
         campaignProfile
           ? {

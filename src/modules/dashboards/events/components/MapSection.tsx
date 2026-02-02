@@ -244,7 +244,7 @@ export const MapSection: React.FC<MapSectionProps> = ({
             <div className="space-y-2 rounded-xl bg-slate-950/90 px-3 py-2 text-xs text-slate-100 shadow-lg">
               <div className="space-y-1">
                 <p className="text-[0.65rem] uppercase tracking-[0.2em] text-slate-300">
-                  Entrevistador
+                  Agente de campo
                 </p>
                 <p className="text-sm font-semibold text-white">
                   {point.interviewer ?? "-"}

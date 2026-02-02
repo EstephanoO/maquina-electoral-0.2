@@ -449,7 +449,7 @@ export const EventMapDashboard = ({
 
     const headers = [
       "ID",
-      "Entrevistador",
+      "Agente de campo",
       "Candidato",
       "Nombre",
       "Teléfono",
@@ -568,10 +568,10 @@ export const EventMapDashboard = ({
 
           {/* Sidebar */}
           <aside className="space-y-4">
-            {/* Top/Low Interviewers */}
+            {/* Top/Low Field Agents */}
             <Card className="border-border/60 bg-card/70 p-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Desempeno entrevistadores
+                Desempeno agentes de campo
               </p>
               <div className="mt-3 space-y-3">
                 <div className="flex items-center justify-between rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2">
@@ -599,7 +599,7 @@ export const EventMapDashboard = ({
               </div>
               <div className="mt-4 space-y-2">
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span>Top encuestadores</span>
+                  <span>Top agentes de campo</span>
                   <span>Hoy</span>
                 </div>
                 <div className="space-y-2">
@@ -625,11 +625,11 @@ export const EventMapDashboard = ({
               </div>
             </Card>
 
-            {/* Interviewer Status */}
+            {/* Field Agents Status */}
             <Card className="border-border/60 bg-card/70 p-4">
               <div className="flex items-center justify-between">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                  Entrevistadores
+                  Agentes de campo
                 </p>
               </div>
               <div className="mt-3 flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
@@ -699,11 +699,11 @@ export const EventMapDashboard = ({
         {/* Bottom Charts */}
         <Card className="border-border/60 bg-card/70 p-4">
           <div className={`grid gap-6 ${isCompact ? "lg:grid-cols-1" : "lg:grid-cols-2"}`}>
-            {/* Interviewer Progress Chart (moved here) */}
+            {/* Field Agent Progress Chart (moved here) */}
             <div>
               <div className="flex items-center justify-between">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                  Progreso por entrevistador
+                  Progreso por agente de campo
                 </p>
                 <span className="text-xs text-muted-foreground">
                   Actividad por hora (Hoy)
