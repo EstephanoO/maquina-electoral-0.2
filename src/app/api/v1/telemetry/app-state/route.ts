@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { sql } from "drizzle-orm";
+import { inArray, sql } from "drizzle-orm";
 import { db } from "@/db/connection";
 import { appStateCurrent, appStateEvents } from "@/db/schema";
 
@@ -146,10 +146,7 @@ export async function POST(request: Request) {
         candidate: body.session.candidate ?? null,
         lastState: body.appState,
         lastSeenAt: timestamp,
-        lastSeenActiveAt:
-          body.appState === "active"
-            ? timestamp
-            : sql`${appStateCurrent.lastSeenActiveAt}`,
+        lastSeenActiveAt: body.appState === "active" ? timestamp : null,
         lastIsConnected: body.connectivity?.isConnected ?? null,
         lastIsInternetReachable: body.connectivity?.isInternetReachable ?? null,
         lastConnectionType: body.connectivity?.connectionType ?? null,
@@ -162,4 +159,42 @@ export async function POST(request: Request) {
     });
 
   return NextResponse.json({ ok: true }, { status: 202 });
+}
+
+export async function GET(request: Request) {
+  const url = new URL(request.url);
+  const signatureParams = url.searchParams.getAll("signature");
+  const signaturesCsv = url.searchParams.get("signatures");
+  const signatures = [
+    ...signatureParams,
+    ...(signaturesCsv ? signaturesCsv.split(",") : []),
+  ]
+    .map((value) => value.trim())
+    .filter(Boolean);
+
+  if (signatures.length === 0) {
+    return NextResponse.json({ items: [] });
+  }
+
+  const rows = await db
+    .select({
+      signature: appStateCurrent.signature,
+      interviewer: appStateCurrent.interviewer,
+      candidate: appStateCurrent.candidate,
+      lastState: appStateCurrent.lastState,
+      lastSeenAt: appStateCurrent.lastSeenAt,
+      lastSeenActiveAt: appStateCurrent.lastSeenActiveAt,
+      lastIsConnected: appStateCurrent.lastIsConnected,
+      lastIsInternetReachable: appStateCurrent.lastIsInternetReachable,
+      lastConnectionType: appStateCurrent.lastConnectionType,
+      deviceOs: appStateCurrent.deviceOs,
+      deviceOsVersion: appStateCurrent.deviceOsVersion,
+      deviceModel: appStateCurrent.deviceModel,
+      appVersion: appStateCurrent.appVersion,
+      updatedAt: appStateCurrent.updatedAt,
+    })
+    .from(appStateCurrent)
+    .where(inArray(appStateCurrent.signature, signatures));
+
+  return NextResponse.json({ items: rows });
 }

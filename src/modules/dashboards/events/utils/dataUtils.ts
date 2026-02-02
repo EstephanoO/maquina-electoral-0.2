@@ -18,6 +18,7 @@ export interface MapPoint {
   altitude?: number | null;
   speed?: number | null;
   heading?: number | null;
+  isMoving?: boolean;
 }
 
 export const convertRowsToPoints = (rows: EventRecord[]): MapPoint[] => {

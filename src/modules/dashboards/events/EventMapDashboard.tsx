@@ -15,6 +15,7 @@ import { useEventData } from "./hooks/useEventData";
 import { useEventActions } from "./hooks/useEventActions";
 import { useCandidateVisibility } from "./hooks/useCandidateVisibility";
 import { useInterviewerTracking } from "./hooks/useInterviewerTracking";
+import { useAppStateCurrent } from "./hooks/useAppStateCurrent";
 import {
   convertRowsToPoints,
   calculateCandidateCounts,
@@ -175,9 +176,11 @@ export const EventMapDashboard = ({
     useCandidateVisibility();
 
   const trackingUrl = React.useMemo(() => {
-    if (!clientKey) return "/api/interviewer-tracking";
-    const params = new URLSearchParams({ client: clientKey });
-    return `/api/interviewer-tracking?${params.toString()}`;
+    const params = new URLSearchParams();
+    if (clientKey) params.set("client", clientKey);
+    params.set("includePrevious", "1");
+    const query = params.toString();
+    return query ? `/api/interviewer-tracking?${query}` : "/api/interviewer-tracking";
   }, [clientKey]);
 
   const {
@@ -185,6 +188,33 @@ export const EventMapDashboard = ({
     isLoading: trackingLoading,
     error: trackingError,
   } = useInterviewerTracking({ dataUrl: trackingUrl });
+
+  const telemetrySignatures = React.useMemo(() => {
+    const signatures = new Set<string>();
+    for (const row of trackingRows) {
+      if (row.signature) signatures.add(row.signature);
+    }
+    return Array.from(signatures);
+  }, [trackingRows]);
+
+  const telemetryUrl = React.useMemo(() => {
+    if (telemetrySignatures.length === 0) return null;
+    const params = new URLSearchParams();
+    for (const signature of telemetrySignatures) {
+      params.append("signature", signature);
+    }
+    return `/api/v1/telemetry/app-state?${params.toString()}`;
+  }, [telemetrySignatures]);
+
+  const { items: telemetryItems } = useAppStateCurrent({ dataUrl: telemetryUrl });
+  const telemetryBySignature = React.useMemo(() => {
+    const map = new Map<string, (typeof telemetryItems)[number]>();
+    for (const item of telemetryItems) {
+      if (!item.signature) continue;
+      map.set(item.signature.trim().toLowerCase(), item);
+    }
+    return map;
+  }, [telemetryItems]);
 
   // Cálculos de datos
   const points = React.useMemo(() => convertRowsToPoints(rows), [rows]);
@@ -216,6 +246,7 @@ export const EventMapDashboard = ({
 
   const trackingPoints = React.useMemo(() => {
     const now = Date.now();
+    const presenceThresholdMs = 15 * 1000;
     const candidateSet = new Set(
       candidateLabels.map((label) => label.trim().toLowerCase()).filter(Boolean),
     );
@@ -225,58 +256,97 @@ export const EventMapDashboard = ({
         const candidateValue = row.candidate?.trim().toLowerCase();
         return candidateValue ? candidateSet.has(candidateValue) : false;
       })
-      .map((row) => ({
-        online:
-          Number.isFinite(new Date(row.trackedAt).getTime()) &&
-          now - new Date(row.trackedAt).getTime() <= 2 * 60 * 1000,
-        lat: row.latitude,
-        lng: row.longitude,
-        interviewer: row.interviewer,
-        candidate: row.candidate,
-        createdAt: row.trackedAt,
-        kind: "tracking" as const,
-        mode: row.mode,
-        signature: row.signature,
-        accuracy: row.accuracy,
-        altitude: row.altitude,
-        speed: row.speed,
-        heading: row.heading,
-      }));
-  }, [candidateLabels, trackingRows]);
+      .map((row) => {
+        const signatureKey = row.signature?.trim().toLowerCase() ?? "";
+        const telemetry = signatureKey ? telemetryBySignature.get(signatureKey) : undefined;
+        const lastSeenActiveAt = telemetry?.lastSeenActiveAt
+          ? new Date(telemetry.lastSeenActiveAt).getTime()
+          : null;
+        const trackedAt = new Date(row.trackedAt).getTime();
+        const trackedRecent = Number.isFinite(trackedAt)
+          ? now - trackedAt <= presenceThresholdMs
+          : false;
+        const isActive = lastSeenActiveAt
+          ? now - lastSeenActiveAt <= presenceThresholdMs
+          : trackedRecent;
+        const distanceMeters = row.distanceMeters;
+        const hasDistance = typeof distanceMeters === "number" && Number.isFinite(distanceMeters);
+        const isMoving = hasDistance
+          ? distanceMeters > 10
+          : row.mode?.toLowerCase() === "moving";
+        return {
+          online: isActive,
+          lat: row.latitude,
+          lng: row.longitude,
+          interviewer: row.interviewer,
+          candidate: row.candidate,
+          createdAt: row.trackedAt,
+          kind: "tracking" as const,
+          mode: row.mode,
+          signature: row.signature,
+          accuracy: row.accuracy,
+          altitude: row.altitude,
+          speed: row.speed,
+          heading: row.heading,
+          isMoving,
+        };
+      });
+  }, [candidateLabels, telemetryBySignature, trackingRows]);
 
   const movingTrackingPoints = React.useMemo(
-    () => trackingPoints.filter((point) => point.mode?.toLowerCase() === "moving"),
+    () => trackingPoints.filter((point) => point.isMoving ?? point.mode?.toLowerCase() === "moving"),
     [trackingPoints],
   );
 
-  const staleThresholdMs = 10 * 60 * 1000;
-  const presenceThresholdMs = 2 * 60 * 1000;
+  const presenceThresholdMs = 15 * 1000;
   const interviewerStatus = React.useMemo(() => {
     const now = Date.now();
     return trackingRows
       .map((row) => {
+        const signatureKey = row.signature?.trim().toLowerCase() ?? "";
+        const telemetry = signatureKey ? telemetryBySignature.get(signatureKey) : undefined;
+        const lastSeenActiveAt = telemetry?.lastSeenActiveAt
+          ? new Date(telemetry.lastSeenActiveAt).getTime()
+          : null;
         const trackedAt = new Date(row.trackedAt).getTime();
-        const isStale = Number.isFinite(trackedAt) ? now - trackedAt > staleThresholdMs : true;
-        const isMoving = row.mode?.toLowerCase() === "moving";
-        const isOnline = Number.isFinite(trackedAt)
+        const trackedRecent = Number.isFinite(trackedAt)
           ? now - trackedAt <= presenceThresholdMs
           : false;
+        const isActive = lastSeenActiveAt
+          ? now - lastSeenActiveAt <= presenceThresholdMs
+          : trackedRecent;
+        const isConnected =
+          telemetry?.lastIsInternetReachable === true ||
+          telemetry?.lastIsConnected === true;
+        const distanceMeters = row.distanceMeters;
+        const hasDistance = typeof distanceMeters === "number" && Number.isFinite(distanceMeters);
+        const isMoving = hasDistance
+          ? distanceMeters > 10
+          : row.mode?.toLowerCase() === "moving";
+        const status = !isActive
+          ? "inactive"
+          : !isMoving
+            ? "stationary"
+            : isConnected
+              ? "connected"
+              : "inactive";
         return {
           key: row.interviewerKey,
           interviewer: row.interviewer,
           mode: row.mode,
           trackedAt: row.trackedAt,
           isMoving,
-          isStale,
-          isOnline,
+          isActive,
+          isConnected,
+          status,
         };
       })
       .sort((a, b) => {
-        if (a.isOnline !== b.isOnline) return a.isOnline ? -1 : 1;
-        if (a.isStale !== b.isStale) return a.isStale ? 1 : -1;
+        if (a.isActive !== b.isActive) return a.isActive ? -1 : 1;
+        if (a.isMoving !== b.isMoving) return a.isMoving ? -1 : 1;
         return a.interviewer.localeCompare(b.interviewer);
       });
-  }, [trackingRows]);
+  }, [trackingRows, telemetryBySignature]);
 
   const displayMapPoints = React.useMemo(
     () => (showMovingOnly ? movingTrackingPoints : [...filteredMapPoints, ...trackingPoints]),
@@ -543,6 +613,20 @@ export const EventMapDashboard = ({
                   Entrevistadores
                 </p>
               </div>
+              <div className="mt-3 flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
+                <span className="flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                  Conectado
+                </span>
+                <span className="flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-orange-500" />
+                  Activo sin movimiento
+                </span>
+                <span className="flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-slate-400" />
+                  Inactivo
+                </span>
+              </div>
               <div className="mt-4 space-y-3">
                 {interviewerStatus.length === 0 ? (
                   <div className="rounded-2xl border border-dashed border-border/60 bg-muted/10 px-4 py-6 text-center text-xs text-muted-foreground">
@@ -559,16 +643,20 @@ export const EventMapDashboard = ({
                           {item.interviewer}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {item.mode ?? "-"}
+                          {item.status === "connected"
+                            ? "Conectado"
+                            : item.status === "stationary"
+                              ? "Activo sin movimiento"
+                              : "Inactivo"}
                         </p>
                       </div>
                       <div className="flex items-center gap-3">
                         <span
                           className={`h-2.5 w-2.5 rounded-full ${
-                            item.isOnline
+                            item.status === "connected"
                               ? "bg-emerald-500"
-                              : item.isStale
-                                ? "bg-amber-400"
+                              : item.status === "stationary"
+                                ? "bg-orange-500"
                                 : "bg-slate-400"
                           }`}
                         />

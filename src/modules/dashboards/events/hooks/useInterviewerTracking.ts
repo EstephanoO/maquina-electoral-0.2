@@ -16,6 +16,7 @@ export type TrackingPoint = {
   altitude: number | null;
   speed: number | null;
   heading: number | null;
+  distanceMeters?: number | null;
 };
 
 type UseInterviewerTrackingOptions = {
@@ -38,6 +39,9 @@ export const useInterviewerTracking = ({
     fetcher,
     {
       refreshInterval,
+      refreshWhenHidden: false,
+      refreshWhenOffline: false,
+      dedupingInterval: 5000,
       revalidateOnFocus: false,
     },
   );
