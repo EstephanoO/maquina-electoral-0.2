@@ -34,10 +34,11 @@ type MapPoint = {
   interviewer?: string | null;
   name?: string | null;
   phone?: string | null;
+  address?: string | null;
   createdAt?: string | null;
   east?: number | null;
   north?: number | null;
-  kind?: "interview" | "tracking" | null;
+  kind?: "interview" | "tracking" | "address" | null;
   online?: boolean | null;
   mode?: string | null;
   signature?: string | null;
@@ -98,8 +99,8 @@ export const MapPanel = ({
   renderPointTooltip,
   renderPointsAsLayer = false,
   pointLayerId,
-  pointLayerRadius = 4,
-  pointLayerOpacity = 0.9,
+  pointLayerRadius = 5,
+  pointLayerOpacity = 0.92,
 }: MapPanelProps) => {
   const { mode } = useTheme();
   const resolvedStyle = mapStyle ?? (mode === "dark" ? mapStyleDark : mapStyleLight);
@@ -123,6 +124,7 @@ export const MapPanel = ({
           interviewer: point.interviewer ?? null,
           name: point.name ?? null,
           phone: point.phone ?? null,
+          address: point.address ?? null,
           createdAt: point.createdAt ?? null,
           online: point.online ?? null,
           kind: point.kind ?? null,
@@ -168,9 +170,10 @@ export const MapPanel = ({
           interviewer: (props.interviewer as string | null | undefined) ?? null,
           name: (props.name as string | null | undefined) ?? null,
           phone: (props.phone as string | null | undefined) ?? null,
+          address: (props.address as string | null | undefined) ?? null,
           createdAt: (props.createdAt as string | null | undefined) ?? null,
           online: (props.online as boolean | null | undefined) ?? null,
-          kind: (props.kind as "interview" | "tracking" | null | undefined) ?? null,
+          kind: (props.kind as "interview" | "tracking" | "address" | null | undefined) ?? null,
           mode: (props.mode as string | null | undefined) ?? null,
           signature: (props.signature as string | null | undefined) ?? null,
           accuracy: (props.accuracy as number | null | undefined) ?? null,
@@ -196,7 +199,7 @@ export const MapPanel = ({
   return (
     <div
       className={cn(
-        "arcgis-map-panel relative overflow-hidden rounded-[28px] border border-border/60 bg-card/60 shadow-[0_24px_60px_rgba(0,0,0,0.18)]",
+        "arcgis-map-panel relative overflow-hidden rounded-[28px] border border-border/50 bg-card/60 shadow-[0_28px_70px_rgba(0,0,0,0.22)]",
         className,
       )}
       style={typeof height === "number" ? { height } : undefined}
@@ -241,20 +244,33 @@ export const MapPanel = ({
                   "case",
                   ["==", ["get", "kind"], "tracking"],
                   4,
+                  ["==", ["get", "kind"], "address"],
+                  3,
                   pointLayerRadius,
                 ],
                 "circle-color": ["get", "color"],
-                "circle-opacity": pointLayerOpacity,
+                "circle-opacity": [
+                  "case",
+                  ["==", ["get", "kind"], "address"],
+                  0.45,
+                  ["==", ["get", "kind"], "tracking"],
+                  0.9,
+                  pointLayerOpacity,
+                ],
                 "circle-stroke-color": [
                   "case",
                   ["==", ["get", "kind"], "tracking"],
                   "rgba(255,255,255,0.9)",
+                  ["==", ["get", "kind"], "address"],
+                  "rgba(255,255,255,0.95)",
                   "rgba(2,6,23,0.35)",
                 ],
                 "circle-stroke-width": [
                   "case",
                   ["==", ["get", "kind"], "tracking"],
                   1.6,
+                  ["==", ["get", "kind"], "address"],
+                  1.2,
                   2,
                 ],
               }}
@@ -313,7 +329,7 @@ export const MapPanel = ({
           </MapPopup>
         ) : null}
       </MaplibreMap>
-      {overlay ? <div className="absolute bottom-4 right-4 z-10">{overlay}</div> : null}
+      {overlay ? <div className="absolute right-4 top-4 z-10">{overlay}</div> : null}
       {showStatus ? (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-background/70 text-xs font-semibold text-foreground">
           {statusLabel ??

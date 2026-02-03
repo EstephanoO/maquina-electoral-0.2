@@ -1,0 +1,25 @@
+{
+  "id": "1738603904123-X8K9Q",
+  "interviewer": "Mariana Gomez",
+  "candidate": "Rocio Porras",
+  "signature": "sig-abc-123",
+  "name": "Jose Perez",
+  "phone": "912345678",
+  "address": "Av. Arequipa 123, Lima",
+  "addressLocation": { "latitude": -12.104321, "longitude": -77.031234 },
+  "addressUtm": {
+    "zone": 18,
+    "hemisphere": "S",
+    "easting": 281234.12,
+    "northing": 8654321.45,
+    "datumEpsg": "4326"
+  },
+  "location": {
+    "zone": 18,
+    "hemisphere": "S",
+    "easting": 281200.55,
+    "northing": 8654300.33,
+    "datumEpsg": "4326"
+  },
+  "createdAt": "2026-02-03T20:30:45.123Z"
+}

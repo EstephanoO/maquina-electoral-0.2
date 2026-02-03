@@ -32,8 +32,10 @@
 
 ## Key files
 - `src/modules/dashboards/events/EventMapDashboard.tsx`
+- `src/modules/dashboards/events/hooks/useTrackingStatus.ts`
 - `src/modules/dashboards/events/EventRecordsDialog.tsx`
 - `src/modules/dashboards/MapSection.tsx`
+- `src/modules/dashboards/events/utils/dataGoal.ts`
 
 ## Skills
 - .agents/skills/frontend-design/SKILL.md

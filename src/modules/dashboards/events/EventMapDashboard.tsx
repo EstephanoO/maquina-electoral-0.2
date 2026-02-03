@@ -15,7 +15,7 @@ import { useEventData } from "./hooks/useEventData";
 import { useEventActions } from "./hooks/useEventActions";
 import { useCandidateVisibility } from "./hooks/useCandidateVisibility";
 import { useInterviewerTracking } from "./hooks/useInterviewerTracking";
-import { useAppStateCurrent } from "./hooks/useAppStateCurrent";
+import { useTrackingStatus } from "./hooks/useTrackingStatus";
 import {
   convertRowsToPoints,
   calculateCandidateCounts,
@@ -24,6 +24,8 @@ import {
   generateInterviewerTimelineData,
   getLastUpdated,
 } from "./utils/dataUtils";
+import { buildDataGoalIndex, resolveGoalForSelection } from "./utils/dataGoal";
+import type { DataGoalRecord } from "./utils/dataGoal";
 import { DashboardHeader, TotalStats } from "./components/HeaderComponents";
 import { MapSection } from "./components/MapSection";
 import datosGiovanna from "@/db/constants/datos-giovanna.json";
@@ -54,82 +56,6 @@ type EventMapDashboardProps = {
   hideMapLegend?: boolean;
 };
 
-type DataGoalRecord = {
-  departamento: string;
-  provincia: string;
-  distrito: string;
-  electores: number;
-  datos_a_recopilar: number;
-  porcentaje: number;
-};
-
-type DataGoalIndex = {
-  total: number | null;
-  byDep: Map<string, number>;
-  byProv: Map<string, number>;
-  byDist: Map<string, number>;
-};
-
-const normalizeName = (value?: string | null) => value?.trim().toUpperCase() ?? "";
-
-const buildDataGoalIndex = (
-  records: DataGoalRecord[],
-  total: number | null,
-): DataGoalIndex => {
-  const byDep = new Map<string, number>();
-  const byProv = new Map<string, number>();
-  const byDist = new Map<string, number>();
-
-  for (const record of records) {
-    const dep = normalizeName(record.departamento);
-    const prov = normalizeName(record.provincia);
-    const dist = normalizeName(record.distrito);
-    const value = Number(record.datos_a_recopilar) || 0;
-    if (dep) byDep.set(dep, (byDep.get(dep) ?? 0) + value);
-    if (dep && prov) {
-      const key = `${dep}::${prov}`;
-      byProv.set(key, (byProv.get(key) ?? 0) + value);
-    }
-    if (dep && prov && dist) {
-      const key = `${dep}::${prov}::${dist}`;
-      byDist.set(key, (byDist.get(key) ?? 0) + value);
-    }
-  }
-
-  return { total, byDep, byProv, byDist };
-};
-
-const resolveGoalForSelection = (
-  selection: MapHierarchySelection | null,
-  index: DataGoalIndex,
-) => {
-  if (!selection) return index.total;
-  const depName = normalizeName(selection.depName);
-  const provName = normalizeName(selection.provName);
-  const distName = normalizeName(selection.distName);
-
-  if (selection.level === "distrito") {
-    if (depName && provName && distName) {
-      return index.byDist.get(`${depName}::${provName}::${distName}`) ?? 0;
-    }
-    if (depName && provName) {
-      return index.byProv.get(`${depName}::${provName}`) ?? 0;
-    }
-    if (depName) return index.byDep.get(depName) ?? 0;
-    return 0;
-  }
-
-  if (selection.level === "provincia") {
-    if (depName && provName) {
-      return index.byProv.get(`${depName}::${provName}`) ?? 0;
-    }
-    if (depName) return index.byDep.get(depName) ?? 0;
-    return 0;
-  }
-
-  if (depName) return index.byDep.get(depName) ?? 0;
-  return 0;
-};
 
 export const EventMapDashboard = ({
   eventTitle,
@@ -151,6 +77,7 @@ export const EventMapDashboard = ({
     null,
   );
   const [showMovingOnly, setShowMovingOnly] = React.useState(false);
+  const [showTrackingOnly, setShowTrackingOnly] = React.useState(false);
   // Hooks para manejo de datos y estado
   const {
     data,
@@ -189,33 +116,6 @@ export const EventMapDashboard = ({
     error: trackingError,
   } = useInterviewerTracking({ dataUrl: trackingUrl });
 
-  const telemetrySignatures = React.useMemo(() => {
-    const signatures = new Set<string>();
-    for (const row of trackingRows) {
-      if (row.signature) signatures.add(row.signature);
-    }
-    return Array.from(signatures);
-  }, [trackingRows]);
-
-  const telemetryUrl = React.useMemo(() => {
-    if (telemetrySignatures.length === 0) return null;
-    const params = new URLSearchParams();
-    for (const signature of telemetrySignatures) {
-      params.append("signature", signature);
-    }
-    return `/api/v1/telemetry/app-state?${params.toString()}`;
-  }, [telemetrySignatures]);
-
-  const { items: telemetryItems } = useAppStateCurrent({ dataUrl: telemetryUrl });
-  const telemetryBySignature = React.useMemo(() => {
-    const map = new Map<string, (typeof telemetryItems)[number]>();
-    for (const item of telemetryItems) {
-      if (!item.signature) continue;
-      map.set(item.signature.trim().toLowerCase(), item);
-    }
-    return map;
-  }, [telemetryItems]);
-
   // Cálculos de datos
   const points = React.useMemo(() => convertRowsToPoints(rows), [rows]);
   const counts = React.useMemo(() => calculateCandidateCounts(rows), [rows]);
@@ -239,137 +139,40 @@ export const EventMapDashboard = ({
     .map(([name]) => name);
   const interviewerColors = ["#6366f1", "#22d3ee", "#f97316"];
   const lastUpdated = React.useMemo(() => getLastUpdated(rows), [rows]);
+  const interviewPoints = React.useMemo(
+    () => points.filter((point) => point.kind === "interview"),
+    [points],
+  );
   const filteredMapPoints = React.useMemo(
     () => filteredPoints(points),
     [points, filteredPoints],
   );
-
-  const trackingPoints = React.useMemo(() => {
-    const now = Date.now();
-    const presenceThresholdMs = 15 * 1000;
-    const candidateSet = new Set(
-      candidateLabels.map((label) => label.trim().toLowerCase()).filter(Boolean),
-    );
-    return trackingRows
-      .filter((row) => {
-        if (candidateSet.size === 0) return true;
-        const candidateValue = row.candidate?.trim().toLowerCase();
-        return candidateValue ? candidateSet.has(candidateValue) : false;
-      })
-      .map((row) => {
-        const signatureKey = row.signature?.trim().toLowerCase() ?? "";
-        const telemetry = signatureKey ? telemetryBySignature.get(signatureKey) : undefined;
-        const lastSeenActiveAt = telemetry?.lastSeenActiveAt
-          ? new Date(telemetry.lastSeenActiveAt).getTime()
-          : null;
-        const lastState = telemetry?.lastState?.toLowerCase() ?? null;
-        const trackedAt = new Date(row.trackedAt).getTime();
-        const trackedRecent = Number.isFinite(trackedAt)
-          ? now - trackedAt <= presenceThresholdMs
-          : false;
-        const isActive = lastState && lastState !== "active"
-          ? false
-          : lastSeenActiveAt
-            ? now - lastSeenActiveAt <= presenceThresholdMs
-            : trackedRecent;
-        const isConnected =
-          telemetry?.lastIsInternetReachable === true ||
-          telemetry?.lastIsConnected === true;
-        const distanceMeters = row.distanceMeters;
-        const hasDistance = typeof distanceMeters === "number" && Number.isFinite(distanceMeters);
-        const isMoving = hasDistance
-          ? distanceMeters > 10
-          : row.mode?.toLowerCase() === "moving";
-        const status = !isActive
-          ? ("inactive" as const)
-          : !isMoving
-            ? ("stationary" as const)
-            : isConnected
-              ? ("connected" as const)
-              : ("inactive" as const);
-        return {
-          online: isActive,
-          lat: row.latitude,
-          lng: row.longitude,
-          interviewer: row.interviewer,
-          candidate: row.candidate,
-          createdAt: row.trackedAt,
-          kind: "tracking" as const,
-          mode: row.mode,
-          signature: row.signature,
-          accuracy: row.accuracy,
-          altitude: row.altitude,
-          speed: row.speed,
-          heading: row.heading,
-          isMoving,
-          isActive,
-          isConnected,
-          status,
-        };
-      });
-  }, [candidateLabels, telemetryBySignature, trackingRows]);
-
-  const movingTrackingPoints = React.useMemo(
-    () => trackingPoints.filter((point) => point.isMoving ?? point.mode?.toLowerCase() === "moving"),
-    [trackingPoints],
+  const filteredInterviewPoints = React.useMemo(
+    () => filteredPoints(interviewPoints),
+    [filteredPoints, interviewPoints],
   );
 
   const presenceThresholdMs = 15 * 1000;
-  const interviewerStatus = React.useMemo(() => {
-    const now = Date.now();
-    return trackingRows
-      .map((row) => {
-        const signatureKey = row.signature?.trim().toLowerCase() ?? "";
-        const telemetry = signatureKey ? telemetryBySignature.get(signatureKey) : undefined;
-        const lastSeenActiveAt = telemetry?.lastSeenActiveAt
-          ? new Date(telemetry.lastSeenActiveAt).getTime()
-          : null;
-        const lastState = telemetry?.lastState?.toLowerCase() ?? null;
-        const trackedAt = new Date(row.trackedAt).getTime();
-        const trackedRecent = Number.isFinite(trackedAt)
-          ? now - trackedAt <= presenceThresholdMs
-          : false;
-        const isActive = lastState && lastState !== "active"
-          ? false
-          : lastSeenActiveAt
-            ? now - lastSeenActiveAt <= presenceThresholdMs
-            : trackedRecent;
-        const isConnected =
-          telemetry?.lastIsInternetReachable === true ||
-          telemetry?.lastIsConnected === true;
-        const distanceMeters = row.distanceMeters;
-        const hasDistance = typeof distanceMeters === "number" && Number.isFinite(distanceMeters);
-        const isMoving = hasDistance
-          ? distanceMeters > 10
-          : row.mode?.toLowerCase() === "moving";
-        const status = !isActive
-          ? "inactive"
-          : !isMoving
-            ? "stationary"
-            : isConnected
-              ? "connected"
-              : "inactive";
-        return {
-          key: row.interviewerKey,
-          interviewer: row.interviewer,
-          mode: row.mode,
-          trackedAt: row.trackedAt,
-          isMoving,
-          isActive,
-          isConnected,
-          status,
-        };
-      })
-      .sort((a, b) => {
-        if (a.isActive !== b.isActive) return a.isActive ? -1 : 1;
-        if (a.isMoving !== b.isMoving) return a.isMoving ? -1 : 1;
-        return a.interviewer.localeCompare(b.interviewer);
-      });
-  }, [trackingRows, telemetryBySignature]);
+  const movementThresholdMeters = 10;
+  const { trackingPoints, movingTrackingPoints, interviewerStatus } = useTrackingStatus({
+    trackingRows,
+    candidateLabels,
+    presenceThresholdMs,
+    movementThresholdMeters,
+  });
 
   const displayMapPoints = React.useMemo(
-    () => (showMovingOnly ? movingTrackingPoints : [...filteredMapPoints, ...trackingPoints]),
-    [filteredMapPoints, movingTrackingPoints, showMovingOnly, trackingPoints],
+    () => {
+      if (showTrackingOnly) return trackingPoints;
+      return showMovingOnly
+        ? movingTrackingPoints
+        : [...filteredMapPoints, ...trackingPoints];
+    },
+    [filteredMapPoints, movingTrackingPoints, showMovingOnly, showTrackingOnly, trackingPoints],
+  );
+  const mapPointCount = React.useMemo(
+    () => filteredInterviewPoints.length,
+    [filteredInterviewPoints],
   );
 
   const dataGoalIndex = React.useMemo(() => {
@@ -421,7 +224,7 @@ export const EventMapDashboard = ({
     ? "loading"
     : error
       ? "error"
-      : filteredMapPoints.length > 0
+      : displayMapPoints.length > 0
         ? undefined
         : "empty";
   const trackingMapStatus = trackingLoading
@@ -431,7 +234,7 @@ export const EventMapDashboard = ({
       : movingTrackingPoints.length > 0
         ? undefined
         : "empty";
-  const mapStatus = showMovingOnly ? trackingMapStatus : baseMapStatus;
+  const mapStatus = showMovingOnly || showTrackingOnly ? trackingMapStatus : baseMapStatus;
 
   // Manejo de foco en puntos del mapa
   const handleFocusPoint = React.useMemo(
@@ -548,22 +351,20 @@ export const EventMapDashboard = ({
           {/* Map Section */}
           <MapSection
             points={displayMapPoints}
-            hierarchyPoints={filteredMapPoints}
+            hierarchyPoints={filteredInterviewPoints}
             candidateLabels={candidateLabels}
             mapStatus={mapStatus}
             mapRef={mapRef}
             resetMapView={resetMapView}
             setResetMapView={setResetMapView}
-            withLocation={displayMapPoints.length}
+            withLocation={mapPointCount}
             showLegend={false}
             focusPoint={focusPoint}
             onClearFocusPoint={() => setFocusPoint(null)}
             campaignId={campaignId}
             onHierarchySelectionChange={setMapSelection}
-            showMovingOnly={showMovingOnly}
-            onToggleMovingOnly={() => setShowMovingOnly((value) => !value)}
-            trackingCount={trackingPoints.length}
-            movingTrackingCount={movingTrackingPoints.length}
+            showTrackingOnly={showTrackingOnly}
+            onToggleTrackingOnly={() => setShowTrackingOnly((value) => !value)}
           />
 
           {/* Sidebar */}

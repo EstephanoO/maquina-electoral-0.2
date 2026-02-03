@@ -8,7 +8,7 @@ export const territory = pgTable("territory", {
   signature: text("signature").notNull(),
   name: text("name").notNull(),
   phone: text("phone").notNull(),
-  address: text("address").notNull(),
+  address: text("address"),
   addressLocation: jsonb("address_location"),
   addressUtm: jsonb("address_utm"),
   location: jsonb("location").notNull(),

@@ -57,7 +57,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   const totalLabel = currentTotal.toLocaleString("en-US");
   const goalProgress = dataGoalValue ? (currentTotal / dataGoalValue) * 100 : 0;
   const goalProgressLabel = dataGoalValue
-    ? `${Math.min(goalProgress, 100).toFixed(3)}%`
+    ? `${Math.min(goalProgress, 100).toFixed(2)}%`
     : "-";
 
   return (

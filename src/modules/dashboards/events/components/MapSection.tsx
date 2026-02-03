@@ -22,10 +22,8 @@ interface MapSectionProps {
   onClearFocusPoint?: () => void;
   campaignId?: string | null;
   onHierarchySelectionChange?: (selection: MapHierarchySelection) => void;
-  showMovingOnly?: boolean;
-  onToggleMovingOnly?: () => void;
-  trackingCount?: number;
-  movingTrackingCount?: number;
+  showTrackingOnly?: boolean;
+  onToggleTrackingOnly?: () => void;
 }
 
 export const MapSection: React.FC<MapSectionProps> = ({
@@ -42,14 +40,13 @@ export const MapSection: React.FC<MapSectionProps> = ({
   onClearFocusPoint,
   campaignId,
   onHierarchySelectionChange,
-  showMovingOnly,
-  onToggleMovingOnly,
-  trackingCount,
-  movingTrackingCount,
+  showTrackingOnly = false,
+  onToggleTrackingOnly,
 }) => {
-  const [showStreetBase, setShowStreetBase] = React.useState(true);
+  const showStreetBase = true;
   const [currentLevel, setCurrentLevel] = React.useState<GeoLevel>("departamento");
   const getPointColor = React.useCallback((point: MapPoint) => {
+    if (point.kind === "address") return "#3b82f6";
     if (point.kind === "tracking") {
       if (point.status === "connected") return "#10b981";
       if (point.status === "stationary") return "#f97316";
@@ -168,40 +165,24 @@ export const MapSection: React.FC<MapSectionProps> = ({
   }, [activeMeta?.featureCount, clientLayers]);
 
   return (
-    <div className="relative h-[70vh] min-h-[520px] rounded-2xl border border-border/60 bg-card/70 shadow-[0_20px_60px_rgba(15,23,42,0.12)]">
-      <div className="pointer-events-none absolute inset-0 rounded-2xl bg-[radial-gradient(circle_at_top,_rgba(96,165,250,0.12),_transparent_55%)]" />
-      <div className="pointer-events-none absolute inset-0 rounded-2xl bg-[linear-gradient(180deg,_rgba(15,23,42,0.12),_transparent_35%)] dark:bg-[linear-gradient(180deg,_rgba(2,6,23,0.45),_transparent_35%)]" />
-      <div className="absolute right-4 top-4 z-10 flex items-center gap-2">
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => setShowStreetBase((value) => !value)}
-          className="bg-background/80 backdrop-blur"
-        >
-          {showStreetBase ? "Ocultar fondo" : "Mostrar fondo"}
-        </Button>
-        {onToggleMovingOnly ? (
+    <div className="relative h-[72vh] min-h-[600px] overflow-hidden rounded-[28px] border border-border/50 bg-card/60 shadow-[0_28px_70px_rgba(15,23,42,0.18)]">
+      <div className="pointer-events-none absolute inset-0 rounded-[28px] bg-[radial-gradient(circle_at_top,_rgba(96,165,250,0.16),_transparent_55%)]" />
+      <div className="pointer-events-none absolute inset-0 rounded-[28px] bg-[linear-gradient(180deg,_rgba(15,23,42,0.14),_transparent_35%)] dark:bg-[linear-gradient(180deg,_rgba(2,6,23,0.6),_transparent_35%)]" />
+      <div className="sr-only">{withLocation} puntos activos</div>
+      {onToggleTrackingOnly ? (
+        <div className="absolute left-6 top-6 z-10">
           <Button
             size="sm"
-            variant={showMovingOnly ? "default" : "outline"}
-            onClick={onToggleMovingOnly}
-            className="backdrop-blur"
+            variant={showTrackingOnly ? "default" : "outline"}
+            className="h-7 rounded-full px-3 text-[11px] bg-background/85 backdrop-blur"
+            onClick={onToggleTrackingOnly}
           >
-            {showMovingOnly ? "Ver todo" : "Solo en movimiento"}
+            {showTrackingOnly ? "Solo tracking" : "Ver tracking"}
           </Button>
-        ) : null}
-      </div>
-      <div className="absolute left-4 top-4 z-10 rounded-2xl border border-border/60 bg-background/75 px-3 py-2 text-xs text-muted-foreground shadow-sm backdrop-blur">
-        <p className="font-semibold text-foreground">Mapa Peru</p>
-        <p>{withLocation} puntos activos</p>
-        {typeof trackingCount === "number" ? (
-          <p className="text-[11px] text-muted-foreground">
-            Tracking: {trackingCount} · En movimiento: {movingTrackingCount ?? 0}
-          </p>
-        ) : null}
-      </div>
+        </div>
+      ) : null}
       {showLegend ? (
-        <div className="absolute bottom-4 left-4 z-10 rounded-2xl border border-border/60 bg-background/80 px-3 py-2 text-xs text-muted-foreground shadow-sm backdrop-blur">
+        <div className="absolute bottom-5 left-5 z-10 rounded-2xl border border-border/60 bg-background/80 px-3 py-2 text-xs text-muted-foreground shadow-sm backdrop-blur">
           <p className="text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
             Leyenda
           </p>
@@ -217,6 +198,10 @@ export const MapSection: React.FC<MapSectionProps> = ({
             <span className="flex items-center gap-2">
               <span className="h-2 w-2 rounded-full bg-orange-500" />
               {candidateLabels[2]}
+            </span>
+            <span className="flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-amber-500" />
+              Domicilio
             </span>
           </div>
         </div>
@@ -289,6 +274,18 @@ export const MapSection: React.FC<MapSectionProps> = ({
                       : "-"}
                   </p>
                 </div>
+              </div>
+            </div>
+          ) : point.kind === "address" ? (
+            <div className="space-y-2 rounded-xl bg-slate-950/90 px-3 py-2 text-xs text-slate-100 shadow-lg">
+              <div className="space-y-1">
+                <p className="text-[0.65rem] uppercase tracking-[0.2em] text-slate-300">
+                  Domicilio
+                </p>
+                <p className="text-sm font-semibold text-white">
+                  {point.address ?? "Direccion no registrada"}
+                </p>
+                <p className="text-[11px] text-slate-300">{point.name ?? "-"}</p>
               </div>
             </div>
           ) : (

@@ -11,7 +11,7 @@ type InterviewPayload = {
   signature: string;
   name: string;
   phone: string;
-  address: string;
+  address?: string | null;
   addressLocation:
     | {
         latitude: number;
@@ -48,7 +48,6 @@ const requiredPresenceKeys: Array<keyof InterviewPayload> = [
   "signature",
   "name",
   "phone",
-  "address",
   "addressLocation",
   "addressUtm",
   "location",
@@ -181,6 +180,7 @@ export async function POST(request: Request) {
   const locationValue = body.location ?? null;
   const addressLocationValue = body.addressLocation ?? null;
   const addressUtmValue = body.addressUtm ?? null;
+  const addressValue = body.address ?? null;
   const utmPayload =
     body.location
       ? {
@@ -213,7 +213,7 @@ export async function POST(request: Request) {
       signature: body.signature as string,
       name: body.name as string,
       phone: body.phone as string,
-      address: body.address as string,
+      address: addressValue,
       addressLocation: addressLocationValue,
       addressUtm: addressUtmValue,
       location: locationValue,
@@ -279,6 +279,8 @@ export async function GET(request: Request) {
       candidate: territory.candidate,
       name: territory.name,
       phone: territory.phone,
+      address: territory.address,
+      addressLocation: territory.addressLocation,
       createdAt: territory.createdAt,
     })
     .from(territory)

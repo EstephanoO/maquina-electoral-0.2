@@ -6,11 +6,12 @@ export interface MapPoint {
   candidate?: string | null;
   interviewer?: string | null;
   name?: string | null;
+  address?: string | null;
   createdAt?: string;
   east?: number | null;
   north?: number | null;
   phone?: string | null;
-  kind?: "interview" | "tracking" | null;
+  kind?: "interview" | "tracking" | "address" | null;
   online?: boolean | null;
   mode?: string | null;
   signature?: string | null;
@@ -25,20 +26,44 @@ export interface MapPoint {
 }
 
 export const convertRowsToPoints = (rows: EventRecord[]): MapPoint[] => {
-  return rows
-    .filter((point) => point.latitude !== null && point.longitude !== null)
-    .map((point) => ({
-      lat: point.latitude as number,
-      lng: point.longitude as number,
-      candidate: point.candidate ?? null,
-      interviewer: point.interviewer ?? null,
-      name: point.name ?? null,
-      createdAt: point.createdAt ?? undefined,
-      east: point.east ?? null,
-      north: point.north ?? null,
-      phone: point.phone ?? null,
-      kind: "interview",
-    }));
+  const points: MapPoint[] = [];
+  for (const row of rows) {
+    if (row.latitude !== null && row.longitude !== null) {
+      points.push({
+        lat: row.latitude as number,
+        lng: row.longitude as number,
+        candidate: row.candidate ?? null,
+        interviewer: row.interviewer ?? null,
+        name: row.name ?? null,
+        address: row.address ?? null,
+        createdAt: row.createdAt ?? undefined,
+        east: row.east ?? null,
+        north: row.north ?? null,
+        phone: row.phone ?? null,
+        kind: "interview",
+      });
+    }
+
+    const addressLocation = row.addressLocation;
+    if (addressLocation?.latitude !== undefined && addressLocation?.longitude !== undefined) {
+      const lat = Number(addressLocation.latitude);
+      const lng = Number(addressLocation.longitude);
+      if (Number.isFinite(lat) && Number.isFinite(lng)) {
+        points.push({
+          lat,
+          lng,
+          candidate: row.candidate ?? null,
+          interviewer: row.interviewer ?? null,
+          name: row.name ?? null,
+          address: row.address ?? null,
+          createdAt: row.createdAt ?? undefined,
+          phone: row.phone ?? null,
+          kind: "address",
+        });
+      }
+    }
+  }
+  return points;
 };
 
 export const calculateCandidateCounts = (rows: EventRecord[]): Record<string, number> => {

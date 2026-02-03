@@ -36,10 +36,11 @@ type PeruMapPoint = {
   interviewer?: string | null;
   name?: string | null;
   phone?: string | null;
+  address?: string | null;
   createdAt?: string | null;
   east?: number | null;
   north?: number | null;
-  kind?: "interview" | "tracking" | null;
+  kind?: "interview" | "tracking" | "address" | null;
   mode?: string | null;
   signature?: string | null;
   accuracy?: number | null;
