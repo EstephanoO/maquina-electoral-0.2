@@ -4,21 +4,21 @@ import { db } from "@/db/connection";
 import { events, territory } from "@/db/schema";
 
 type InterviewPayload = {
-  id: string;
-  eventId?: string;
-  interviewer: string;
-  candidate: string;
-  signature: string;
-  name: string;
-  phone: string;
+  id?: string | null;
+  eventId?: string | null;
+  interviewer?: string | null;
+  candidate?: string | null;
+  signature?: string | null;
+  name?: string | null;
+  phone?: string | null;
   address?: string | null;
-  addressLocation:
+  addressLocation?:
     | {
         latitude: number;
         longitude: number;
       }
     | null;
-  addressUtm:
+  addressUtm?:
     | {
         zone: number;
         hemisphere: "N" | "S";
@@ -27,7 +27,7 @@ type InterviewPayload = {
         datumEpsg: string;
       }
     | null;
-  location:
+  location?:
     | {
         zone: number;
         hemisphere: "N" | "S";
@@ -36,23 +36,10 @@ type InterviewPayload = {
         datumEpsg: string;
       }
     | null;
-  createdAt: string;
-  latitude?: number;
-  longitude?: number;
+  createdAt?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
 };
-
-const requiredPresenceKeys: Array<keyof InterviewPayload> = [
-  "id",
-  "interviewer",
-  "candidate",
-  "signature",
-  "name",
-  "phone",
-  "addressLocation",
-  "addressUtm",
-  "location",
-  "createdAt",
-];
 
 const clientToCandidate: Record<string, string> = {
   rocio: "Rocio Porras",
@@ -168,15 +155,6 @@ const utmToLatLng = (input: {
 
 export async function POST(request: Request) {
   const body = (await request.json()) as Partial<InterviewPayload>;
-  const missing = requiredPresenceKeys.filter((key) => body[key] === undefined);
-
-  if (missing.length > 0) {
-    return NextResponse.json(
-      { ok: false, error: "Missing fields", fields: missing },
-      { status: 400 },
-    );
-  }
-
   const locationValue = body.location ?? null;
   const addressLocationValue = body.addressLocation ?? null;
   const addressUtmValue = body.addressUtm ?? null;
@@ -200,24 +178,30 @@ export async function POST(request: Request) {
   const derived =
     utmValid && utmPayload?.datumEpsg === "4326" ? utmToLatLng(utmPayload) : null;
 
-  const resolvedEventId =
-    body.eventId ?? (await resolveEventId(body.createdAt as string));
+  const resolvedEventId = body.createdAt
+    ? body.eventId ?? (await resolveEventId(body.createdAt))
+    : body.eventId ?? null;
+  const createdAtValue = body.createdAt ? new Date(body.createdAt) : null;
+  const resolvedCreatedAt = createdAtValue && !Number.isNaN(createdAtValue.getTime())
+    ? createdAtValue
+    : null;
+  const idValue = body.id ?? crypto.randomUUID();
 
   await db
     .insert(territory)
     .values({
-      id: body.id as string,
+      id: idValue,
       eventId: resolvedEventId,
-      interviewer: body.interviewer as string,
-      candidate: body.candidate as string,
-      signature: body.signature as string,
-      name: body.name as string,
-      phone: body.phone as string,
+      interviewer: body.interviewer ?? null,
+      candidate: body.candidate ?? null,
+      signature: body.signature ?? null,
+      name: body.name ?? null,
+      phone: body.phone ?? null,
       address: addressValue,
       addressLocation: addressLocationValue,
       addressUtm: addressUtmValue,
       location: locationValue,
-      createdAt: new Date(body.createdAt as string),
+      createdAt: resolvedCreatedAt,
       latitude: body.latitude ?? derived?.latitude ?? null,
       longitude: body.longitude ?? derived?.longitude ?? null,
       east: utmValid ? utmPayload.easting : null,
@@ -242,7 +226,12 @@ export async function GET(request: Request) {
   }
   const resolvedCandidate =
     (clientParam ? clientToCandidate[clientParam] : null) ?? candidateParam;
-  const conditions = [isNotNull(territory.latitude), isNotNull(territory.longitude)];
+  const conditions = [
+    or(
+      and(isNotNull(territory.latitude), isNotNull(territory.longitude)),
+      isNotNull(territory.addressLocation),
+    ),
+  ];
   if (resolvedCandidate) {
     conditions.push(eq(territory.candidate, resolvedCandidate));
   }
@@ -274,6 +263,7 @@ export async function GET(request: Request) {
       interviewer: territory.interviewer,
       latitude: territory.latitude,
       longitude: territory.longitude,
+      location: territory.location,
       east: territory.east,
       north: territory.north,
       candidate: territory.candidate,
@@ -286,7 +276,52 @@ export async function GET(request: Request) {
     .from(territory)
     .where(condition);
 
-  return NextResponse.json({ points: rows });
+  const points = rows.map((row) => {
+    if (row.latitude !== null && row.longitude !== null) return row;
+    const payload = row.location as
+      | {
+          zone?: number | string;
+          hemisphere?: "N" | "S" | string;
+          easting?: number | string;
+          northing?: number | string;
+          datumEpsg?: string | number;
+        }
+      | null;
+    if (!payload) return row;
+    const utmPayload = {
+      zone: Number(payload.zone),
+      hemisphere: payload.hemisphere as "N" | "S" | undefined,
+      easting: Number(payload.easting),
+      northing: Number(payload.northing),
+      datumEpsg: String(payload.datumEpsg ?? ""),
+    };
+    const utmValid = Boolean(
+      utmPayload.zone &&
+        utmPayload.hemisphere &&
+        Number.isFinite(utmPayload.easting) &&
+        Number.isFinite(utmPayload.northing),
+    );
+    const epsgValue = utmPayload.datumEpsg?.toString().trim();
+    const epsgAllowed = epsgValue === "4326" || epsgValue === "32718" || epsgValue === "32618";
+    const derived =
+      utmValid &&
+      (utmPayload.hemisphere === "N" || utmPayload.hemisphere === "S") &&
+      epsgAllowed
+        ? utmToLatLng({
+            zone: utmPayload.zone,
+            hemisphere: utmPayload.hemisphere,
+            easting: utmPayload.easting,
+            northing: utmPayload.northing,
+          })
+        : null;
+    return {
+      ...row,
+      latitude: derived?.latitude ?? row.latitude,
+      longitude: derived?.longitude ?? row.longitude,
+    };
+  });
+
+  return NextResponse.json({ points });
 }
 
 export async function PATCH(request: Request) {

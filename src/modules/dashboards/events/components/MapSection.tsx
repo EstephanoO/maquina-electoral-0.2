@@ -22,8 +22,8 @@ interface MapSectionProps {
   onClearFocusPoint?: () => void;
   campaignId?: string | null;
   onHierarchySelectionChange?: (selection: MapHierarchySelection) => void;
-  showTrackingOnly?: boolean;
-  onToggleTrackingOnly?: () => void;
+  viewMode?: "address" | "tracking" | "interview";
+  onSetViewMode?: (mode: "address" | "tracking" | "interview") => void;
 }
 
 export const MapSection: React.FC<MapSectionProps> = ({
@@ -40,8 +40,8 @@ export const MapSection: React.FC<MapSectionProps> = ({
   onClearFocusPoint,
   campaignId,
   onHierarchySelectionChange,
-  showTrackingOnly = false,
-  onToggleTrackingOnly,
+  viewMode = "address",
+  onSetViewMode,
 }) => {
   const showStreetBase = true;
   const [currentLevel, setCurrentLevel] = React.useState<GeoLevel>("departamento");
@@ -169,16 +169,34 @@ export const MapSection: React.FC<MapSectionProps> = ({
       <div className="pointer-events-none absolute inset-0 rounded-[28px] bg-[radial-gradient(circle_at_top,_rgba(96,165,250,0.16),_transparent_55%)]" />
       <div className="pointer-events-none absolute inset-0 rounded-[28px] bg-[linear-gradient(180deg,_rgba(15,23,42,0.14),_transparent_35%)] dark:bg-[linear-gradient(180deg,_rgba(2,6,23,0.6),_transparent_35%)]" />
       <div className="sr-only">{withLocation} puntos activos</div>
-      {onToggleTrackingOnly ? (
+      {onSetViewMode ? (
         <div className="absolute left-6 top-6 z-10">
-          <Button
-            size="sm"
-            variant={showTrackingOnly ? "default" : "outline"}
-            className="h-7 rounded-full px-3 text-[11px] bg-background/85 backdrop-blur"
-            onClick={onToggleTrackingOnly}
-          >
-            {showTrackingOnly ? "Solo tracking" : "Ver tracking"}
-          </Button>
+          <div className="flex items-center gap-1 rounded-full border border-border/60 bg-background/85 p-1 shadow-sm backdrop-blur">
+            <Button
+              size="sm"
+              variant={viewMode === "address" ? "default" : "ghost"}
+              className="h-7 rounded-full px-3 text-[11px]"
+              onClick={() => onSetViewMode("address")}
+            >
+              Domicilios
+            </Button>
+            <Button
+              size="sm"
+              variant={viewMode === "tracking" ? "default" : "ghost"}
+              className="h-7 rounded-full px-3 text-[11px]"
+              onClick={() => onSetViewMode("tracking")}
+            >
+              Tracking
+            </Button>
+            <Button
+              size="sm"
+              variant={viewMode === "interview" ? "default" : "ghost"}
+              className="h-7 rounded-full px-3 text-[11px]"
+              onClick={() => onSetViewMode("interview")}
+            >
+              Entrevistas
+            </Button>
+          </div>
         </div>
       ) : null}
       {showLegend ? (
@@ -286,6 +304,27 @@ export const MapSection: React.FC<MapSectionProps> = ({
                   {point.address ?? "Direccion no registrada"}
                 </p>
                 <p className="text-[11px] text-slate-300">{point.name ?? "-"}</p>
+              </div>
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-[0.65rem] uppercase tracking-[0.2em] text-slate-300">
+                    WhatsApp
+                  </p>
+                  <p className="text-xs text-white">{point.phone ?? "-"}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[0.65rem] uppercase tracking-[0.2em] text-slate-300">
+                    Hora
+                  </p>
+                  <p className="text-xs text-white">
+                    {point.createdAt
+                      ? new Date(point.createdAt).toLocaleTimeString("es-PE", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })
+                      : "-"}
+                  </p>
+                </div>
               </div>
             </div>
           ) : (

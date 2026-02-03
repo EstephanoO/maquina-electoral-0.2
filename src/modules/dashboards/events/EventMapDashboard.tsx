@@ -76,8 +76,9 @@ export const EventMapDashboard = ({
   const [focusPoint, setFocusPoint] = React.useState<{ lat: number; lng: number } | null>(
     null,
   );
-  const [showMovingOnly, setShowMovingOnly] = React.useState(false);
-  const [showTrackingOnly, setShowTrackingOnly] = React.useState(false);
+  const [mapViewMode, setMapViewMode] = React.useState<
+    "address" | "tracking" | "interview"
+  >("address");
   // Hooks para manejo de datos y estado
   const {
     data,
@@ -151,25 +152,25 @@ export const EventMapDashboard = ({
     () => filteredPoints(interviewPoints),
     [filteredPoints, interviewPoints],
   );
+  const filteredAddressPoints = React.useMemo(
+    () => filteredMapPoints.filter((point) => point.kind === "address"),
+    [filteredMapPoints],
+  );
 
   const presenceThresholdMs = 15 * 1000;
   const movementThresholdMeters = 10;
-  const { trackingPoints, movingTrackingPoints, interviewerStatus } = useTrackingStatus({
+  const { trackingPoints, interviewerStatus } = useTrackingStatus({
     trackingRows,
     candidateLabels,
     presenceThresholdMs,
     movementThresholdMeters,
   });
 
-  const displayMapPoints = React.useMemo(
-    () => {
-      if (showTrackingOnly) return trackingPoints;
-      return showMovingOnly
-        ? movingTrackingPoints
-        : [...filteredMapPoints, ...trackingPoints];
-    },
-    [filteredMapPoints, movingTrackingPoints, showMovingOnly, showTrackingOnly, trackingPoints],
-  );
+  const displayMapPoints = React.useMemo(() => {
+    if (mapViewMode === "tracking") return trackingPoints;
+    if (mapViewMode === "interview") return filteredInterviewPoints;
+    return filteredAddressPoints;
+  }, [filteredAddressPoints, filteredInterviewPoints, mapViewMode, trackingPoints]);
   const mapPointCount = React.useMemo(
     () => filteredInterviewPoints.length,
     [filteredInterviewPoints],
@@ -231,10 +232,10 @@ export const EventMapDashboard = ({
     ? "loading"
     : trackingError
       ? "error"
-      : movingTrackingPoints.length > 0
+      : trackingPoints.length > 0
         ? undefined
         : "empty";
-  const mapStatus = showMovingOnly || showTrackingOnly ? trackingMapStatus : baseMapStatus;
+  const mapStatus = mapViewMode === "tracking" ? trackingMapStatus : baseMapStatus;
 
   // Manejo de foco en puntos del mapa
   const handleFocusPoint = React.useMemo(
@@ -351,7 +352,13 @@ export const EventMapDashboard = ({
           {/* Map Section */}
           <MapSection
             points={displayMapPoints}
-            hierarchyPoints={filteredInterviewPoints}
+            hierarchyPoints={
+              mapViewMode === "tracking"
+                ? undefined
+                : mapViewMode === "interview"
+                  ? filteredInterviewPoints
+                  : filteredAddressPoints
+            }
             candidateLabels={candidateLabels}
             mapStatus={mapStatus}
             mapRef={mapRef}
@@ -363,8 +370,8 @@ export const EventMapDashboard = ({
             onClearFocusPoint={() => setFocusPoint(null)}
             campaignId={campaignId}
             onHierarchySelectionChange={setMapSelection}
-            showTrackingOnly={showTrackingOnly}
-            onToggleTrackingOnly={() => setShowTrackingOnly((value) => !value)}
+            viewMode={mapViewMode}
+            onSetViewMode={setMapViewMode}
           />
 
           {/* Sidebar */}
