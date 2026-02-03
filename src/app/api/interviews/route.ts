@@ -11,27 +11,46 @@ type InterviewPayload = {
   signature: string;
   name: string;
   phone: string;
-  location:
-    | string
+  address: string;
+  addressLocation:
+    | {
+        latitude: number;
+        longitude: number;
+      }
+    | null;
+  addressUtm:
     | {
         zone: number;
         hemisphere: "N" | "S";
         easting: number;
         northing: number;
         datumEpsg: string;
-      };
+      }
+    | null;
+  location:
+    | {
+        zone: number;
+        hemisphere: "N" | "S";
+        easting: number;
+        northing: number;
+        datumEpsg: string;
+      }
+    | null;
   createdAt: string;
   latitude?: number;
   longitude?: number;
 };
 
-const requiredKeys: Array<keyof InterviewPayload> = [
+const requiredPresenceKeys: Array<keyof InterviewPayload> = [
   "id",
   "interviewer",
   "candidate",
   "signature",
   "name",
   "phone",
+  "address",
+  "addressLocation",
+  "addressUtm",
   "location",
   "createdAt",
 ];
@@ -150,7 +169,7 @@ const utmToLatLng = (input: {
 
 export async function POST(request: Request) {
   const body = (await request.json()) as Partial<InterviewPayload>;
-  const missing = requiredKeys.filter((key) => !body[key]);
+  const missing = requiredPresenceKeys.filter((key) => body[key] === undefined);
 
   if (missing.length > 0) {
     return NextResponse.json(
@@ -159,10 +178,11 @@ export async function POST(request: Request) {
     );
   }
 
-  const locationValue =
-    typeof body.location === "string" ? body.location : JSON.stringify(body.location);
+  const locationValue = body.location ?? null;
+  const addressLocationValue = body.addressLocation ?? null;
+  const addressUtmValue = body.addressUtm ?? null;
   const utmPayload =
-    body.location && typeof body.location !== "string"
+    body.location
       ? {
           zone: Number(body.location.zone),
           hemisphere: body.location.hemisphere,
@@ -193,6 +213,9 @@ export async function POST(request: Request) {
       signature: body.signature as string,
       name: body.name as string,
       phone: body.phone as string,
+      address: body.address as string,
+      addressLocation: addressLocationValue,
+      addressUtm: addressUtmValue,
       location: locationValue,
       createdAt: new Date(body.createdAt as string),
       latitude: body.latitude ?? derived?.latitude ?? null,
