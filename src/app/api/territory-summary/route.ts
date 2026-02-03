@@ -63,16 +63,37 @@ export async function GET(request: Request) {
     });
   }
 
-  const latestAt = rows[0].createdAt;
+  const latestAt = rows.find((row) => row.createdAt)?.createdAt ?? null;
+  if (!latestAt) {
+    return NextResponse.json({
+      total: 0,
+      uniqueInterviewers: 0,
+      latestAt: null,
+      day: null,
+      perCandidate: [],
+      perHour: [],
+      topInterviewers: [],
+      lowInterviewers: [],
+    });
+  }
   const dayKey = formatDayKey(latestAt);
 
   const perCandidateMap = new Map<string, number>();
   const interviewerMap = new Map<string, number>();
   const perHourMap = new Map<string, number>();
 
-  const dayRows = rows.filter((row) => formatDayKey(row.createdAt) === dayKey);
+  const dayRows = rows.filter((row): row is typeof row & { createdAt: Date } => {
+    const createdAt = row.createdAt;
+    if (!createdAt) {
+      return false;
+    }
+    return formatDayKey(createdAt) === dayKey;
+  });
 
   for (const row of dayRows) {
+    if (!row.candidate || !row.interviewer) {
+      continue;
+    }
     perCandidateMap.set(row.candidate, (perCandidateMap.get(row.candidate) ?? 0) + 1);
     interviewerMap.set(row.interviewer, (interviewerMap.get(row.interviewer) ?? 0) + 1);
     const hourKey = formatHourKey(row.createdAt);
