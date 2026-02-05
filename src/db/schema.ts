@@ -20,6 +20,28 @@ export const territory = pgTable("territory", {
   srid: integer("srid").default(4326),
 });
 
+export const forms = pgTable(
+  "forms",
+  {
+    id: text("id").primaryKey(),
+    clientId: text("client_id"),
+    nombre: text("nombre"),
+    telefono: text("telefono"),
+    fecha: timestamp("fecha", { withTimezone: true }),
+    x: doublePrecision("x"),
+    y: doublePrecision("y"),
+    zona: text("zona"),
+    candidate: text("candidate"),
+    encuestador: text("encuestador"),
+    encuestadorId: text("encuestador_id"),
+    candidatoPreferido: text("candidato_preferido"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    clientIdIdx: index("forms_client_id_idx").on(table.clientId),
+  }),
+);
+
 export const events = pgTable("events", {
   id: text("id").primaryKey(),
   campaignId: text("campaign_id").notNull(),
