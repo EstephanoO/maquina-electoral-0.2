@@ -360,7 +360,6 @@ export const EventMapDashboard = ({
             onClearFocusPoint={() => setFocusPoint(null)}
             campaignId={campaignId}
             onHierarchySelectionChange={setMapSelection}
-            mapSelection={mapSelection}
             viewMode={mapViewMode}
             onSetViewMode={setMapViewMode}
           />

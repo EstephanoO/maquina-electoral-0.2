@@ -19,6 +19,7 @@ type MapHierarchyLayersProps = {
     prov?: string;
     dist?: string;
   } | null;
+  selectedSector?: string | null;
   blockedCodes?: {
     deps?: string[] | null;
     provs?: Array<{ dep: string; prov: string }> | null;
@@ -44,6 +45,7 @@ export const MapHierarchyLayers = ({
   selectedCodes,
   hoverCodes = null,
   blockedCodes = null,
+  selectedSector = null,
   fillColor,
   lineColor,
   fillOpacity,
@@ -56,7 +58,7 @@ export const MapHierarchyLayers = ({
 }: MapHierarchyLayersProps) => {
   const showDepartamentos = level === "departamento";
   const showProvincias = level === "provincia";
-  const showDistritos = level === "distrito";
+  const showDistritos = level === "distrito" && !selectedSector;
 
   const provinciaFilter = React.useMemo(() => {
     if (!selectedCodes.dep) return ["==", ["get", "CODDEP"], ""] as any;

@@ -230,6 +230,7 @@ export async function GET(request: Request) {
     or(
       and(isNotNull(territory.latitude), isNotNull(territory.longitude)),
       isNotNull(territory.addressLocation),
+      isNotNull(territory.location),
     ),
   ];
   if (resolvedCandidate) {

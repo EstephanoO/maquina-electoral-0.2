@@ -75,10 +75,10 @@ export const MapLivePanel = ({
     <PeruMapPanel
       height={null}
       className={className}
-      points={client === "giovanna" ? [] : points}
+      points={points}
       status={status === "ready" ? undefined : status}
-      enableHierarchy={client !== "giovanna"}
-      showHierarchyControls={client !== "giovanna"}
+      enableHierarchy
+      showHierarchyControls
       clientGeojson={resolvedNivel4}
       clientGeojsonMeta={null}
       clientGeojsonLayers={

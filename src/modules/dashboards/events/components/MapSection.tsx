@@ -22,7 +22,6 @@ interface MapSectionProps {
   onClearFocusPoint?: () => void;
   campaignId?: string | null;
   onHierarchySelectionChange?: (selection: MapHierarchySelection) => void;
-  mapSelection?: MapHierarchySelection | null;
   viewMode?: "tracking" | "interview";
   onSetViewMode?: (mode: "tracking" | "interview") => void;
 }
@@ -41,12 +40,13 @@ export const MapSection: React.FC<MapSectionProps> = ({
   onClearFocusPoint,
   campaignId,
   onHierarchySelectionChange,
-  mapSelection,
   viewMode = "tracking",
   onSetViewMode,
 }) => {
   const showStreetBase = true;
   const [currentLevel, setCurrentLevel] = React.useState<GeoLevel>("departamento");
+  const isGiovanna = campaignId === "cand-giovanna";
+  const [mapSelection, setMapSelection] = React.useState<MapHierarchySelection | null>(null);
   const getPointColor = React.useCallback((point: MapPoint) => {
     if (point.kind === "tracking") {
       if (point.status === "connected") return "#10b981";
@@ -66,18 +66,15 @@ export const MapSection: React.FC<MapSectionProps> = ({
   const buildGeojsonKey = React.useCallback(
     (layerType: "departamento" | "provincia" | "distrito" | null, metaOnly = false) => {
       if (!campaignId || !layerType) return null;
-      const useNivel4 =
-        campaignId === "cand-giovanna" &&
-        layerType === "distrito" &&
-        Boolean(mapSelection?.distCode);
-      if (useNivel4) {
-        if (metaOnly) return null;
+      if (campaignId === "cand-giovanna") {
+        if (layerType === "departamento") return "/geo/abuelo_giovanna.geojson";
+        if (layerType === "provincia") return "/geo/padre_giovanna.geojson";
         return "/geo/nieto_giovanna.geojson";
       }
       const metaParam = metaOnly ? "&meta=1" : "";
       return `/api/geojson?campaignId=${campaignId}&layerType=${layerType}${metaParam}`;
     },
-    [campaignId, mapSelection?.distCode],
+    [campaignId],
   );
   const geojsonFetcher = React.useCallback(async (url: string) => {
     const response = await fetch(url, { cache: "force-cache" });
@@ -135,28 +132,75 @@ export const MapSection: React.FC<MapSectionProps> = ({
   const { data: nextLayerData } = useSWR(nextLayerKey, geojsonFetcher, swrOptions);
   const { data: activeMetaData } = useSWR(activeMetaKey, geojsonFetcher, swrOptions);
   const { data: nextMetaData } = useSWR(nextMetaKey, geojsonFetcher, swrOptions);
+  const { data: giovannaDepartamentos } = useSWR(
+    isGiovanna ? "/geo/abuelo_giovanna.geojson" : null,
+    geojsonFetcher,
+    swrOptions,
+  );
+  const { data: giovannaProvincias } = useSWR(
+    isGiovanna ? "/geo/padre_giovanna.geojson" : null,
+    geojsonFetcher,
+    swrOptions,
+  );
+  const { data: giovannaDistritos } = useSWR(
+    isGiovanna ? "/geo/hijo_giovanna(1).geojson" : null,
+    geojsonFetcher,
+    swrOptions,
+  );
+  const { data: giovannaSectores } = useSWR(
+    isGiovanna ? "/geo/nieto_giovanna.geojson" : null,
+    geojsonFetcher,
+    swrOptions,
+  );
 
   const layerData = React.useMemo(() => {
+    if (isGiovanna) {
+      return {
+        departamento: giovannaDepartamentos ?? null,
+        provincia: giovannaProvincias ?? null,
+        distrito: giovannaDistritos ?? null,
+      };
+    }
     return {
       departamento: currentLevel === "departamento" ? activeLayerData : null,
       provincia: currentLevel === "provincia" ? activeLayerData : nextLayer === "provincia" ? nextLayerData : null,
       distrito: currentLevel === "distrito" ? activeLayerData : nextLayer === "distrito" ? nextLayerData : null,
     };
-  }, [activeLayerData, currentLevel, nextLayer, nextLayerData]);
+  }, [
+    activeLayerData,
+    currentLevel,
+    giovannaDepartamentos,
+    giovannaDistritos,
+    giovannaProvincias,
+    isGiovanna,
+    nextLayer,
+    nextLayerData,
+  ]);
 
   const metaData = React.useMemo(() => {
+    if (isGiovanna) {
+      return {
+        departamento: null,
+        provincia: null,
+        distrito: null,
+      };
+    }
     return {
       departamento: currentLevel === "departamento" ? activeMetaData : null,
       provincia: currentLevel === "provincia" ? activeMetaData : nextLayer === "provincia" ? nextMetaData : null,
       distrito: currentLevel === "distrito" ? activeMetaData : nextLayer === "distrito" ? nextMetaData : null,
     };
-  }, [activeMetaData, currentLevel, nextLayer, nextMetaData]);
+  }, [activeMetaData, currentLevel, isGiovanna, nextLayer, nextMetaData]);
 
   const activeGeojson = React.useMemo(() => {
     const payload = layerData[currentLevel]?.geojson;
     return asFeatureCollection(payload);
   }, [asFeatureCollection, currentLevel, layerData]);
   const activeMeta = React.useMemo(() => metaData[currentLevel]?.meta ?? null, [currentLevel, metaData]);
+  const activeSectorGeojson = React.useMemo(() => {
+    if (!isGiovanna || !mapSelection?.distCode) return null;
+    return asFeatureCollection(giovannaSectores?.geojson);
+  }, [asFeatureCollection, giovannaSectores?.geojson, isGiovanna, mapSelection?.distCode]);
   const clientLayers = React.useMemo(() => {
     return {
       departamento: asFeatureCollection(layerData.departamento?.geojson),
@@ -187,6 +231,14 @@ export const MapSection: React.FC<MapSectionProps> = ({
       (clientLayers.distrito?.features.length ?? 0);
     return total > 0 ? total : null;
   }, [activeMeta?.featureCount, clientLayers]);
+
+  const handleHierarchySelectionChange = React.useCallback(
+    (selection: MapHierarchySelection) => {
+      setMapSelection(selection);
+      onHierarchySelectionChange?.(selection);
+    },
+    [onHierarchySelectionChange],
+  );
 
   return (
     <div className="relative h-[72vh] min-h-[600px] overflow-hidden rounded-[28px] border border-border/50 bg-card/60 shadow-[0_28px_70px_rgba(15,23,42,0.18)]">
@@ -250,8 +302,8 @@ export const MapSection: React.FC<MapSectionProps> = ({
         focusPoint={focusPoint}
         onClearFocusPoint={onClearFocusPoint}
         onHierarchyLevelChange={setCurrentLevel}
-        onHierarchySelectionChange={onHierarchySelectionChange}
-        clientGeojson={activeGeojson}
+        onHierarchySelectionChange={handleHierarchySelectionChange}
+        clientGeojson={activeSectorGeojson ?? activeGeojson}
         clientGeojsonMeta={activeMeta}
         clientGeojsonLayers={resolvedClientLayers}
         renderPointTooltip={(point) => (
