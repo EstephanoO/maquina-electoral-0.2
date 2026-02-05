@@ -33,6 +33,11 @@ const toNumber = (value: unknown) => {
   return Number.isFinite(parsed) ? parsed : null;
 };
 
+const isUuid = (value: string) =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value,
+  );
+
 const parseZona = (value?: string | null) => {
   if (!value) return null;
   const trimmed = value.trim().toUpperCase();
@@ -50,17 +55,22 @@ const toDatumEpsg = (zone: number, hemisphere: "N" | "S") => {
 };
 
 const normalizePayload = (payload: FormPayload) => {
-  const id = payload.client_id?.trim() || crypto.randomUUID();
-  const candidateRaw = payload.candidate ?? payload.candidato_preferido ?? null;
-  const candidate = candidateRaw ? normalizeCandidate(candidateRaw) : null;
-  const interviewer = payload.encuestador?.trim() ?? null;
-  const signature = payload.encuestador_id?.trim() ?? null;
+  const clientId = payload.client_id?.trim() ?? null;
+  const idValue = clientId && isUuid(clientId) ? clientId : null;
+  const candidateRaw = payload.candidate ?? payload.candidato_preferido ?? "";
+  const candidate = candidateRaw ? normalizeCandidate(candidateRaw) : "";
+  const interviewer = payload.encuestador?.trim() ?? "";
+  const signature = payload.encuestador_id?.trim() ?? "";
   const createdAt = payload.fecha ? new Date(payload.fecha) : null;
   const resolvedCreatedAt =
     createdAt && !Number.isNaN(createdAt.getTime()) ? createdAt : null;
   const easting = toNumber(payload.x);
   const northing = toNumber(payload.y);
   const zona = parseZona(payload.zona);
+  const zonaRaw = payload.zona?.trim() ?? "";
+  const nombre = payload.nombre?.trim() ?? "";
+  const telefono = payload.telefono?.trim() ?? "";
+  const candidatoPreferido = payload.candidato_preferido?.trim() ?? candidate;
   const location =
     zona && easting !== null && northing !== null
       ? {
@@ -73,21 +83,21 @@ const normalizePayload = (payload: FormPayload) => {
       : null;
 
   return {
-    id,
-    clientId: payload.client_id?.trim() ?? null,
+    id: idValue,
+    clientId,
     candidate,
     interviewer,
     signature,
-    name: payload.nombre?.trim() ?? null,
-    phone: payload.telefono?.trim() ?? null,
+    name: nombre,
+    phone: telefono,
     createdAt: resolvedCreatedAt,
     location,
     east: easting,
     north: northing,
-    zona: payload.zona?.trim() ?? null,
+    zona: zonaRaw,
     x: easting,
     y: northing,
-    candidatoPreferido: payload.candidato_preferido?.trim() ?? null,
+    candidatoPreferido,
   };
 };
 
@@ -102,16 +112,48 @@ export async function POST(request: Request) {
   const items = Array.isArray(body) ? body : [body];
   for (const item of items) {
     const normalized = normalizePayload(item);
+    if (!normalized.clientId) {
+      return NextResponse.json({ ok: false, error: "Missing client_id" }, { status: 400 });
+    }
+    if (!normalized.name) {
+      return NextResponse.json({ ok: false, error: "Missing nombre" }, { status: 400 });
+    }
+    if (!normalized.phone) {
+      return NextResponse.json({ ok: false, error: "Missing telefono" }, { status: 400 });
+    }
+    if (!normalized.createdAt) {
+      return NextResponse.json({ ok: false, error: "Invalid fecha" }, { status: 400 });
+    }
+    if (normalized.x === null || normalized.y === null) {
+      return NextResponse.json({ ok: false, error: "Invalid x/y" }, { status: 400 });
+    }
+    if (!normalized.zona) {
+      return NextResponse.json({ ok: false, error: "Missing zona" }, { status: 400 });
+    }
+    if (!normalized.interviewer) {
+      return NextResponse.json({ ok: false, error: "Missing encuestador" }, { status: 400 });
+    }
+    if (!normalized.signature) {
+      return NextResponse.json({ ok: false, error: "Missing encuestador_id" }, { status: 400 });
+    }
+    if (!normalized.candidatoPreferido) {
+      return NextResponse.json(
+        { ok: false, error: "Missing candidato_preferido" },
+        { status: 400 },
+      );
+    }
+    const xValue = Math.round(normalized.x);
+    const yValue = Math.round(normalized.y);
     await db
       .insert(forms)
       .values({
-        id: normalized.id,
+        id: normalized.id ?? undefined,
         clientId: normalized.clientId,
         nombre: normalized.name,
         telefono: normalized.phone,
         fecha: normalized.createdAt,
-        x: normalized.x,
-        y: normalized.y,
+        x: xValue,
+        y: yValue,
         zona: normalized.zona,
         candidate: normalized.candidate,
         encuestador: normalized.interviewer,
@@ -119,14 +161,14 @@ export async function POST(request: Request) {
         candidatoPreferido: normalized.candidatoPreferido,
       })
       .onConflictDoUpdate({
-        target: forms.id,
+        target: forms.clientId,
         set: {
           clientId: normalized.clientId,
           nombre: normalized.name,
           telefono: normalized.phone,
           fecha: normalized.createdAt,
-          x: normalized.x,
-          y: normalized.y,
+          x: xValue,
+          y: yValue,
           zona: normalized.zona,
           candidate: normalized.candidate,
           encuestador: normalized.interviewer,
@@ -137,7 +179,7 @@ export async function POST(request: Request) {
     await db
       .insert(territory)
       .values({
-        id: normalized.id,
+        id: normalized.clientId,
         eventId: null,
         interviewer: normalized.interviewer,
         candidate: normalized.candidate,

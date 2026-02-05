@@ -1,4 +1,4 @@
-import { boolean, integer, pgTable, text, timestamp, doublePrecision, jsonb, primaryKey, index } from "drizzle-orm/pg-core";
+import { boolean, integer, pgTable, text, timestamp, doublePrecision, jsonb, primaryKey, index, uuid } from "drizzle-orm/pg-core";
 
 export const territory = pgTable("territory", {
   id: text("id").primaryKey(),
@@ -23,18 +23,18 @@ export const territory = pgTable("territory", {
 export const forms = pgTable(
   "forms",
   {
-    id: text("id").primaryKey(),
+    id: uuid("id").primaryKey().defaultRandom(),
     clientId: text("client_id"),
-    nombre: text("nombre"),
-    telefono: text("telefono"),
-    fecha: timestamp("fecha", { withTimezone: true }),
-    x: doublePrecision("x"),
-    y: doublePrecision("y"),
-    zona: text("zona"),
-    candidate: text("candidate"),
-    encuestador: text("encuestador"),
-    encuestadorId: text("encuestador_id"),
-    candidatoPreferido: text("candidato_preferido"),
+    nombre: text("nombre").notNull(),
+    telefono: text("telefono").notNull(),
+    fecha: timestamp("fecha", { withTimezone: true }).notNull(),
+    x: integer("x").notNull(),
+    y: integer("y").notNull(),
+    zona: text("zona").notNull(),
+    candidate: text("candidate").notNull().default(""),
+    encuestador: text("encuestador").notNull(),
+    encuestadorId: text("encuestador_id").notNull(),
+    candidatoPreferido: text("candidato_preferido").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => ({
