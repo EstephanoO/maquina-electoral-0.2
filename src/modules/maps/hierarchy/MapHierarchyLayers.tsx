@@ -140,14 +140,19 @@ export const MapHierarchyLayers = ({
   const departamentoHighlightFilter = React.useMemo(() => {
     if (filteredHighlightCodes.deptCodes.length === 0) return ["==", ["get", "CODDEP"], ""] as any;
     if (selectedCodes.dep) {
-      return filteredHighlightCodes.deptCodes.includes(selectedCodes.dep)
-        ? (["==", ["get", "CODDEP"], selectedCodes.dep] as any)
-        : (["==", ["get", "CODDEP"], ""] as any);
+      return ["==", ["get", "CODDEP"], selectedCodes.dep] as any;
     }
     return ["in", ["get", "CODDEP"], ["literal", filteredHighlightCodes.deptCodes]] as any;
   }, [filteredHighlightCodes.deptCodes, selectedCodes.dep]);
 
   const provinciaHighlightFilter = React.useMemo(() => {
+    if (selectedCodes.prov && selectedCodes.dep) {
+      return [
+        "all",
+        ["==", ["get", "CODDEP"], selectedCodes.dep],
+        ["==", ["get", "CODPROV"], selectedCodes.prov],
+      ] as any;
+    }
     if (!selectedCodes.dep) return ["==", ["get", "CODDEP"], ""] as any;
     if (filteredHighlightCodes.provPairs.length === 0) return ["==", ["get", "CODDEP"], ""] as any;
     const provCodes = filteredHighlightCodes.provPairs
@@ -159,9 +164,12 @@ export const MapHierarchyLayers = ({
       ["==", ["get", "CODDEP"], selectedCodes.dep],
       ["in", ["get", "CODPROV"], ["literal", provCodes]],
     ] as any;
-  }, [filteredHighlightCodes.provPairs, selectedCodes.dep]);
+  }, [filteredHighlightCodes.provPairs, selectedCodes.dep, selectedCodes.prov]);
 
   const distritoHighlightFilter = React.useMemo(() => {
+    if (selectedCodes.dist) {
+      return ["==", ["get", "UBIGEO"], selectedCodes.dist] as any;
+    }
     if (!selectedCodes.dep || !selectedCodes.prov) return ["==", ["get", "CODDEP"], ""] as any;
     if (filteredHighlightCodes.distPairs.length === 0) return ["==", ["get", "CODDEP"], ""] as any;
     const distCodes = filteredHighlightCodes.distPairs
@@ -174,7 +182,7 @@ export const MapHierarchyLayers = ({
       ["==", ["get", "CODPROV"], selectedCodes.prov],
       ["in", ["get", "UBIGEO"], ["literal", distCodes]],
     ] as any;
-  }, [filteredHighlightCodes.distPairs, selectedCodes.dep, selectedCodes.prov]);
+  }, [filteredHighlightCodes.distPairs, selectedCodes.dep, selectedCodes.dist, selectedCodes.prov]);
 
   const departamentoHoverFilter = React.useMemo(() => {
     if (!hoverCodes?.dep) return ["==", ["get", "CODDEP"], ""] as any;

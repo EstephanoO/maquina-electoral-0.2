@@ -34,11 +34,10 @@ type MapPoint = {
   interviewer?: string | null;
   name?: string | null;
   phone?: string | null;
-  address?: string | null;
   createdAt?: string | null;
   east?: number | null;
   north?: number | null;
-  kind?: "interview" | "tracking" | "address" | null;
+  kind?: "interview" | "tracking" | null;
   online?: boolean | null;
   mode?: string | null;
   signature?: string | null;
@@ -61,6 +60,8 @@ type MapPanelProps = {
   initialViewState?: { longitude: number; latitude: number; zoom: number };
   maxBounds?: [[number, number], [number, number]];
   onMapLoad?: () => void;
+  onMapMouseDown?: (event: MapLayerMouseEvent) => void;
+  onMapMouseUp?: (event: MapLayerMouseEvent) => void;
   onMapClick?: (event: MapLayerMouseEvent) => void;
   onMapHover?: (event: MapLayerMouseEvent) => void;
   onMapHoverLeave?: () => void;
@@ -68,6 +69,7 @@ type MapPanelProps = {
   mapRef?: React.Ref<MapRef | null>;
   children?: React.ReactNode;
   overlay?: React.ReactNode;
+  frameOverlay?: React.ReactNode;
   getPointColor?: (point: MapPoint) => string;
   enablePointTooltip?: boolean;
   renderPointTooltip?: (point: MapPoint) => React.ReactNode;
@@ -87,6 +89,8 @@ export const MapPanel = ({
   initialViewState,
   maxBounds,
   onMapLoad,
+  onMapMouseDown,
+  onMapMouseUp,
   onMapClick,
   onMapHover,
   onMapHoverLeave,
@@ -94,6 +98,7 @@ export const MapPanel = ({
   mapRef,
   children,
   overlay,
+  frameOverlay,
   getPointColor,
   enablePointTooltip = false,
   renderPointTooltip,
@@ -124,7 +129,6 @@ export const MapPanel = ({
           interviewer: point.interviewer ?? null,
           name: point.name ?? null,
           phone: point.phone ?? null,
-          address: point.address ?? null,
           createdAt: point.createdAt ?? null,
           online: point.online ?? null,
           kind: point.kind ?? null,
@@ -170,10 +174,9 @@ export const MapPanel = ({
           interviewer: (props.interviewer as string | null | undefined) ?? null,
           name: (props.name as string | null | undefined) ?? null,
           phone: (props.phone as string | null | undefined) ?? null,
-          address: (props.address as string | null | undefined) ?? null,
           createdAt: (props.createdAt as string | null | undefined) ?? null,
           online: (props.online as boolean | null | undefined) ?? null,
-          kind: (props.kind as "interview" | "tracking" | "address" | null | undefined) ?? null,
+          kind: (props.kind as "interview" | "tracking" | null | undefined) ?? null,
           mode: (props.mode as string | null | undefined) ?? null,
           signature: (props.signature as string | null | undefined) ?? null,
           accuracy: (props.accuracy as number | null | undefined) ?? null,
@@ -210,6 +213,8 @@ export const MapPanel = ({
         mapStyle={resolvedStyle}
         maxBounds={maxBounds}
         onLoad={onMapLoad}
+        onMouseDown={onMapMouseDown}
+        onMouseUp={onMapMouseUp}
         onClick={onMapClick}
         onMouseMove={onMapHover || renderPointsAsLayer ? handleMouseMove : undefined}
         onMouseLeave={
@@ -244,15 +249,11 @@ export const MapPanel = ({
                   "case",
                   ["==", ["get", "kind"], "tracking"],
                   4,
-                  ["==", ["get", "kind"], "address"],
-                  6,
                   pointLayerRadius,
                 ],
                 "circle-color": ["get", "color"],
                 "circle-opacity": [
                   "case",
-                  ["==", ["get", "kind"], "address"],
-                  0.85,
                   ["==", ["get", "kind"], "tracking"],
                   0.9,
                   pointLayerOpacity,
@@ -261,16 +262,12 @@ export const MapPanel = ({
                   "case",
                   ["==", ["get", "kind"], "tracking"],
                   "rgba(255,255,255,0.9)",
-                  ["==", ["get", "kind"], "address"],
-                  "rgba(255,255,255,0.95)",
                   "rgba(2,6,23,0.35)",
                 ],
                 "circle-stroke-width": [
                   "case",
                   ["==", ["get", "kind"], "tracking"],
                   1.6,
-                  ["==", ["get", "kind"], "address"],
-                  2,
                   2,
                 ],
               }}
@@ -329,7 +326,12 @@ export const MapPanel = ({
           </MapPopup>
         ) : null}
       </MaplibreMap>
-      {overlay ? <div className="absolute right-4 top-4 z-10">{overlay}</div> : null}
+      {frameOverlay ? (
+        <div className="pointer-events-none absolute inset-0 z-20">
+          {frameOverlay}
+        </div>
+      ) : null}
+      {overlay ? <div className="absolute bottom-4 left-4 z-10">{overlay}</div> : null}
       {showStatus ? (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-background/70 text-xs font-semibold text-foreground">
           {statusLabel ??

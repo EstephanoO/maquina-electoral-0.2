@@ -76,9 +76,9 @@ export const EventMapDashboard = ({
   const [focusPoint, setFocusPoint] = React.useState<{ lat: number; lng: number } | null>(
     null,
   );
-  const [mapViewMode, setMapViewMode] = React.useState<
-    "address" | "tracking" | "interview"
-  >("address");
+  const [mapViewMode, setMapViewMode] = React.useState<"tracking" | "interview">(
+    "tracking",
+  );
   // Hooks para manejo de datos y estado
   const {
     data,
@@ -152,10 +152,6 @@ export const EventMapDashboard = ({
     () => filteredPoints(interviewPoints),
     [filteredPoints, interviewPoints],
   );
-  const filteredAddressPoints = React.useMemo(
-    () => filteredMapPoints.filter((point) => point.kind === "address"),
-    [filteredMapPoints],
-  );
 
   const presenceThresholdMs = 15 * 1000;
   const movementThresholdMeters = 10;
@@ -168,9 +164,8 @@ export const EventMapDashboard = ({
 
   const displayMapPoints = React.useMemo(() => {
     if (mapViewMode === "tracking") return trackingPoints;
-    if (mapViewMode === "interview") return filteredInterviewPoints;
-    return filteredAddressPoints;
-  }, [filteredAddressPoints, filteredInterviewPoints, mapViewMode, trackingPoints]);
+    return filteredInterviewPoints;
+  }, [filteredInterviewPoints, mapViewMode, trackingPoints]);
   const mapPointCount = React.useMemo(
     () => filteredInterviewPoints.length,
     [filteredInterviewPoints],
@@ -242,6 +237,7 @@ export const EventMapDashboard = ({
     () => createFocusPointHandler(mapRef),
     [createFocusPointHandler, mapRef],
   );
+
 
   // Hora actual para referencia
   const nowHour = new Date().getHours();
@@ -352,13 +348,7 @@ export const EventMapDashboard = ({
           {/* Map Section */}
           <MapSection
             points={displayMapPoints}
-            hierarchyPoints={
-              mapViewMode === "tracking"
-                ? undefined
-                : mapViewMode === "interview"
-                  ? filteredInterviewPoints
-                  : filteredAddressPoints
-            }
+            hierarchyPoints={filteredInterviewPoints}
             candidateLabels={candidateLabels}
             mapStatus={mapStatus}
             mapRef={mapRef}
@@ -370,6 +360,7 @@ export const EventMapDashboard = ({
             onClearFocusPoint={() => setFocusPoint(null)}
             campaignId={campaignId}
             onHierarchySelectionChange={setMapSelection}
+            mapSelection={mapSelection}
             viewMode={mapViewMode}
             onSetViewMode={setMapViewMode}
           />

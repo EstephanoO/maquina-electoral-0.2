@@ -22,8 +22,9 @@ interface MapSectionProps {
   onClearFocusPoint?: () => void;
   campaignId?: string | null;
   onHierarchySelectionChange?: (selection: MapHierarchySelection) => void;
-  viewMode?: "address" | "tracking" | "interview";
-  onSetViewMode?: (mode: "address" | "tracking" | "interview") => void;
+  mapSelection?: MapHierarchySelection | null;
+  viewMode?: "tracking" | "interview";
+  onSetViewMode?: (mode: "tracking" | "interview") => void;
 }
 
 export const MapSection: React.FC<MapSectionProps> = ({
@@ -40,13 +41,13 @@ export const MapSection: React.FC<MapSectionProps> = ({
   onClearFocusPoint,
   campaignId,
   onHierarchySelectionChange,
-  viewMode = "address",
+  mapSelection,
+  viewMode = "tracking",
   onSetViewMode,
 }) => {
   const showStreetBase = true;
   const [currentLevel, setCurrentLevel] = React.useState<GeoLevel>("departamento");
   const getPointColor = React.useCallback((point: MapPoint) => {
-    if (point.kind === "address") return "#3b82f6";
     if (point.kind === "tracking") {
       if (point.status === "connected") return "#10b981";
       if (point.status === "stationary") return "#f97316";
@@ -65,14 +66,37 @@ export const MapSection: React.FC<MapSectionProps> = ({
   const buildGeojsonKey = React.useCallback(
     (layerType: "departamento" | "provincia" | "distrito" | null, metaOnly = false) => {
       if (!campaignId || !layerType) return null;
+      const useNivel4 =
+        campaignId === "cand-giovanna" &&
+        layerType === "distrito" &&
+        Boolean(mapSelection?.distCode);
+      if (useNivel4) {
+        if (metaOnly) return null;
+        return "/geo/nieto_giovanna.geojson";
+      }
       const metaParam = metaOnly ? "&meta=1" : "";
       return `/api/geojson?campaignId=${campaignId}&layerType=${layerType}${metaParam}`;
     },
-    [campaignId],
+    [campaignId, mapSelection?.distCode],
   );
   const geojsonFetcher = React.useCallback(async (url: string) => {
     const response = await fetch(url, { cache: "force-cache" });
     if (!response.ok) throw new Error("geojson-failed");
+    if (url.endsWith(".geojson")) {
+      const geojson = await response.json();
+      return { geojson, meta: null } as {
+        geojson?: unknown;
+        meta?: {
+          bbox?: [number, number, number, number] | null;
+          featureCount?: number;
+          codes?: {
+            deps?: string[];
+            provs?: Array<{ dep: string; prov: string }>;
+            dists?: string[];
+          };
+        } | null;
+      };
+    }
     return response.json() as Promise<{
       geojson?: unknown;
       meta?: {
@@ -174,14 +198,6 @@ export const MapSection: React.FC<MapSectionProps> = ({
           <div className="flex items-center gap-1 rounded-full border border-border/60 bg-background/85 p-1 shadow-sm backdrop-blur">
             <Button
               size="sm"
-              variant={viewMode === "address" ? "default" : "ghost"}
-              className="h-7 rounded-full px-3 text-[11px]"
-              onClick={() => onSetViewMode("address")}
-            >
-              Domicilios
-            </Button>
-            <Button
-              size="sm"
               variant={viewMode === "tracking" ? "default" : "ghost"}
               className="h-7 rounded-full px-3 text-[11px]"
               onClick={() => onSetViewMode("tracking")}
@@ -216,10 +232,6 @@ export const MapSection: React.FC<MapSectionProps> = ({
             <span className="flex items-center gap-2">
               <span className="h-2 w-2 rounded-full bg-orange-500" />
               {candidateLabels[2]}
-            </span>
-            <span className="flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full bg-amber-500" />
-              Domicilio
             </span>
           </div>
         </div>
@@ -278,39 +290,6 @@ export const MapSection: React.FC<MapSectionProps> = ({
                   <p className="text-xs text-white">
                     {typeof point.accuracy === "number" ? `${point.accuracy.toFixed(1)} m` : "-"}
                   </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-[0.65rem] uppercase tracking-[0.2em] text-slate-300">
-                    Hora
-                  </p>
-                  <p className="text-xs text-white">
-                    {point.createdAt
-                      ? new Date(point.createdAt).toLocaleTimeString("es-PE", {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })
-                      : "-"}
-                  </p>
-                </div>
-              </div>
-            </div>
-          ) : point.kind === "address" ? (
-            <div className="space-y-2 rounded-xl bg-slate-950/90 px-3 py-2 text-xs text-slate-100 shadow-lg">
-              <div className="space-y-1">
-                <p className="text-[0.65rem] uppercase tracking-[0.2em] text-slate-300">
-                  Domicilio
-                </p>
-                <p className="text-sm font-semibold text-white">
-                  {point.address ?? "Direccion no registrada"}
-                </p>
-                <p className="text-[11px] text-slate-300">{point.name ?? "-"}</p>
-              </div>
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-[0.65rem] uppercase tracking-[0.2em] text-slate-300">
-                    WhatsApp
-                  </p>
-                  <p className="text-xs text-white">{point.phone ?? "-"}</p>
                 </div>
                 <div className="text-right">
                   <p className="text-[0.65rem] uppercase tracking-[0.2em] text-slate-300">

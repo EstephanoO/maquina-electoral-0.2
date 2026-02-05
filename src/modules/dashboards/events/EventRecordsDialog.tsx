@@ -53,11 +53,6 @@ export type EventRecord = {
   signature?: string | null;
   latitude: number | null;
   longitude: number | null;
-  address?: string | null;
-  addressLocation?: {
-    latitude: number;
-    longitude: number;
-  } | null;
   candidate?: string | null;
   name?: string | null;
   phone?: string | null;

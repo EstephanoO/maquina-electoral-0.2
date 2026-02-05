@@ -19,7 +19,7 @@ export async function GET(request: Request) {
   const layerType = url.searchParams.get("layerType");
   const metaOnly = url.searchParams.get("meta") === "1";
   const campaignId = campaignIdParam ?? resolveCampaignIdFromClient(clientParam);
-  const allowedLayerTypes = ["departamento", "provincia", "distrito"] as const;
+  const allowedLayerTypes = ["departamento", "provincia", "distrito", "nivel4"] as const;
   const normalizedLayerType = layerType
     ? allowedLayerTypes.find((value) => value === layerType)
     : null;
@@ -71,6 +71,7 @@ export async function GET(request: Request) {
     departamento: rows.find((row) => row.layerType === "departamento") ?? null,
     provincia: rows.find((row) => row.layerType === "provincia") ?? null,
     distrito: rows.find((row) => row.layerType === "distrito") ?? null,
+    nivel4: rows.find((row) => row.layerType === "nivel4") ?? null,
   };
   return NextResponse.json(
     {
@@ -99,6 +100,14 @@ export async function GET(request: Request) {
               updatedAt: layers.distrito.updatedAt,
             }
           : null,
+        nivel4: layers.nivel4
+          ? {
+              geojson: metaOnly ? null : layers.nivel4.geojson,
+              meta: layers.nivel4.meta ?? null,
+              fileName: layers.nivel4.fileName,
+              updatedAt: layers.nivel4.updatedAt,
+            }
+          : null,
       },
     },
     { status: 200, headers: cacheHeaders },
@@ -112,7 +121,7 @@ export async function POST(request: Request) {
     fileName?: string;
     layerType?: string;
   };
-  const allowedLayerTypes = ["departamento", "provincia", "distrito"] as const;
+  const allowedLayerTypes = ["departamento", "provincia", "distrito", "nivel4"] as const;
   const normalizedLayerType = body.layerType
     ? allowedLayerTypes.find((value) => value === body.layerType)
     : null;
@@ -167,7 +176,7 @@ export async function POST(request: Request) {
 
 const buildGeojsonMeta = (
   payload: GeoJsonPayload,
-  layerType: "departamento" | "provincia" | "distrito",
+  layerType: "departamento" | "provincia" | "distrito" | "nivel4",
 ) => {
   const deps = new Set<string>();
   const provs = new Map<string, { dep: string; prov: string }>();
@@ -203,10 +212,14 @@ const buildGeojsonMeta = (
     const props = feature.properties ?? {};
     const dep = props.CODDEP ? String(props.CODDEP) : null;
     const prov = props.CODPROV ? String(props.CODPROV) : null;
-    const dist = props.UBIGEO ? String(props.UBIGEO) : null;
+    const dist = props.UBIGEO
+      ? String(props.UBIGEO)
+      : props.CODDIST && dep && prov
+        ? `${dep}${prov}${String(props.CODDIST)}`
+        : null;
     if (layerType === "departamento" && dep) deps.add(dep);
     if (layerType === "provincia" && dep && prov) provs.set(`${dep}-${prov}`, { dep, prov });
-    if (layerType === "distrito") {
+    if (layerType === "distrito" || layerType === "nivel4") {
       if (dep) deps.add(dep);
       if (dep && prov) provs.set(`${dep}-${prov}`, { dep, prov });
       if (dist) dists.add(dist);
@@ -233,7 +246,7 @@ export async function DELETE(request: Request) {
   const url = new URL(request.url);
   const campaignId = url.searchParams.get("campaignId");
   const layerType = url.searchParams.get("layerType");
-  const allowedLayerTypes = ["departamento", "provincia", "distrito"] as const;
+  const allowedLayerTypes = ["departamento", "provincia", "distrito", "nivel4"] as const;
   const normalizedLayerType = layerType
     ? allowedLayerTypes.find((value) => value === layerType)
     : null;

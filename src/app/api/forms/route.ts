@@ -272,8 +272,6 @@ export async function POST(request: Request) {
         { status },
       );
     }
-    const xValue = Math.round(normalized.x);
-    const yValue = Math.round(normalized.y);
     await db
       .insert(forms)
       .values({
@@ -282,8 +280,8 @@ export async function POST(request: Request) {
         nombre: normalized.name,
         telefono: normalized.phone,
         fecha: normalized.createdAt,
-        x: xValue,
-        y: yValue,
+        x: normalized.x,
+        y: normalized.y,
         zona: normalized.zona,
         candidate: normalized.candidate,
         encuestador: normalized.interviewer,
@@ -297,8 +295,8 @@ export async function POST(request: Request) {
           nombre: normalized.name,
           telefono: normalized.phone,
           fecha: normalized.createdAt,
-          x: xValue,
-          y: yValue,
+          x: normalized.x,
+          y: normalized.y,
           zona: normalized.zona,
           candidate: normalized.candidate,
           encuestador: normalized.interviewer,

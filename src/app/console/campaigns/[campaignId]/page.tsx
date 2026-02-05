@@ -6,14 +6,7 @@ import { useParams } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { CampaignConfigDialog } from "@/modules/console/CampaignConfigDialog";
 import { campaigns } from "@/db/constants";
 import { RoleGate } from "@/modules/shared/RoleGate";
 import { EmptyState } from "@/modules/shared/EmptyState";
@@ -25,6 +18,7 @@ type DashboardFileSpec = {
   accept?: string;
   hint: string;
   optional?: boolean;
+  layerType?: GeojsonLayerType;
 };
 
 type DashboardItem = {
@@ -37,7 +31,7 @@ type DashboardItem = {
   accent: string;
 };
 
-type GeojsonLayerType = "departamento" | "provincia" | "distrito";
+type GeojsonLayerType = "departamento" | "provincia" | "distrito" | "nivel4";
 type GeojsonLayerInfo = { fileName: string | null; updatedAt: string | null };
 type GeojsonInfoState = Record<GeojsonLayerType, GeojsonLayerInfo>;
 
@@ -53,27 +47,43 @@ const eventByCampaignId: Record<string, string> = {
   "cand-guillermo": "event-guillermo-01",
 };
 
-const buildGeojsonSpecs = (slug: string): DashboardFileSpec[] => [
+const resolveNivel4Hint = (campaignId: string, slug: string) =>
+  campaignId === "cand-giovanna"
+    ? "/public/geo/nieto_giovanna.geojson"
+    : `/public/${slug}/mapa-${slug}/nivel-4.geojson`;
+
+const buildGeojsonSpecs = (campaignId: string, slug: string): DashboardFileSpec[] => [
   {
-    id: "geojson-departamento",
-    label: "GeoJSON departamentos",
+    id: "geojson-nivel-1",
+    label: "Nivel 1",
     accept: ".geojson,.json",
-    hint: `/public/${slug}/mapa-${slug}/departamentos.geojson`,
+    hint: `/public/${slug}/mapa-${slug}/nivel-1.geojson`,
     optional: true,
+    layerType: "departamento",
   },
   {
-    id: "geojson-provincia",
-    label: "GeoJSON provincias",
+    id: "geojson-nivel-2",
+    label: "Nivel 2",
     accept: ".geojson,.json",
-    hint: `/public/${slug}/mapa-${slug}/provincias.geojson`,
+    hint: `/public/${slug}/mapa-${slug}/nivel-2.geojson`,
     optional: true,
+    layerType: "provincia",
   },
   {
-    id: "geojson-distrito",
-    label: "GeoJSON distritos",
+    id: "geojson-nivel-3",
+    label: "Nivel 3",
     accept: ".geojson,.json",
-    hint: `/public/${slug}/mapa-${slug}/distritos.geojson`,
+    hint: `/public/${slug}/mapa-${slug}/nivel-3.geojson`,
     optional: true,
+    layerType: "distrito",
+  },
+  {
+    id: "geojson-nivel-4",
+    label: "Nivel 4",
+    accept: ".geojson,.json",
+    hint: resolveNivel4Hint(campaignId, slug),
+    optional: true,
+    layerType: "nivel4",
   },
 ];
 
@@ -94,7 +104,7 @@ const buildDashboards = (campaignId: string): DashboardItem[] => {
       accept: ".json",
       hint: `/public/${slug}/dataset_facebook-posts.json`,
     },
-    ...(includeGeojsonInAnalytics ? buildGeojsonSpecs(slug) : []),
+    ...(includeGeojsonInAnalytics ? buildGeojsonSpecs(campaignId, slug) : []),
     {
       id: "landings",
       label: "Landings / Campanas (XLSX o CSV)",
@@ -118,14 +128,7 @@ const buildDashboards = (campaignId: string): DashboardItem[] => {
       href: `/dashboard/${slug}/tierra/${eventId}`,
       status: "disponible",
       files: [
-        {
-          id: "interviews",
-          label: "Registros de entrevistas (CSV)",
-          accept: ".csv",
-          hint: "Carga manual para reemplazar data de campo.",
-          optional: true,
-        },
-        ...buildGeojsonSpecs(slug),
+        ...buildGeojsonSpecs(campaignId, slug),
       ],
       accent: "from-emerald-400/30 via-sky-300/20 to-transparent",
     },
@@ -153,19 +156,16 @@ export default function CampaignDetailPage() {
   const [isSaving, setIsSaving] = React.useState(false);
   const [saveError, setSaveError] = React.useState<string | null>(null);
   const [geojsonInfo, setGeojsonInfo] = React.useState<GeojsonInfoState | null>(null);
+  const autoNivel4AppliedRef = React.useRef(false);
 
   const dashboards = buildDashboards(campaignId);
-  const geojsonLayerIds: GeojsonLayerType[] = ["departamento", "provincia", "distrito"];
-  const parseLayerType = (fileId: string): GeojsonLayerType | null => {
-    if (!fileId.startsWith("geojson-")) return null;
-    const value = fileId.replace("geojson-", "") as GeojsonLayerType;
-    return geojsonLayerIds.includes(value) ? value : null;
-  };
+  const geojsonLayerIds: GeojsonLayerType[] = ["departamento", "provincia", "distrito", "nivel4"];
   const emptyGeojsonInfo = React.useMemo<GeojsonInfoState>(
     () => ({
       departamento: { fileName: null, updatedAt: null },
       provincia: { fileName: null, updatedAt: null },
       distrito: { fileName: null, updatedAt: null },
+      nivel4: { fileName: null, updatedAt: null },
     }),
     [],
   );
@@ -202,6 +202,12 @@ export default function CampaignDetailPage() {
               updatedAt: payload.layers.distrito.updatedAt,
             }
           : emptyGeojsonInfo.distrito,
+        nivel4: payload.layers?.nivel4
+          ? {
+              fileName: payload.layers.nivel4.fileName,
+              updatedAt: payload.layers.nivel4.updatedAt,
+            }
+          : emptyGeojsonInfo.nivel4,
       });
     };
     load();
@@ -209,6 +215,53 @@ export default function CampaignDetailPage() {
       active = false;
     };
   }, [campaignId, dialogOpen, activeDashboard, emptyGeojsonInfo]);
+
+  React.useEffect(() => {
+    if (!isAdmin) return;
+    if (!dialogOpen || !activeDashboard || activeDashboard.id !== "tierra") return;
+    if (campaignId !== "cand-giovanna") return;
+    if (!geojsonInfo) return;
+    if (autoNivel4AppliedRef.current) return;
+    if (geojsonInfo.nivel4?.fileName) {
+      autoNivel4AppliedRef.current = true;
+      return;
+    }
+
+    const applyNivel4 = async () => {
+      try {
+        const response = await fetch("/geo/nieto_giovanna.geojson", { cache: "no-store" });
+        if (!response.ok) return;
+        const payload = await response.json();
+        await fetch("/api/geojson", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            campaignId,
+            layerType: "nivel4",
+            geojson: payload,
+            fileName: "nieto_giovanna.geojson",
+          }),
+        });
+        setGeojsonInfo((current) => ({
+          ...(current ?? emptyGeojsonInfo),
+          nivel4: { fileName: "nieto_giovanna.geojson", updatedAt: new Date().toISOString() },
+        }));
+      } catch (error) {
+        // noop
+      } finally {
+        autoNivel4AppliedRef.current = true;
+      }
+    };
+
+    applyNivel4();
+  }, [
+    activeDashboard,
+    campaignId,
+    dialogOpen,
+    emptyGeojsonInfo,
+    geojsonInfo,
+    isAdmin,
+  ]);
 
   const handleSave = async () => {
     if (!activeDashboard || !isAdmin) {
@@ -361,158 +414,27 @@ export default function CampaignDetailPage() {
         </div>
       </div>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        {activeDashboard ? (
-          <DialogContent className="max-w-3xl">
-            <DialogHeader>
-              <DialogTitle>{activeDashboard.label}</DialogTitle>
-              <DialogDescription>
-                Archivos necesarios para actualizar este dashboard.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="rounded-3xl border border-border/40 bg-gradient-to-br from-slate-50 via-white to-slate-50 p-4">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                    Cliente
-                  </p>
-                  <p className="text-lg font-semibold text-foreground">{campaign?.name ?? "-"}</p>
-                  <p className="text-xs text-muted-foreground">{campaign?.region ?? "-"}</p>
-                </div>
-                <Badge variant="outline">Gestion</Badge>
-              </div>
-            </div>
-            <div className="grid gap-3">
-              {activeDashboard.files.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-border/60 p-4 text-xs text-muted-foreground">
-                  Este dashboard no requiere archivos.
-                </div>
-              ) : (
-                activeDashboard.files.map((fileSpec) => {
-                  const key = `${campaignId}-${activeDashboard.id}-${fileSpec.id}`;
-                  const uploaded = uploads[key];
-                  const layerType = parseLayerType(fileSpec.id);
-                  const isGeojson = Boolean(layerType);
-                  const layerInfo = layerType ? resolvedGeojsonInfo[layerType] : null;
-                  const geojsonUpdatedLabel = layerInfo?.updatedAt
-                    ? new Date(layerInfo.updatedAt).toLocaleDateString("es-PE", {
-                        day: "2-digit",
-                        month: "short",
-                        year: "numeric",
-                      })
-                    : null;
-                  return (
-                    <div
-                      key={fileSpec.id}
-                      className={`relative overflow-hidden rounded-2xl border border-border/40 bg-white p-4 shadow-sm ${
-                        isGeojson ? "bg-gradient-to-br from-white via-slate-50 to-white" : ""
-                      }`}
-                    >
-                      <div
-                        className={`absolute inset-y-0 left-0 w-1.5 bg-gradient-to-b ${
-                          isGeojson
-                            ? "from-rose-400 via-amber-300 to-sky-400"
-                            : "from-emerald-400 via-sky-400 to-indigo-400"
-                        }`}
-                      />
-                      <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div className="pl-3">
-                          <div className="flex items-center gap-2">
-                            <p className="text-sm font-semibold text-foreground">
-                              {fileSpec.label}
-                            </p>
-                            <Badge variant="outline" className="text-[10px]">
-                              {fileSpec.optional ? "Opcional" : "Requerido"}
-                            </Badge>
-                            {fileSpec.accept ? (
-                              <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
-                                {fileSpec.accept}
-                              </span>
-                            ) : null}
-                          </div>
-                          <p className="mt-1 text-xs text-muted-foreground">{fileSpec.hint}</p>
-                          {isGeojson ? (
-                            <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
-                              <span className="rounded-full border border-border/60 bg-muted/40 px-2 py-0.5">
-                                {layerInfo?.fileName ? "Cargado" : "Sin GeoJSON"}
-                              </span>
-                              {layerInfo?.fileName ? (
-                                <span className="rounded-full border border-border/60 bg-muted/40 px-2 py-0.5">
-                                  {layerInfo.fileName}
-                                </span>
-                              ) : null}
-                              {geojsonUpdatedLabel ? (
-                                <span className="rounded-full border border-border/60 bg-muted/40 px-2 py-0.5">
-                                  Actualizado: {geojsonUpdatedLabel}
-                                </span>
-                              ) : null}
-                            </div>
-                          ) : null}
-                        </div>
-                        <label className="flex cursor-pointer items-center gap-2 rounded-full border border-border/60 bg-muted/40 px-3 py-1 text-xs font-semibold text-foreground">
-                          <input
-                            type="file"
-                            accept={fileSpec.accept}
-                            disabled={!isAdmin}
-                            onChange={(event) =>
-                              setUploads((current) => ({
-                                ...current,
-                                [key]: event.target.files?.[0] ?? null,
-                              }))
-                            }
-                            className="sr-only"
-                          />
-                          Subir archivo
-                        </label>
-                      </div>
-                      {uploaded ? (
-                        <p className="mt-3 text-xs text-foreground">
-                          Archivo seleccionado: {uploaded.name}
-                        </p>
-                      ) : (
-                        <p className="mt-3 text-xs text-muted-foreground">
-                          Sin archivo cargado.
-                        </p>
-                      )}
-                      {isGeojson ? (
-                        <div className="mt-3 flex items-center gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={!isAdmin || isSaving || !layerType || !layerInfo?.fileName}
-                            onClick={() => {
-                              if (!layerType) return;
-                              handleDeleteGeojson(layerType);
-                            }}
-                          >
-                            Eliminar GeoJSON
-                          </Button>
-                        </div>
-                      ) : null}
-                    </div>
-                  );
-                })
-              )}
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setDialogOpen(false)}>
-                Cerrar
-              </Button>
-              <Button disabled={!isAdmin || isSaving} onClick={handleSave}>
-                {isSaving ? "Guardando..." : "Guardar cambios"}
-              </Button>
-            </DialogFooter>
-            {saveError ? (
-              <p className="text-xs text-rose-500">{saveError}</p>
-            ) : null}
-            {!isAdmin ? (
-              <p className="text-xs text-muted-foreground">
-                Solo admin puede cargar archivos y guardar cambios.
-              </p>
-            ) : null}
-          </DialogContent>
-        ) : null}
-      </Dialog>
+      <CampaignConfigDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        campaignId={campaignId}
+        campaignName={campaign?.name}
+        campaignRegion={campaign?.region}
+        activeDashboard={activeDashboard}
+        isAdmin={isAdmin}
+        isSaving={isSaving}
+        saveError={saveError}
+        uploads={uploads}
+        resolvedGeojsonInfo={resolvedGeojsonInfo}
+        onSave={handleSave}
+        onDeleteGeojson={handleDeleteGeojson}
+        onUploadChange={(uploadKey, file) =>
+          setUploads((current) => ({
+            ...current,
+            [uploadKey]: file,
+          }))
+        }
+      />
     </RoleGate>
   );
 }

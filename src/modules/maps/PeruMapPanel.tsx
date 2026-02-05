@@ -36,11 +36,10 @@ type PeruMapPoint = {
   interviewer?: string | null;
   name?: string | null;
   phone?: string | null;
-  address?: string | null;
   createdAt?: string | null;
   east?: number | null;
   north?: number | null;
-  kind?: "interview" | "tracking" | "address" | null;
+  kind?: "interview" | "tracking" | null;
   mode?: string | null;
   signature?: string | null;
   accuracy?: number | null;
@@ -88,6 +87,11 @@ type PeruMapPanelProps = {
   } | null;
   onHierarchyLevelChange?: (level: GeoLevel) => void;
   onHierarchySelectionChange?: (selection: MapHierarchySelection) => void;
+  enableBoxSelect?: boolean;
+  onBoxSelect?: (
+    points: PeruMapPoint[],
+    bounds: { minLng: number; minLat: number; maxLng: number; maxLat: number }
+  ) => void;
 };
 
 export type MapHierarchySelection = {
@@ -124,6 +128,8 @@ export const PeruMapPanel = ({
   clientGeojsonLayers = null,
   onHierarchyLevelChange,
   onHierarchySelectionChange,
+  enableBoxSelect = false,
+  onBoxSelect,
 }: PeruMapPanelProps) => {
   const { mode } = useTheme();
   const { level, selectedCodes, breadcrumb, canGoBack, actions } =
@@ -147,6 +153,28 @@ export const PeruMapPanel = ({
     prov?: string;
     dist?: string;
   } | null>(null);
+  const [boxSelectionRect, setBoxSelectionRect] = React.useState<{
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  } | null>(null);
+  const boxStartRef = React.useRef<{ x: number; y: number } | null>(null);
+  const boxCurrentRef = React.useRef<{ x: number; y: number } | null>(null);
+  const boxSelectActiveRef = React.useRef(false);
+  const dragPanEnabledRef = React.useRef<boolean | null>(null);
+  const clientHoverIdRef = React.useRef<number | string | null>(null);
+
+  const updateBoxSelection = React.useCallback(
+    (start: { x: number; y: number }, current: { x: number; y: number }) => {
+      const left = Math.min(start.x, current.x);
+      const top = Math.min(start.y, current.y);
+      const width = Math.abs(start.x - current.x);
+      const height = Math.abs(start.y - current.y);
+      setBoxSelectionRect({ x: left, y: top, width, height });
+    },
+    [],
+  );
 
   const clientBounds = React.useMemo(() => {
     if (!clientGeojson) return null;
@@ -828,7 +856,7 @@ export const PeruMapPanel = ({
 
   const handleMapClick = React.useCallback(
     (event: MapLayerMouseEvent) => {
-      if (!enableHierarchy) return;
+      if (!enableHierarchy && !activeClientLayer) return;
       if (focusPoint) {
         onClearFocusPoint?.();
       }
@@ -878,6 +906,24 @@ export const PeruMapPanel = ({
           }
         }
       }
+      if (activeClientLayer) {
+        const clientFeature = event.features?.find(
+          (item) => item.layer?.id === "client-geojson-fill",
+        );
+        if (clientFeature?.geometry) {
+          const bounds = getGeoJsonBounds({
+            features: [clientFeature as { geometry: { coordinates: unknown } }],
+          });
+          resolvedRef.current?.fitBounds(
+            [
+              [bounds[0], bounds[1]],
+              [bounds[2], bounds[3]],
+            ],
+            { padding: 24, duration: 650 },
+          );
+          return;
+        }
+      }
       const feature = event.features?.find((item) => {
         const props = item?.properties as Record<string, unknown> | undefined;
         return Boolean(props?.CODDEP || props?.CODPROV || props?.UBIGEO);
@@ -894,6 +940,29 @@ export const PeruMapPanel = ({
         if (level === "departamento") {
           actions.reset();
           resetView();
+        }
+        return;
+      }
+      if (!enableHierarchy && activeClientLayer) {
+        const dist = String(
+          (feature.properties as Record<string, unknown>).UBIGEO ?? "",
+        );
+        if (dist) {
+          actions.selectDistrictByCode(dist);
+          return;
+        }
+        const dep = String(
+          (feature.properties as Record<string, unknown>).CODDEP ?? "",
+        );
+        const prov = String(
+          (feature.properties as Record<string, unknown>).CODPROV ?? "",
+        );
+        if (dep && prov) {
+          actions.selectProvinceByCodes(dep, prov);
+          return;
+        }
+        if (dep) {
+          actions.selectDepartmentByCode(dep);
         }
         return;
       }
@@ -935,6 +1004,7 @@ export const PeruMapPanel = ({
       }
     },
     [
+      activeClientLayer,
       actions,
       clickableCodes,
       departamentos,
@@ -944,6 +1014,7 @@ export const PeruMapPanel = ({
       level,
       onClearFocusPoint,
       provincias,
+      resolvedRef,
       resetView,
     ],
   );
@@ -963,15 +1034,142 @@ export const PeruMapPanel = ({
     resetView();
   }, [actions, focusPoint, onClearFocusPoint, resetView]);
 
+  const handleBoxSelectStart = React.useCallback(
+    (event: MapLayerMouseEvent) => {
+      if (!enableBoxSelect) return;
+      const originalEvent = event.originalEvent as MouseEvent | undefined;
+      if (!originalEvent?.shiftKey || originalEvent.button !== 0) return;
+      const start = { x: event.point.x, y: event.point.y };
+      boxStartRef.current = start;
+      boxCurrentRef.current = start;
+      boxSelectActiveRef.current = true;
+      updateBoxSelection(start, start);
+      const map = resolvedRef.current;
+      if (map?.dragPan) {
+        dragPanEnabledRef.current = map.dragPan.isEnabled?.() ?? null;
+        map.dragPan.disable();
+      }
+    },
+    [enableBoxSelect, resolvedRef, updateBoxSelection],
+  );
+
+  const handleBoxSelectEnd = React.useCallback(
+    (event: MapLayerMouseEvent) => {
+      if (!boxSelectActiveRef.current) return;
+      boxSelectActiveRef.current = false;
+      setBoxSelectionRect(null);
+      const start = boxStartRef.current;
+      const end = boxCurrentRef.current ?? start;
+      const map = resolvedRef.current;
+      if (map?.dragPan && dragPanEnabledRef.current !== null) {
+        if (dragPanEnabledRef.current) map.dragPan.enable();
+        else map.dragPan.disable();
+        dragPanEnabledRef.current = null;
+      }
+      if (!start || !end || !map) return;
+      const width = Math.abs(start.x - end.x);
+      const height = Math.abs(start.y - end.y);
+      if (width < 6 || height < 6) return;
+      const minX = Math.min(start.x, end.x);
+      const maxX = Math.max(start.x, end.x);
+      const minY = Math.min(start.y, end.y);
+      const maxY = Math.max(start.y, end.y);
+      const sw = map.unproject([minX, maxY]);
+      const ne = map.unproject([maxX, minY]);
+      const minLng = Math.min(sw.lng, ne.lng);
+      const maxLng = Math.max(sw.lng, ne.lng);
+      const minLat = Math.min(sw.lat, ne.lat);
+      const maxLat = Math.max(sw.lat, ne.lat);
+      const selection = (points ?? []).filter((point) => {
+        if (!Number.isFinite(point.lat) || !Number.isFinite(point.lng)) return false;
+        return (
+          point.lng >= minLng &&
+          point.lng <= maxLng &&
+          point.lat >= minLat &&
+          point.lat <= maxLat
+        );
+      });
+      onBoxSelect?.(selection, { minLng, minLat, maxLng, maxLat });
+    },
+    [onBoxSelect, points, resolvedRef],
+  );
+
+  React.useEffect(() => {
+    if (!enableBoxSelect) return;
+    const handleMouseUp = () => {
+      if (!boxSelectActiveRef.current) return;
+      boxSelectActiveRef.current = false;
+      setBoxSelectionRect(null);
+      const map = resolvedRef.current;
+      if (map?.dragPan && dragPanEnabledRef.current !== null) {
+        if (dragPanEnabledRef.current) map.dragPan.enable();
+        else map.dragPan.disable();
+        dragPanEnabledRef.current = null;
+      }
+    };
+    window.addEventListener("mouseup", handleMouseUp);
+    return () => window.removeEventListener("mouseup", handleMouseUp);
+  }, [enableBoxSelect, resolvedRef]);
+
   const clearHover = React.useCallback(() => {
     setHoveredCodes(null);
+    const map = resolvedRef.current?.getMap?.();
+    if (map && clientHoverIdRef.current !== null) {
+      map.setFeatureState(
+        { source: "client-geojson", id: clientHoverIdRef.current },
+        { hover: false },
+      );
+      clientHoverIdRef.current = null;
+    }
     const canvas = resolvedRef.current?.getCanvas();
     if (canvas) canvas.style.cursor = "";
   }, [resolvedRef]);
 
   const handleMapHover = React.useCallback(
     (event: MapLayerMouseEvent) => {
-      if (!enableHierarchy) return;
+      if (enableBoxSelect && boxSelectActiveRef.current) {
+        const start = boxStartRef.current;
+        const current = { x: event.point.x, y: event.point.y };
+        boxCurrentRef.current = current;
+        if (start) updateBoxSelection(start, current);
+        return;
+      }
+      if (!enableHierarchy && !activeClientLayer) return;
+      const map = resolvedRef.current?.getMap?.();
+      const clientFeature = activeClientLayer
+        ? event.features?.find((item) => item.layer?.id === "client-geojson-fill")
+        : null;
+      const clientId =
+        typeof clientFeature?.id === "number" || typeof clientFeature?.id === "string"
+          ? clientFeature.id
+          : null;
+      if (map && activeClientLayer) {
+        if (clientHoverIdRef.current !== null && clientHoverIdRef.current !== clientId) {
+          map.setFeatureState(
+            { source: "client-geojson", id: clientHoverIdRef.current },
+            { hover: false },
+          );
+        }
+        if (clientId !== null && clientHoverIdRef.current !== clientId) {
+          map.setFeatureState(
+            { source: "client-geojson", id: clientId },
+            { hover: true },
+          );
+        }
+        clientHoverIdRef.current = clientId;
+      }
+      if (clientFeature?.properties) {
+        const canvas = resolvedRef.current?.getCanvas();
+        if (canvas) canvas.style.cursor = "pointer";
+        if (!enableHierarchy) return;
+      }
+      if (!enableHierarchy && activeClientLayer) {
+        if (!clientFeature?.properties) {
+          clearHover();
+          return;
+        }
+        return;
+      }
       const feature = event.features?.find((item) => item?.properties);
       if (!feature?.properties) {
         clearHover();
@@ -1010,15 +1208,28 @@ export const PeruMapPanel = ({
       const canvas = resolvedRef.current?.getCanvas();
       if (canvas) canvas.style.cursor = "pointer";
     },
-    [clearHover, clickableCodes, enableHierarchy, level, resolvedRef],
+    [
+      activeClientLayer,
+      clearHover,
+      clickableCodes,
+      enableBoxSelect,
+      enableHierarchy,
+      level,
+      resolvedRef,
+      updateBoxSelection,
+    ],
   );
 
   const interactiveLayerIds = React.useMemo(() => {
-    if (!enableHierarchy) return undefined;
-    if (level === "departamento") return ["peru-departamentos-fill"];
-    if (level === "provincia") return ["peru-provincias-fill"];
-    return ["peru-distritos-fill"];
-  }, [enableHierarchy, level]);
+    const ids: string[] = [];
+    if (enableHierarchy) {
+      if (level === "departamento") ids.push("peru-departamentos-fill");
+      else if (level === "provincia") ids.push("peru-provincias-fill");
+      else ids.push("peru-distritos-fill");
+    }
+    if (activeClientLayer) ids.push("client-geojson-fill");
+    return ids.length > 0 ? ids : undefined;
+  }, [activeClientLayer, enableHierarchy, level]);
 
   const resolvedHierarchyPoints = hierarchyPoints ?? points ?? [];
 
@@ -1032,6 +1243,8 @@ export const PeruMapPanel = ({
       mapStyle={resolvedMapStyle}
       maxBounds={maxBounds}
       onMapLoad={() => setMapReady(true)}
+      onMapMouseDown={handleBoxSelectStart}
+      onMapMouseUp={handleBoxSelectEnd}
       onMapClick={handleMapClick}
       onMapHover={handleMapHover}
       onMapHoverLeave={clearHover}
@@ -1052,30 +1265,46 @@ export const PeruMapPanel = ({
       renderPointTooltip={renderPointTooltip}
       renderPointsAsLayer
       pointLayerId="peru-points"
+      frameOverlay={
+        boxSelectionRect ? (
+          <div
+            className="absolute rounded-lg border border-sky-300/80 bg-sky-400/10 shadow-[0_0_0_1px_rgba(56,189,248,0.2)]"
+            style={{
+              left: boxSelectionRect.x,
+              top: boxSelectionRect.y,
+              width: boxSelectionRect.width,
+              height: boxSelectionRect.height,
+            }}
+          />
+        ) : null
+      }
     >
-      <MapHierarchyLayers
-        departamentos={departamentos}
-        provincias={provincias}
-        distritos={distritos}
-        points={resolvedHierarchyPoints}
-        level={level}
-        selectedCodes={selectedCodes}
-        hoverCodes={hoveredCodes}
-        blockedCodes={
-          activeClientLayer ? (allowedGeoCodes ?? undefined) : undefined
-        }
-        fillColor={fillColor}
-        lineColor={lineColor}
-        fillOpacity={fillOpacity}
-        highlightFillColor={highlightFillColor}
-        highlightFillOpacity={highlightFillOpacity}
-        enableHighlight
-      />
+      {enableHierarchy ? (
+        <MapHierarchyLayers
+          departamentos={departamentos}
+          provincias={provincias}
+          distritos={distritos}
+          points={resolvedHierarchyPoints}
+          level={level}
+          selectedCodes={selectedCodes}
+          hoverCodes={hoveredCodes}
+          blockedCodes={
+            activeClientLayer ? (allowedGeoCodes ?? undefined) : undefined
+          }
+          fillColor={fillColor}
+          lineColor={lineColor}
+          fillOpacity={fillOpacity}
+          highlightFillColor={highlightFillColor}
+          highlightFillOpacity={highlightFillOpacity}
+          enableHighlight
+        />
+      ) : null}
       {activeClientLayer ? (
         <Source
           id="client-geojson"
           type="geojson"
           data={activeClientLayer as unknown as any}
+          generateId
         >
           <Layer
             id="client-geojson-fill"
@@ -1091,8 +1320,13 @@ export const PeruMapPanel = ({
             type="line"
             filter={clientLineFilter}
             paint={{
-              "line-color": "rgba(239,68,68,0)",
-              "line-width": 0,
+              "line-color": [
+                "case",
+                ["boolean", ["feature-state", "hover"], false],
+                "rgba(239,68,68,0.95)",
+                "rgba(0,0,0,0.9)",
+              ],
+              "line-width": 2,
             }}
           />
         </Source>

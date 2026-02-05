@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { randomBytes, randomUUID } from "crypto";
-import { and, eq, gt } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db/connection";
 import { authSessions, authUsers } from "@/db/schema";
 import type { SessionUser } from "@/lib/auth/types";
@@ -33,7 +33,6 @@ export const getSessionUser = async (): Promise<SessionUser | null> => {
 };
 
 export const getSessionUserByToken = async (token: string): Promise<SessionUser | null> => {
-  const now = new Date();
   const rows = await db
     .select({
       sessionId: authSessions.id,
@@ -46,7 +45,7 @@ export const getSessionUserByToken = async (token: string): Promise<SessionUser 
     })
     .from(authSessions)
     .innerJoin(authUsers, eq(authSessions.userId, authUsers.id))
-    .where(and(eq(authSessions.token, token), gt(authSessions.expiresAt, now)));
+    .where(and(eq(authSessions.token, token), sql`${authSessions.expiresAt} > now()`));
 
   const row = rows[0];
   if (!row) {

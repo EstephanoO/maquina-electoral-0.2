@@ -58,6 +58,17 @@ export default function EventDashboardPage() {
         ? [campaign.name]
         : [];
 
+  const clientKey = event.campaignId
+    ? event.campaignId === "cand-rocio"
+      ? "rocio"
+      : event.campaignId === "cand-giovanna"
+        ? "giovanna"
+        : event.campaignId === "cand-guillermo"
+          ? "guillermo"
+          : undefined
+    : undefined;
+
+
   return (
     <RoleGate action="manage" subject="event">
       <div className="space-y-6">
@@ -91,6 +102,9 @@ export default function EventDashboardPage() {
           eventSubtitle="Actualizacion en tiempo real"
           candidateLabels={candidateLabels}
           dataUrl={`/api/interviews?eventId=${event.id}`}
+          eventId={event.id}
+          campaignId={event.campaignId}
+          clientKey={clientKey}
         />
       </div>
     </RoleGate>

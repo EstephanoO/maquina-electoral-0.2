@@ -3,6 +3,7 @@
 import * as React from "react";
 import useSWR from "swr";
 import { PeruMapPanel } from "@/modules/maps/PeruMapPanel";
+import type { GeoFeatureCollection } from "@/modules/maps/hierarchy/types";
 
 type MapPoint = {
   latitude: number | null;
@@ -38,6 +39,17 @@ export const MapLivePanel = ({
     revalidateOnFocus: false,
   });
 
+  const nivel4Key = client === "giovanna" ? "/geo/nieto_giovanna.geojson" : null;
+  const { data: nivel4Data } = useSWR<GeoFeatureCollection>(
+    nivel4Key,
+    async (url: string) => {
+      const response = await fetch(url, { cache: "no-store" });
+      if (!response.ok) throw new Error("geojson-failed");
+      return response.json() as Promise<GeoFeatureCollection>;
+    },
+    { revalidateOnFocus: false },
+  );
+
   const points = React.useMemo(
     () =>
       (data?.points ?? [])
@@ -57,12 +69,27 @@ export const MapLivePanel = ({
         ? "ready"
         : "empty";
 
+  const resolvedNivel4 = nivel4Data ?? null;
+
   return (
     <PeruMapPanel
       height={null}
       className={className}
-      points={points}
+      points={client === "giovanna" ? [] : points}
       status={status === "ready" ? undefined : status}
+      enableHierarchy={client !== "giovanna"}
+      showHierarchyControls={client !== "giovanna"}
+      clientGeojson={resolvedNivel4}
+      clientGeojsonMeta={null}
+      clientGeojsonLayers={
+        resolvedNivel4
+          ? {
+              departamento: resolvedNivel4,
+              provincia: resolvedNivel4,
+              distrito: resolvedNivel4,
+            }
+          : null
+      }
     />
   );
 };

@@ -126,7 +126,7 @@ const defaultDashboardsByCampaign: CampaignState["dashboardsByCampaign"] = {
 const defaultCampaignProfiles: CampaignState["campaignProfiles"] = {
   "cand-rocio": {
     image: "/Rocio-Porras.jpg",
-    goal: "980.000",
+    goal: "120.000",
     party: "Somos Peru",
     role: "Senadora Nacional",
     number: "#4",
