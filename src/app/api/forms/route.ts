@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server";
+import { isApiKeyValid, isOriginAllowed } from "@/lib/api/auth";
+import { getRequestId, jsonResponse, logApiEvent } from "@/lib/api/http";
 import { db } from "@/db/connection";
 import { forms, territory } from "@/db/schema";
 
@@ -102,44 +103,173 @@ const normalizePayload = (payload: FormPayload) => {
 };
 
 export async function POST(request: Request) {
+  const requestId = getRequestId(request);
+  const startedAt = Date.now();
+  const route = new URL(request.url).pathname;
+  const origin = request.headers.get("origin");
+  if (!isOriginAllowed(origin)) {
+    const status = 403;
+    logApiEvent({
+      requestId,
+      route,
+      method: "POST",
+      status,
+      durationMs: Date.now() - startedAt,
+      errorCode: "origin_blocked",
+    });
+    return jsonResponse({ ok: false, error: "Forbidden" }, requestId, { status });
+  }
+  if (!isApiKeyValid(request)) {
+    const status = 401;
+    logApiEvent({
+      requestId,
+      route,
+      method: "POST",
+      status,
+      durationMs: Date.now() - startedAt,
+      errorCode: "invalid_api_key",
+    });
+    return jsonResponse({ ok: false, error: "Unauthorized" }, requestId, { status });
+  }
   let body: FormPayload | FormPayload[];
   try {
     body = (await request.json()) as FormPayload | FormPayload[];
   } catch {
-    return NextResponse.json({ ok: false, error: "Invalid JSON" }, { status: 400 });
+    const status = 400;
+    logApiEvent({
+      requestId,
+      route,
+      method: "POST",
+      status,
+      durationMs: Date.now() - startedAt,
+      errorCode: "invalid_json",
+    });
+    return jsonResponse({ ok: false, error: "Invalid JSON" }, requestId, { status });
   }
 
   const items = Array.isArray(body) ? body : [body];
   for (const item of items) {
     const normalized = normalizePayload(item);
     if (!normalized.clientId) {
-      return NextResponse.json({ ok: false, error: "Missing client_id" }, { status: 400 });
+      const status = 400;
+      logApiEvent({
+        requestId,
+        route,
+        method: "POST",
+        status,
+        durationMs: Date.now() - startedAt,
+        errorCode: "missing_client_id",
+      });
+      return jsonResponse({ ok: false, error: "Missing client_id" }, requestId, {
+        status,
+      });
     }
     if (!normalized.name) {
-      return NextResponse.json({ ok: false, error: "Missing nombre" }, { status: 400 });
+      const status = 400;
+      logApiEvent({
+        requestId,
+        route,
+        method: "POST",
+        status,
+        durationMs: Date.now() - startedAt,
+        errorCode: "missing_nombre",
+      });
+      return jsonResponse({ ok: false, error: "Missing nombre" }, requestId, { status });
     }
     if (!normalized.phone) {
-      return NextResponse.json({ ok: false, error: "Missing telefono" }, { status: 400 });
+      const status = 400;
+      logApiEvent({
+        requestId,
+        route,
+        method: "POST",
+        status,
+        durationMs: Date.now() - startedAt,
+        errorCode: "missing_telefono",
+      });
+      return jsonResponse({ ok: false, error: "Missing telefono" }, requestId, { status });
     }
     if (!normalized.createdAt) {
-      return NextResponse.json({ ok: false, error: "Invalid fecha" }, { status: 400 });
+      const status = 400;
+      logApiEvent({
+        requestId,
+        route,
+        method: "POST",
+        status,
+        durationMs: Date.now() - startedAt,
+        errorCode: "invalid_fecha",
+      });
+      return jsonResponse({ ok: false, error: "Invalid fecha" }, requestId, { status });
     }
     if (normalized.x === null || normalized.y === null) {
-      return NextResponse.json({ ok: false, error: "Invalid x/y" }, { status: 400 });
+      const status = 400;
+      logApiEvent({
+        requestId,
+        route,
+        method: "POST",
+        status,
+        durationMs: Date.now() - startedAt,
+        errorCode: "invalid_xy",
+      });
+      return jsonResponse({ ok: false, error: "Invalid x/y" }, requestId, { status });
     }
     if (!normalized.zona) {
-      return NextResponse.json({ ok: false, error: "Missing zona" }, { status: 400 });
+      const status = 400;
+      logApiEvent({
+        requestId,
+        route,
+        method: "POST",
+        status,
+        durationMs: Date.now() - startedAt,
+        errorCode: "missing_zona",
+      });
+      return jsonResponse({ ok: false, error: "Missing zona" }, requestId, { status });
     }
     if (!normalized.interviewer) {
-      return NextResponse.json({ ok: false, error: "Missing encuestador" }, { status: 400 });
+      const status = 400;
+      logApiEvent({
+        requestId,
+        route,
+        method: "POST",
+        status,
+        durationMs: Date.now() - startedAt,
+        errorCode: "missing_encuestador",
+      });
+      return jsonResponse(
+        { ok: false, error: "Missing encuestador" },
+        requestId,
+        { status },
+      );
     }
     if (!normalized.signature) {
-      return NextResponse.json({ ok: false, error: "Missing encuestador_id" }, { status: 400 });
+      const status = 400;
+      logApiEvent({
+        requestId,
+        route,
+        method: "POST",
+        status,
+        durationMs: Date.now() - startedAt,
+        errorCode: "missing_encuestador_id",
+      });
+      return jsonResponse(
+        { ok: false, error: "Missing encuestador_id" },
+        requestId,
+        { status },
+      );
     }
     if (!normalized.candidatoPreferido) {
-      return NextResponse.json(
+      const status = 400;
+      logApiEvent({
+        requestId,
+        route,
+        method: "POST",
+        status,
+        durationMs: Date.now() - startedAt,
+        errorCode: "missing_candidato_preferido",
+      });
+      return jsonResponse(
         { ok: false, error: "Missing candidato_preferido" },
-        { status: 400 },
+        requestId,
+        { status },
       );
     }
     const xValue = Math.round(normalized.x);
@@ -212,6 +342,14 @@ export async function POST(request: Request) {
         },
       });
   }
-
-  return NextResponse.json({ ok: true }, { status: 201 });
+  const status = 201;
+  logApiEvent({
+    requestId,
+    route,
+    method: "POST",
+    status,
+    durationMs: Date.now() - startedAt,
+    itemsCount: items.length,
+  });
+  return jsonResponse({ ok: true }, requestId, { status });
 }

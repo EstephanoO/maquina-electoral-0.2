@@ -1,4 +1,6 @@
-import { NextResponse } from "next/server";
+import { isApiKeyValid, isOriginAllowed } from "@/lib/api/auth";
+import { getRequestId, jsonResponse, logApiEvent } from "@/lib/api/http";
+import { buildStableId } from "@/lib/api/idempotency";
 import { db } from "@/db/connection";
 import { appStateCurrent, appStateEvents } from "@/db/schema";
 
@@ -26,9 +28,16 @@ const normalizePayload = (payload: AppStatePayload) => {
   const timestamp = payload.timestamp ? new Date(payload.timestamp) : null;
   const resolvedTimestamp =
     timestamp && !Number.isNaN(timestamp.getTime()) ? timestamp : null;
+  const fallbackId =
+    payload.signature && payload.timestamp && payload.app_state
+      ? buildStableId(
+          [payload.signature, payload.timestamp, payload.app_state],
+          "appstate",
+        )
+      : null;
 
   return {
-    id: payload.id?.trim() || crypto.randomUUID(),
+    id: payload.id?.trim() || fallbackId || crypto.randomUUID(),
     signature: payload.signature?.trim() ?? "",
     interviewer: payload.interviewer?.trim() ?? null,
     candidate: payload.candidate?.trim() ?? null,
@@ -45,24 +54,94 @@ const normalizePayload = (payload: AppStatePayload) => {
 };
 
 export async function POST(request: Request) {
+  const requestId = getRequestId(request);
+  const startedAt = Date.now();
+  const route = new URL(request.url).pathname;
+  const origin = request.headers.get("origin");
+  if (!isOriginAllowed(origin)) {
+    const status = 403;
+    logApiEvent({
+      requestId,
+      route,
+      method: "POST",
+      status,
+      durationMs: Date.now() - startedAt,
+      errorCode: "origin_blocked",
+    });
+    return jsonResponse({ ok: false, error: "Forbidden" }, requestId, { status });
+  }
+  if (!isApiKeyValid(request)) {
+    const status = 401;
+    logApiEvent({
+      requestId,
+      route,
+      method: "POST",
+      status,
+      durationMs: Date.now() - startedAt,
+      errorCode: "invalid_api_key",
+    });
+    return jsonResponse({ ok: false, error: "Unauthorized" }, requestId, { status });
+  }
   let body: AppStatePayload | AppStatePayload[];
   try {
     body = (await request.json()) as AppStatePayload | AppStatePayload[];
   } catch {
-    return NextResponse.json({ ok: false, error: "Invalid JSON" }, { status: 400 });
+    const status = 400;
+    logApiEvent({
+      requestId,
+      route,
+      method: "POST",
+      status,
+      durationMs: Date.now() - startedAt,
+      errorCode: "invalid_json",
+    });
+    return jsonResponse({ ok: false, error: "Invalid JSON" }, requestId, { status });
   }
 
   const items = Array.isArray(body) ? body : [body];
   for (const item of items) {
     const normalized = normalizePayload(item);
     if (!normalized.signature) {
-      return NextResponse.json({ ok: false, error: "Missing signature" }, { status: 400 });
+      const status = 400;
+      logApiEvent({
+        requestId,
+        route,
+        method: "POST",
+        status,
+        durationMs: Date.now() - startedAt,
+        errorCode: "missing_signature",
+      });
+      return jsonResponse({ ok: false, error: "Missing signature" }, requestId, {
+        status,
+      });
     }
     if (!normalized.timestamp) {
-      return NextResponse.json({ ok: false, error: "Invalid timestamp" }, { status: 400 });
+      const status = 400;
+      logApiEvent({
+        requestId,
+        route,
+        method: "POST",
+        status,
+        durationMs: Date.now() - startedAt,
+        errorCode: "invalid_timestamp",
+      });
+      return jsonResponse({ ok: false, error: "Invalid timestamp" }, requestId, {
+        status,
+      });
     }
     if (!allowedStates.has(normalized.appState as AppStateValue)) {
-      return NextResponse.json({ ok: false, error: "Invalid app_state" }, { status: 400 });
+      const status = 400;
+      logApiEvent({
+        requestId,
+        route,
+        method: "POST",
+        status,
+        durationMs: Date.now() - startedAt,
+        errorCode: "invalid_app_state",
+      });
+      return jsonResponse({ ok: false, error: "Invalid app_state" }, requestId, {
+        status,
+      });
     }
 
     await db
@@ -140,5 +219,14 @@ export async function POST(request: Request) {
       });
   }
 
-  return NextResponse.json({ ok: true }, { status: 202 });
+  const status = 202;
+  logApiEvent({
+    requestId,
+    route,
+    method: "POST",
+    status,
+    durationMs: Date.now() - startedAt,
+    itemsCount: items.length,
+  });
+  return jsonResponse({ ok: true }, requestId, { status });
 }

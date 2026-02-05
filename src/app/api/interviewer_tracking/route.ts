@@ -1,4 +1,6 @@
-import { NextResponse } from "next/server";
+import { isApiKeyValid, isOriginAllowed } from "@/lib/api/auth";
+import { getRequestId, jsonResponse, logApiEvent } from "@/lib/api/http";
+import { buildStableId } from "@/lib/api/idempotency";
 import { db } from "@/db/connection";
 import { interviewerTracking } from "@/db/schema";
 
@@ -34,9 +36,16 @@ const normalizePayload = (payload: TrackingPayload) => {
     trackedAt && !Number.isNaN(trackedAt.getTime()) ? trackedAt : null;
   const latitude = toNumber(payload.latitude);
   const longitude = toNumber(payload.longitude);
+  const fallbackId =
+    signature && payload.tracked_at && payload.mode
+      ? buildStableId(
+          [signature, payload.tracked_at, payload.mode, payload.latitude, payload.longitude],
+          "track",
+        )
+      : null;
 
   return {
-    id: payload.id?.trim() || crypto.randomUUID(),
+    id: payload.id?.trim() || fallbackId || crypto.randomUUID(),
     eventId: payload.event_id?.trim() || null,
     interviewer,
     candidate: payload.candidate?.trim() ?? "",
@@ -54,30 +63,108 @@ const normalizePayload = (payload: TrackingPayload) => {
 };
 
 export async function POST(request: Request) {
+  const requestId = getRequestId(request);
+  const startedAt = Date.now();
+  const route = new URL(request.url).pathname;
+  const origin = request.headers.get("origin");
+  if (!isOriginAllowed(origin)) {
+    const status = 403;
+    logApiEvent({
+      requestId,
+      route,
+      method: "POST",
+      status,
+      durationMs: Date.now() - startedAt,
+      errorCode: "origin_blocked",
+    });
+    return jsonResponse({ ok: false, error: "Forbidden" }, requestId, { status });
+  }
+  if (!isApiKeyValid(request)) {
+    const status = 401;
+    logApiEvent({
+      requestId,
+      route,
+      method: "POST",
+      status,
+      durationMs: Date.now() - startedAt,
+      errorCode: "invalid_api_key",
+    });
+    return jsonResponse({ ok: false, error: "Unauthorized" }, requestId, { status });
+  }
   let body: TrackingPayload | TrackingPayload[];
   try {
     body = (await request.json()) as TrackingPayload | TrackingPayload[];
   } catch {
-    return NextResponse.json({ ok: false, error: "Invalid JSON" }, { status: 400 });
+    const status = 400;
+    logApiEvent({
+      requestId,
+      route,
+      method: "POST",
+      status,
+      durationMs: Date.now() - startedAt,
+      errorCode: "invalid_json",
+    });
+    return jsonResponse({ ok: false, error: "Invalid JSON" }, requestId, { status });
   }
 
   const items = Array.isArray(body) ? body : [body];
   for (const item of items) {
     const normalized = normalizePayload(item);
     if (!normalized.interviewer || !normalized.candidate || !normalized.signature) {
-      return NextResponse.json(
+      const status = 400;
+      logApiEvent({
+        requestId,
+        route,
+        method: "POST",
+        status,
+        durationMs: Date.now() - startedAt,
+        errorCode: "missing_actor_fields",
+      });
+      return jsonResponse(
         { ok: false, error: "Missing interviewer, candidate or signature" },
-        { status: 400 },
+        requestId,
+        { status },
       );
     }
     if (!normalized.trackedAt) {
-      return NextResponse.json({ ok: false, error: "Invalid tracked_at" }, { status: 400 });
+      const status = 400;
+      logApiEvent({
+        requestId,
+        route,
+        method: "POST",
+        status,
+        durationMs: Date.now() - startedAt,
+        errorCode: "invalid_tracked_at",
+      });
+      return jsonResponse(
+        { ok: false, error: "Invalid tracked_at" },
+        requestId,
+        { status },
+      );
     }
     if (normalized.latitude === null || normalized.longitude === null) {
-      return NextResponse.json({ ok: false, error: "Invalid coords" }, { status: 400 });
+      const status = 400;
+      logApiEvent({
+        requestId,
+        route,
+        method: "POST",
+        status,
+        durationMs: Date.now() - startedAt,
+        errorCode: "invalid_coords",
+      });
+      return jsonResponse({ ok: false, error: "Invalid coords" }, requestId, { status });
     }
     if (!normalized.mode) {
-      return NextResponse.json({ ok: false, error: "Missing mode" }, { status: 400 });
+      const status = 400;
+      logApiEvent({
+        requestId,
+        route,
+        method: "POST",
+        status,
+        durationMs: Date.now() - startedAt,
+        errorCode: "missing_mode",
+      });
+      return jsonResponse({ ok: false, error: "Missing mode" }, requestId, { status });
     }
 
     await db
@@ -118,5 +205,14 @@ export async function POST(request: Request) {
       });
   }
 
-  return NextResponse.json({ ok: true }, { status: 201 });
+  const status = 201;
+  logApiEvent({
+    requestId,
+    route,
+    method: "POST",
+    status,
+    durationMs: Date.now() - startedAt,
+    itemsCount: items.length,
+  });
+  return jsonResponse({ ok: true }, requestId, { status });
 }
