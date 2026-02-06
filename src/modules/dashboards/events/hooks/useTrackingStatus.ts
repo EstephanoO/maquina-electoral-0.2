@@ -22,6 +22,7 @@ type UseTrackingStatusOptions = {
   candidateLabels: string[];
   presenceThresholdMs: number;
   movementThresholdMeters: number;
+  telemetryOverrides?: AppStateCurrentItem[] | null;
 };
 
 const buildTelemetryMap = (items: AppStateCurrentItem[]) => {
@@ -79,6 +80,7 @@ export const useTrackingStatus = ({
   candidateLabels,
   presenceThresholdMs,
   movementThresholdMeters,
+  telemetryOverrides = null,
 }: UseTrackingStatusOptions) => {
   const telemetrySignatures = React.useMemo(() => {
     const signatures = new Set<string>();
@@ -98,10 +100,16 @@ export const useTrackingStatus = ({
   }, [telemetrySignatures]);
 
   const { items: telemetryItems } = useAppStateCurrent({ dataUrl: telemetryUrl });
-  const telemetryBySignature = React.useMemo(
-    () => buildTelemetryMap(telemetryItems),
-    [telemetryItems],
-  );
+  const telemetryBySignature = React.useMemo(() => {
+    const merged = new Map(buildTelemetryMap(telemetryItems));
+    if (telemetryOverrides) {
+      for (const item of telemetryOverrides) {
+        if (!item.signature) continue;
+        merged.set(item.signature.trim().toLowerCase(), item);
+      }
+    }
+    return merged;
+  }, [telemetryItems, telemetryOverrides]);
 
   const trackingPoints = React.useMemo((): MapPoint[] => {
     const now = Date.now();

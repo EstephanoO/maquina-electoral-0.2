@@ -16,6 +16,7 @@ import { useEventActions } from "./hooks/useEventActions";
 import { useCandidateVisibility } from "./hooks/useCandidateVisibility";
 import { useInterviewerTracking } from "./hooks/useInterviewerTracking";
 import { useTrackingStatus } from "./hooks/useTrackingStatus";
+import { useRealtimeTrackingStream } from "./hooks/useRealtimeTrackingStream";
 import {
   convertRowsToPoints,
   calculateCandidateCounts,
@@ -111,11 +112,22 @@ export const EventMapDashboard = ({
     return query ? `/api/interviewer-tracking?${query}` : "/api/interviewer-tracking";
   }, [clientKey]);
 
+  const realtimeStreamUrl =
+    typeof window !== "undefined" ? process.env.NEXT_PUBLIC_WS_EVENTS_URL ?? null : null;
+
   const {
     points: trackingRows,
     isLoading: trackingLoading,
     error: trackingError,
-  } = useInterviewerTracking({ dataUrl: trackingUrl });
+  } = useInterviewerTracking({
+    dataUrl: trackingUrl,
+    refreshInterval: realtimeStreamUrl ? 0 : 5000,
+  });
+
+  const { trackingRows: realtimeTrackingRows, telemetryOverrides } = useRealtimeTrackingStream({
+    streamUrl: realtimeStreamUrl,
+    initialTrackingRows: trackingRows,
+  });
 
   // Cálculos de datos
   const points = React.useMemo(() => convertRowsToPoints(rows), [rows]);
@@ -156,10 +168,11 @@ export const EventMapDashboard = ({
   const presenceThresholdMs = 15 * 1000;
   const movementThresholdMeters = 10;
   const { trackingPoints, interviewerStatus } = useTrackingStatus({
-    trackingRows,
+    trackingRows: realtimeTrackingRows,
     candidateLabels,
     presenceThresholdMs,
     movementThresholdMeters,
+    telemetryOverrides,
   });
 
   const displayMapPoints = React.useMemo(() => {
@@ -223,7 +236,8 @@ export const EventMapDashboard = ({
       : displayMapPoints.length > 0
         ? undefined
         : "empty";
-  const trackingMapStatus = trackingLoading
+  const trackingHasData = realtimeTrackingRows.length > 0;
+  const trackingMapStatus = trackingLoading && !trackingHasData
     ? "loading"
     : trackingError
       ? "error"
