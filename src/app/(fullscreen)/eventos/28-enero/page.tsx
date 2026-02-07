@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { EventTierraOverview } from "@/modules/dashboards/EventTierraOverview";
+import { Button } from "@/ui/primitives/button";
+import { EventTierraOverview } from "@/ui/dashboards/EventTierraOverview";
 
 export default function EventOverviewPage() {
   return (

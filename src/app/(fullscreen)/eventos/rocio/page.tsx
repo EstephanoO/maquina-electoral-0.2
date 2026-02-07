@@ -1,4 +1,4 @@
-import { EmptyState } from "@/modules/shared/EmptyState";
+import { EmptyState } from "@/ui/shared/EmptyState";
 
 const RocioEventoPlaceholder = () => {
   return (

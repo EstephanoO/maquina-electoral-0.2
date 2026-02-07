@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { MapLivePanel } from "@/modules/maps/MapLivePanel";
+import { Button } from "@/ui/primitives/button";
+import { MapLivePanel } from "@/ui/maps/MapLivePanel";
 
 type TierraFullscreenPageProps = {
   params: Promise<{ client: string }>;

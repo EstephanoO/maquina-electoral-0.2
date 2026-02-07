@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/ui/primitives/button";
 import { useAppStore } from "@/stores/app.store";
 
 export default function AppDownloadPage() {

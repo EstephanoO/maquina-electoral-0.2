@@ -7,14 +7,15 @@
 - UI-first, pero con backend Neon/Drizzle activo para territory, events, geojson y auth.
 
 ## Arquitectura (mapa rapido)
-- `src/app`: rutas, layouts, loaders y API route handlers.
-- `src/modules/*`: UI por dominio (console, dashboards, layout, maps, shared, campaigns, events).
-- `src/stores`: estado global (session, assets, app).
-- `src/db`: schema, connection Neon, seeds/constants.
-- `src/lib`: tipos, auth, RBAC y helpers compartidos.
+- `src/app`: rutas, layouts y contenedores. Sin logica de negocio ni UI detallada.
+- `src/<modulo>`: hooks, funcionalidades, utils, types, stores y servicios del modulo.
+- `src/ui/<modulo>`: UI del modulo. `src/ui` es UI compartida.
+- `src/ui/primitives`: primitives UI (shadcn/ui).
+- `src/db`: schema, conexiones, queries y seeds/constants.
+- `src/lib`: cross-cutting minimo (auth, RBAC, clientes HTTP). Si es de un modulo, va a su modulo.
 - `src/theme`: ThemeProvider/ThemeScript y tokens.
-- `src/components/ui`: primitives shadcn/ui.
-- `src/ui`, `src/management`, `src/dashboards`, `src/maps`: legacy, no expandir.
+- `src/stores`: solo estado app-level indispensable; preferir stores en cada modulo.
+- `src/management`, `src/modules`, `src/components/ui`: legacy a migrar/eliminar, no expandir.
 
 ## Datos
 - Neon: `territory`, `events`, `campaign_geojson`, `auth_users`, `auth_sessions`.
@@ -52,9 +53,11 @@
 - `npm run lint`
 
 ## Reglas de modularidad
-- Modulos aislados con interfaces explicitas.
+- Modulos aislados con interfaces explicitas y superficies publicas claras.
+- No hay archivos “god”: evitar control centralizado. Composicion > acoplamiento.
 - Evitar dependencias cruzadas implicitas entre modulos.
-- Estados Empty/Error/Loading deben usar `src/modules/shared`.
+- Un modulo no importa internals de otro modulo. Solo consume su API publica.
+- UI compartida en `src/ui`. Estados Empty/Error/Loading viven en `src/ui`.
 
 ## Consideraciones de seguridad
 - Los datos son sensibles; evitar exponer payloads completos innecesarios.

@@ -1,13 +1,13 @@
 "use client";
 
 import * as React from "react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { Badge } from "@/ui/primitives/badge";
+import { Button } from "@/ui/primitives/button";
+import { Card } from "@/ui/primitives/card";
+import { Input } from "@/ui/primitives/input";
 import { useAssetsStore } from "@/stores/assets.store";
-import { EmptyState } from "@/modules/shared/EmptyState";
-import { RoleGate } from "@/modules/shared/RoleGate";
+import { EmptyState } from "@/ui/shared/EmptyState";
+import { RoleGate } from "@/shared/RoleGate";
 import { toast } from "sonner";
 
 export default function AssetsPage() {

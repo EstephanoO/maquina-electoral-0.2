@@ -308,7 +308,6 @@ export async function POST(request: Request) {
       .insert(territory)
       .values({
         id: normalized.clientId,
-        eventId: null,
         interviewer: normalized.interviewer,
         candidate: normalized.candidate,
         signature: normalized.signature,

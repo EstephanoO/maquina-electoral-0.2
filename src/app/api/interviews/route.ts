@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
-import { and, eq, gte, isNotNull, isNull, lte, or } from "drizzle-orm";
+import { and, eq, gte, isNotNull, lte, or } from "drizzle-orm";
 import { db } from "@/db/connection";
-import { events, territory } from "@/db/schema";
+import { territory } from "@/db/schema";
 
 type InterviewPayload = {
   id?: string | null;
-  eventId?: string | null;
   interviewer?: string | null;
   candidate?: string | null;
   signature?: string | null;
@@ -45,41 +44,6 @@ const clientToCandidate: Record<string, string> = {
   rocio: "Rocio Porras",
   giovanna: "Giovanna Castagnino",
   guillermo: "Guillermo Aliaga",
-};
-
-const formatDateInLima = (value: string) => {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return null;
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Lima",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(date);
-};
-
-const resolveEventId = async (createdAt: string) => {
-  const createdDate = formatDateInLima(createdAt);
-  if (!createdDate) return null;
-  const candidates = await db
-    .select({
-      id: events.id,
-      startDate: events.startDate,
-      endDate: events.endDate,
-      status: events.status,
-      dashboardTemplate: events.dashboardTemplate,
-    })
-    .from(events)
-    .where(and(eq(events.status, "ACTIVE"), eq(events.dashboardTemplate, "tierra")));
-
-  const matching = candidates.filter((event) => {
-    const start = event.startDate;
-    const end = event.endDate ?? event.startDate;
-    return createdDate >= start && createdDate <= end;
-  });
-  if (matching.length === 0) return null;
-  const sorted = matching.sort((a, b) => a.startDate.localeCompare(b.startDate));
-  return sorted[0].id;
 };
 
 const toRadians = (value: number) => (value * Math.PI) / 180;
@@ -178,9 +142,6 @@ export async function POST(request: Request) {
   const derived =
     utmValid && utmPayload?.datumEpsg === "4326" ? utmToLatLng(utmPayload) : null;
 
-  const resolvedEventId = body.createdAt
-    ? body.eventId ?? (await resolveEventId(body.createdAt))
-    : body.eventId ?? null;
   const createdAtValue = body.createdAt ? new Date(body.createdAt) : null;
   const resolvedCreatedAt = createdAtValue && !Number.isNaN(createdAtValue.getTime())
     ? createdAtValue
@@ -191,7 +152,6 @@ export async function POST(request: Request) {
     .insert(territory)
     .values({
       id: idValue,
-      eventId: resolvedEventId,
       interviewer: body.interviewer ?? null,
       candidate: body.candidate ?? null,
       signature: body.signature ?? null,
@@ -217,8 +177,6 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const candidateParam = url.searchParams.get("candidate");
   const clientParam = url.searchParams.get("client");
-  const eventIdParam = url.searchParams.get("eventId");
-  const includeUnassigned = url.searchParams.get("includeUnassigned") === "1";
   const startDateParam = url.searchParams.get("startDate");
   const endDateParam = url.searchParams.get("endDate");
   if (clientParam && !clientToCandidate[clientParam]) {
@@ -236,19 +194,6 @@ export async function GET(request: Request) {
   if (resolvedCandidate) {
     conditions.push(eq(territory.candidate, resolvedCandidate));
   }
-  if (eventIdParam) {
-    if (includeUnassigned) {
-      const eventCondition = or(
-        eq(territory.eventId, eventIdParam),
-        isNull(territory.eventId),
-      );
-      if (eventCondition) {
-        conditions.push(eventCondition);
-      }
-    } else {
-      conditions.push(eq(territory.eventId, eventIdParam));
-    }
-  }
   if (startDateParam) {
     conditions.push(gte(territory.createdAt, new Date(startDateParam)));
   }
@@ -260,7 +205,6 @@ export async function GET(request: Request) {
   const rows = await db
     .select({
       id: territory.id,
-      eventId: territory.eventId,
       interviewer: territory.interviewer,
       latitude: territory.latitude,
       longitude: territory.longitude,

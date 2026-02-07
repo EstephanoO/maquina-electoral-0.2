@@ -19,5 +19,5 @@ export default async function EntryPage() {
 
   const campaignId = user.campaignId ?? user.assignedCampaignIds[0] ?? "cand-guillermo";
   const slug = campaignToSlug[campaignId] ?? "guillermo";
-  redirect(`/dashboard/${slug}`);
+  redirect(`/dashboard/${slug}/tierra`);
 }

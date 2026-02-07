@@ -20,7 +20,6 @@ type TrackingPayload = {
   timestamp: string;
   mode: string;
   coords: TrackingCoords;
-  eventId?: string;
 };
 
 const requiredKeys: Array<keyof TrackingPayload> = [
@@ -54,7 +53,6 @@ const buildInterviewerKey = (interviewer: string, signature: string) =>
 
 export async function POST(request: Request) {
   const url = new URL(request.url);
-  const eventIdParam = url.searchParams.get("eventId");
   const body = (await request.json()) as Partial<TrackingPayload>;
   console.info("[tracking] payload", body);
   const missing = requiredKeys.filter((key) => !body[key]);
@@ -96,7 +94,6 @@ export async function POST(request: Request) {
 
   await db.insert(interviewerTracking).values({
     id,
-    eventId: body.eventId ?? eventIdParam,
     interviewer,
     candidate,
     signature,
@@ -116,7 +113,6 @@ export async function POST(request: Request) {
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
-  const eventIdParam = url.searchParams.get("eventId");
   const candidateParam = url.searchParams.get("candidate");
   const clientParam = url.searchParams.get("client");
   const modeParam = url.searchParams.get("mode");
@@ -129,7 +125,6 @@ export async function GET(request: Request) {
     (candidateParam ? normalizeCandidate(candidateParam) : null);
 
   const conditions: Array<ReturnType<typeof sql>> = [];
-  if (eventIdParam) conditions.push(sql`event_id = ${eventIdParam}`);
   if (resolvedCandidate) conditions.push(sql`candidate = ${resolvedCandidate}`);
   if (modeParam) conditions.push(sql`mode = ${modeParam}`);
   const whereClause = conditions.length
@@ -140,7 +135,6 @@ export async function GET(request: Request) {
     const query = sql`
       SELECT DISTINCT ON (interviewer_key)
         id,
-        event_id,
         interviewer,
         candidate,
         signature,
@@ -161,7 +155,6 @@ export async function GET(request: Request) {
     const { rows } = await db.execute(query);
     const points = rows.map((row) => ({
       id: row.id as string,
-      eventId: row.event_id as string | null,
       interviewer: row.interviewer as string,
       candidate: row.candidate as string,
       signature: row.signature as string,
@@ -179,25 +172,24 @@ export async function GET(request: Request) {
     return NextResponse.json({ points });
   }
 
-  const historyQuery = sql`
-    SELECT * FROM (
-      SELECT
-        id,
-        event_id,
-        interviewer,
-        candidate,
-        signature,
-        interviewer_key,
-        mode,
-        tracked_at,
-        latitude,
-        longitude,
-        accuracy,
-        altitude,
-        speed,
-        heading,
-        ROW_NUMBER() OVER (PARTITION BY interviewer_key ORDER BY tracked_at DESC) AS rn
-      FROM interviewer_tracking
+    const historyQuery = sql`
+      SELECT * FROM (
+        SELECT
+          id,
+          interviewer,
+          candidate,
+          signature,
+          interviewer_key,
+          mode,
+          tracked_at,
+          latitude,
+          longitude,
+          accuracy,
+          altitude,
+          speed,
+          heading,
+          ROW_NUMBER() OVER (PARTITION BY interviewer_key ORDER BY tracked_at DESC) AS rn
+        FROM interviewer_tracking
       ${whereClause}
     ) AS ranked
     WHERE rn <= 2
@@ -251,7 +243,6 @@ export async function GET(request: Request) {
 
     return {
       id: current.id as string,
-      eventId: current.event_id as string | null,
       interviewer: current.interviewer as string,
       candidate: current.candidate as string,
       signature: current.signature as string,

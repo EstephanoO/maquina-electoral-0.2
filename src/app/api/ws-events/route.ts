@@ -13,7 +13,6 @@ type WsEventBody = {
 
 type TrackingPayload = {
   id?: string | null;
-  event_id?: string | null;
   interviewer?: string | null;
   candidate?: string | null;
   signature?: string | null;
@@ -74,7 +73,6 @@ const normalizeTrackingPayload = (payload: TrackingPayload) => {
 
   return {
     id: payload.id?.trim() || fallbackId || crypto.randomUUID(),
-    eventId: payload.event_id?.trim() || null,
     interviewer,
     candidate: payload.candidate?.trim() ?? "",
     signature,
@@ -275,7 +273,6 @@ export async function POST(request: Request) {
         .insert(interviewerTracking)
         .values({
           id: normalized.id,
-          eventId: normalized.eventId,
           interviewer: normalized.interviewer,
           candidate: normalized.candidate,
           signature: normalized.signature,
@@ -292,7 +289,6 @@ export async function POST(request: Request) {
         .onConflictDoUpdate({
           target: interviewerTracking.id,
           set: {
-            eventId: normalized.eventId,
             interviewer: normalized.interviewer,
             candidate: normalized.candidate,
             signature: normalized.signature,

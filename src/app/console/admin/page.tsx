@@ -1,10 +1,17 @@
 "use client";
 
-import { Card } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Card } from "@/ui/primitives/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/ui/primitives/table";
 import { campaigns } from "@/db/constants";
-import { RoleGate } from "@/modules/shared/RoleGate";
-import { ClientDashboardConfigCard } from "@/modules/console/ClientDashboardConfigCard";
+import { RoleGate } from "@/shared/RoleGate";
+import { ClientDashboardConfigCard } from "@/ui/console/ClientDashboardConfigCard";
 
 export default function AdminPage() {
   return (

@@ -1,5 +1,5 @@
-import { Card } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Card } from "@/ui/primitives/card";
+import { Skeleton } from "@/ui/primitives/skeleton";
 
 const highlights = [0, 1, 2, 3];
 const tiles = [0, 1, 2];

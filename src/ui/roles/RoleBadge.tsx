@@ -1,4 +1,4 @@
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/ui/primitives/badge";
 import type { UserRole } from "@/roles/permissions";
 
 const roleLabels: Record<UserRole, string> = {

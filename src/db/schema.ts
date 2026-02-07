@@ -2,7 +2,6 @@ import { boolean, integer, pgTable, text, timestamp, doublePrecision, jsonb, pri
 
 export const territory = pgTable("territory", {
   id: text("id").primaryKey(),
-  eventId: text("event_id"),
   interviewer: text("interviewer"),
   candidate: text("candidate"),
   signature: text("signature"),
@@ -42,20 +41,6 @@ export const forms = pgTable(
   }),
 );
 
-export const events = pgTable("events", {
-  id: text("id").primaryKey(),
-  campaignId: text("campaign_id").notNull(),
-  name: text("name").notNull(),
-  status: text("status").notNull(),
-  startDate: text("start_date").notNull(),
-  endDate: text("end_date"),
-  dashboardTemplate: text("dashboard_template"),
-  contactName: text("contact_name"),
-  contactPhone: text("contact_phone"),
-  location: text("location"),
-  clients: text("clients").array(),
-});
-
 export const campaignGeojson = pgTable(
   "campaign_geojson",
   {
@@ -74,7 +59,6 @@ export const campaignGeojson = pgTable(
 
 export const interviewerTracking = pgTable("interviewer_tracking", {
   id: text("id").primaryKey(),
-  eventId: text("event_id"),
   interviewer: text("interviewer").notNull(),
   candidate: text("candidate").notNull(),
   signature: text("signature").notNull(),

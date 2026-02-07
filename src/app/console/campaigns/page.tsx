@@ -2,10 +2,10 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@/ui/primitives/button";
+import { Card } from "@/ui/primitives/card";
+import { Input } from "@/ui/primitives/input";
+import { Badge } from "@/ui/primitives/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,12 +13,18 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { useCampaignsStore } from "@/modules/campaigns/store";
+} from "@/ui/primitives/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/ui/primitives/dialog";
+import { useCampaignsStore } from "@/campaigns/store";
 import { useSessionStore } from "@/stores/session.store";
-import { EmptyState } from "@/modules/shared/EmptyState";
-import { RoleGate } from "@/modules/shared/RoleGate";
+import { EmptyState } from "@/ui/shared/EmptyState";
+import { RoleGate } from "@/shared/RoleGate";
 import { MoreHorizontal } from "lucide-react";
 
 const fallbackProfile = {
@@ -375,23 +381,20 @@ export default function CampaignsPage() {
                       const dashboards = dashboardsByCampaign[campaign.id] ?? [];
                       const summary = {
                         tierra: { active: 0, paused: 0 },
-                        mar: { active: 0, paused: 0 },
-                        aire: { active: 0, paused: 0 },
                       };
                       dashboards.forEach((dashboard) => {
                         const key = dashboard.template;
+                        if (!(key in summary)) return;
                         if (dashboard.status === "ACTIVE") {
-                          summary[key].active += 1;
+                          summary[key as "tierra"].active += 1;
                         } else {
-                          summary[key].paused += 1;
+                          summary[key as "tierra"].paused += 1;
                         }
                       });
                       return (
                         <div className="mt-2 space-y-2 text-xs">
                           {([
                             { key: "tierra", label: "Tierra", color: "bg-emerald-500" },
-                            { key: "mar", label: "Mar", color: "bg-sky-500" },
-                            { key: "aire", label: "Aire", color: "bg-amber-500" },
                           ] as const).map((item) => (
                             <div key={item.key} className="flex items-center justify-between">
                               <div className="flex items-center gap-2">

@@ -6,7 +6,7 @@ import { appStateCurrent, appStateEvents } from "@/db/schema";
 type AppStateValue = "active" | "inactive" | "background";
 
 type TelemetryPayload = {
-  eventId: string;
+  id: string;
   timestamp: string;
   session: {
     interviewer?: string;
@@ -72,8 +72,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: "Invalid JSON" }, { status: 400 });
   }
 
-  if (!isNonEmptyString(body.eventId)) {
-    return NextResponse.json({ ok: false, error: "Missing eventId" }, { status: 400 });
+  if (!isNonEmptyString(body.id)) {
+    return NextResponse.json({ ok: false, error: "Missing id" }, { status: 400 });
   }
   if (!isNonEmptyString(body.timestamp)) {
     return NextResponse.json({ ok: false, error: "Missing timestamp" }, { status: 400 });
@@ -98,7 +98,7 @@ export async function POST(request: Request) {
   const insertResult = await db
     .insert(appStateEvents)
     .values({
-      id: body.eventId,
+      id: body.id,
       signature,
       interviewer: body.session.interviewer ?? null,
       candidate: body.session.candidate ?? null,

@@ -1,18 +1,20 @@
 import type { Metadata } from "next";
-import { Fraunces, Manrope } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import { ThemeScript } from "@/theme/ThemeScript";
 import { Providers } from "@/app/providers";
-import { Toaster } from "@/components/ui/sonner";
+import { Toaster } from "@/ui/primitives/sonner";
 
-const manrope = Manrope({
-  variable: "--font-manrope",
-  subsets: ["latin"],
-});
-
-const fraunces = Fraunces({
-  variable: "--font-fraunces",
-  subsets: ["latin"],
+const montserrat = localFont({
+  variable: "--font-montserrat",
+  display: "swap",
+  src: [
+    {
+      path: "../../public/fonts/Montserrat/Montserrat-Bold.ttf",
+      weight: "700",
+      style: "normal",
+    },
+  ],
 });
 
 export const metadata: Metadata = {
@@ -30,7 +32,7 @@ export default function RootLayout({
       <head>
         <ThemeScript />
       </head>
-      <body className={`${manrope.variable} ${fraunces.variable} antialiased`}>
+      <body className={`${montserrat.variable} antialiased`}>
         <Providers>
           {children}
           <Toaster />

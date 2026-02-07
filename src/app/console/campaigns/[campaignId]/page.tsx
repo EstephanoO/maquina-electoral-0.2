@@ -3,13 +3,13 @@
 import * as React from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { CampaignConfigDialog } from "@/modules/console/CampaignConfigDialog";
+import { Badge } from "@/ui/primitives/badge";
+import { Button } from "@/ui/primitives/button";
+import { Card } from "@/ui/primitives/card";
+import { CampaignConfigDialog } from "@/ui/console/CampaignConfigDialog";
 import { campaigns } from "@/db/constants";
-import { RoleGate } from "@/modules/shared/RoleGate";
-import { EmptyState } from "@/modules/shared/EmptyState";
+import { RoleGate } from "@/shared/RoleGate";
+import { EmptyState } from "@/ui/shared/EmptyState";
 import { useSessionStore } from "@/stores/session.store";
 
 type DashboardFileSpec = {
@@ -39,12 +39,6 @@ const candidateSlugById: Record<string, string> = {
   "cand-rocio": "rocio",
   "cand-giovanna": "giovanna",
   "cand-guillermo": "guillermo",
-};
-
-const eventByCampaignId: Record<string, string> = {
-  "cand-rocio": "event-rocio-01",
-  "cand-giovanna": "event-giovanna-01",
-  "cand-guillermo": "event-guillermo-01",
 };
 
 const resolveNivel4Hint = (campaignId: string, slug: string) =>
@@ -89,57 +83,17 @@ const buildGeojsonSpecs = (campaignId: string, slug: string): DashboardFileSpec[
 
 const buildDashboards = (campaignId: string): DashboardItem[] => {
   const slug = candidateSlugById[campaignId] ?? "cliente";
-  const eventId = eventByCampaignId[campaignId] ?? "event";
-  const includeGeojsonInAnalytics = campaignId !== "cand-guillermo";
-  const sharedFiles: DashboardFileSpec[] = [
-    {
-      id: "panorama",
-      label: "Informe panoramico (CSV)",
-      accept: ".csv",
-      hint: `/public/${slug}/Informe_panoramico.csv`,
-    },
-    {
-      id: "facebook",
-      label: "Dataset Facebook (JSON)",
-      accept: ".json",
-      hint: `/public/${slug}/dataset_facebook-posts.json`,
-    },
-    ...(includeGeojsonInAnalytics ? buildGeojsonSpecs(campaignId, slug) : []),
-    {
-      id: "landings",
-      label: "Landings / Campanas (XLSX o CSV)",
-      accept: ".xlsx,.csv",
-      hint: `/public/${slug}/Landings.xlsx`,
-    },
-    {
-      id: "photo",
-      label: "Foto del candidato",
-      accept: "image/*",
-      hint: `/public/${slug}/candidato.jpg`,
-      optional: true,
-    },
-  ];
-
   return [
     {
       id: "tierra",
       label: "Dashboard Tierra",
       description: "Recoleccion de datos y operaciones en territorio.",
-      href: `/dashboard/${slug}/tierra/${eventId}`,
+      href: `/dashboard/${slug}/tierra`,
       status: "disponible",
       files: [
         ...buildGeojsonSpecs(campaignId, slug),
       ],
       accent: "from-emerald-400/30 via-sky-300/20 to-transparent",
-    },
-    {
-      id: "analytics",
-      label: "Dashboard Analytics",
-      description: "Panorama digital y performance de campana.",
-      href: `/dashboard/${slug}/analytics`,
-      status: "pendiente",
-      files: sharedFiles,
-      accent: "from-indigo-400/25 via-amber-300/20 to-transparent",
     },
   ];
 };

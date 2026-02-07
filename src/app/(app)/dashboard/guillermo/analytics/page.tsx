@@ -1,4 +1,4 @@
-import DashboardPage from "@/modules/dashboards/guillermo/DashboardPage";
+import DashboardPage from "@/ui/dashboards/guillermo/DashboardPage";
 
 export default function GuillermoAnalyticsPage() {
   return <DashboardPage />;
