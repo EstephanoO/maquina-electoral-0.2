@@ -11,6 +11,9 @@ export const mapStyleLight =
 export const mapStyleDark =
   "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
 
+export const peruTilesUrl = "/api/tiles/peru/{z}/{x}/{y}";
+export const peruTilesVersion = "v2";
+
 export const peruMapStyle: StyleSpecification = {
   version: 8,
   sources: {},
