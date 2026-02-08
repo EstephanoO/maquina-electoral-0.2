@@ -1,0 +1,208 @@
+{
+  "total_brigadistas": 1000,
+  "dias_a_trabajar": 60,
+  "datos_por_brigadista": 3299,
+  "datos_por_dia": 55,
+  "departamentos": [
+    {
+      "id": 1,
+      "departamento": "AMAZONAS",
+      "meta_datos_minima": 14522,
+      "meta_datos_segura": 43567,
+      "distribucion_porcentual": 1.32,
+      "brigadistas": 13
+    },
+    {
+      "id": 2,
+      "departamento": "ANCASH",
+      "meta_datos_minima": 40813,
+      "meta_datos_segura": 122440,
+      "distribucion_porcentual": 3.71,
+      "brigadistas": 37
+    },
+    {
+      "id": 3,
+      "departamento": "APURIMAC",
+      "meta_datos_minima": 15196,
+      "meta_datos_segura": 45587,
+      "distribucion_porcentual": 1.38,
+      "brigadistas": 14
+    },
+    {
+      "id": 4,
+      "departamento": "AREQUIPA",
+      "meta_datos_minima": 51590,
+      "meta_datos_segura": 154771,
+      "distribucion_porcentual": 4.69,
+      "brigadistas": 47
+    },
+    {
+      "id": 5,
+      "departamento": "AYACUCHO",
+      "meta_datos_minima": 21886,
+      "meta_datos_segura": 65658,
+      "distribucion_porcentual": 1.99,
+      "brigadistas": 20
+    },
+    {
+      "id": 6,
+      "departamento": "CAJAMARCA",
+      "meta_datos_minima": 50394,
+      "meta_datos_segura": 151182,
+      "distribucion_porcentual": 4.58,
+      "brigadistas": 46
+    },
+    {
+      "id": 7,
+      "departamento": "CALLAO",
+      "meta_datos_minima": 36255,
+      "meta_datos_segura": 108706,
+      "distribucion_porcentual": 3.3,
+      "brigadistas": 33
+    },
+    {
+      "id": 8,
+      "departamento": "CUSCO",
+      "meta_datos_minima": 47703,
+      "meta_datos_segura": 143110,
+      "distribucion_porcentual": 4.34,
+      "brigadistas": 43
+    },
+    {
+      "id": 9,
+      "departamento": "HUANCAVELICA",
+      "meta_datos_minima": 14208,
+      "meta_datos_segura": 42623,
+      "distribucion_porcentual": 1.29,
+      "brigadistas": 13
+    },
+    {
+      "id": 10,
+      "departamento": "HUANUCO",
+      "meta_datos_minima": 27607,
+      "meta_datos_segura": 82821,
+      "distribucion_porcentual": 2.51,
+      "brigadistas": 25
+    },
+    {
+      "id": 11,
+      "departamento": "ICA",
+      "meta_datos_minima": 30083,
+      "meta_datos_segura": 90248,
+      "distribucion_porcentual": 2.74,
+      "brigadistas": 27
+    },
+    {
+      "id": 12,
+      "departamento": "JUNIN",
+      "meta_datos_minima": 44742,
+      "meta_datos_segura": 134226,
+      "distribucion_porcentual": 4.07,
+      "brigadistas": 41
+    },
+    {
+      "id": 13,
+      "departamento": "LA LIBERTAD",
+      "meta_datos_minima": 65394,
+      "meta_datos_segura": 196183,
+      "distribucion_porcentual": 5.95,
+      "brigadistas": 59
+    },
+    {
+      "id": 14,
+      "departamento": "LAMBAYEQUE",
+      "meta_datos_minima": 44271,
+      "meta_datos_segura": 132813,
+      "distribucion_porcentual": 4.03,
+      "brigadistas": 40
+    },
+    {
+      "id": 15,
+      "departamento": "LIMA",
+      "meta_datos_minima": 364691,
+      "meta_datos_segura": 1094072,
+      "distribucion_porcentual": 33.16,
+      "brigadistas": 332
+    },
+    {
+      "id": 16,
+      "departamento": "LORETO",
+      "meta_datos_minima": 32684,
+      "meta_datos_segura": 98053,
+      "distribucion_porcentual": 2.97,
+      "brigadistas": 30
+    },
+    {
+      "id": 17,
+      "departamento": "MADRE DE DIOS",
+      "meta_datos_minima": 6198,
+      "meta_datos_segura": 18595,
+      "distribucion_porcentual": 0.56,
+      "brigadistas": 6
+    },
+    {
+      "id": 18,
+      "departamento": "MOQUEGUA",
+      "meta_datos_minima": 6919,
+      "meta_datos_segura": 20757,
+      "distribucion_porcentual": 0.63,
+      "brigadistas": 6
+    },
+    {
+      "id": 19,
+      "departamento": "PASCO",
+      "meta_datos_minima": 9438,
+      "meta_datos_segura": 28314,
+      "distribucion_porcentual": 0.86,
+      "brigadistas": 9
+    },
+    {
+      "id": 20,
+      "departamento": "PIURA",
+      "meta_datos_minima": 64564,
+      "meta_datos_segura": 193691,
+      "distribucion_porcentual": 5.87,
+      "brigadistas": 59
+    },
+    {
+      "id": 21,
+      "departamento": "PUNO",
+      "meta_datos_minima": 40602,
+      "meta_datos_segura": 121805,
+      "distribucion_porcentual": 3.69,
+      "brigadistas": 37
+    },
+    {
+      "id": 22,
+      "departamento": "SAN MARTIN",
+      "meta_datos_minima": 30417,
+      "meta_datos_segura": 91251,
+      "distribucion_porcentual": 2.77,
+      "brigadistas": 28
+    },
+    {
+      "id": 23,
+      "departamento": "TACNA",
+      "meta_datos_minima": 12732,
+      "meta_datos_segura": 38196,
+      "distribucion_porcentual": 1.16,
+      "brigadistas": 12
+    },
+    {
+      "id": 24,
+      "departamento": "TUMBES",
+      "meta_datos_minima": 7637,
+      "meta_datos_segura": 22912,
+      "distribucion_porcentual": 0.69,
+      "brigadistas": 7
+    },
+    {
+      "id": 25,
+      "departamento": "UCAYALI",
+      "meta_datos_minima": 19110,
+      "meta_datos_segura": 57329,
+      "distribucion_porcentual": 1.74,
+      "brigadistas": 17
+    }
+  ]
+}

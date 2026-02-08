@@ -4,6 +4,12 @@ import { getGeoIndex } from "./geoIndex";
 
 type LoadStatus = "idle" | "loading" | "ready" | "error";
 
+const normalizeCode = (value: string, length: number) => {
+  const digits = value.replace(/\D/g, "");
+  if (!digits) return value;
+  return digits.padStart(length, "0");
+};
+
 export const useMapHierarchy = () => {
   const [index, setIndex] = React.useState<GeoIndex | null>(null);
   const [status, setStatus] = React.useState<LoadStatus>("idle");
@@ -51,7 +57,8 @@ export const useMapHierarchy = () => {
   const selectDepartmentByCode = React.useCallback(
     (code: string) => {
       if (!index) return;
-      const id = index.byCode.departamento[code];
+      const normalized = normalizeCode(code, 2);
+      const id = index.byCode.departamento[code] ?? index.byCode.departamento[normalized];
       if (!id) return;
       setSelectedDepartmentId(id);
       setSelectedProvinceId(null);
@@ -64,9 +71,15 @@ export const useMapHierarchy = () => {
   const selectProvinceByCodes = React.useCallback(
     (dep: string, prov: string) => {
       if (!index) return;
-      const id = index.byCode.provincia[`${dep}${prov}`];
+      const depCode = normalizeCode(dep, 2);
+      const provCode = normalizeCode(prov, 2);
+      const id =
+        index.byCode.provincia[`${dep}${prov}`] ??
+        index.byCode.provincia[`${depCode}${provCode}`];
       if (!id) return;
-      setSelectedDepartmentId(index.byCode.departamento[dep] ?? null);
+      setSelectedDepartmentId(
+        index.byCode.departamento[dep] ?? index.byCode.departamento[depCode] ?? null,
+      );
       setSelectedProvinceId(id);
       setSelectedDistrictId(null);
       setLevel("distrito");
@@ -77,7 +90,8 @@ export const useMapHierarchy = () => {
   const selectDistrictByCode = React.useCallback(
     (code: string) => {
       if (!index) return;
-      const id = index.byCode.distrito[code];
+      const normalized = normalizeCode(code, 6);
+      const id = index.byCode.distrito[code] ?? index.byCode.distrito[normalized];
       if (!id) return;
       const provinceId = index.nodes[id]?.parentId ?? null;
       const departmentId = provinceId ? index.nodes[provinceId]?.parentId ?? null : null;

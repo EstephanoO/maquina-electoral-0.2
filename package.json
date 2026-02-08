@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "tiles:peru": "bash scripts/generate-peru-tiles.sh",
+    "tiles:peru:load": "bash scripts/load-peru-geojson-to-postgis.sh"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.0.2",

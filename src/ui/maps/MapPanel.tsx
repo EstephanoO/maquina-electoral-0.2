@@ -77,6 +77,9 @@ type MapPanelProps = {
   pointLayerId?: string;
   pointLayerRadius?: number;
   pointLayerOpacity?: number;
+  highlightPoint?: { lat: number; lng: number } | null;
+  overlayPosition?: "left" | "right";
+  showTrackingLabels?: boolean;
 };
 
 export const MapPanel = ({
@@ -106,10 +109,26 @@ export const MapPanel = ({
   pointLayerId,
   pointLayerRadius = 5,
   pointLayerOpacity = 0.92,
+  highlightPoint = null,
+  overlayPosition = "left",
+  showTrackingLabels = true,
 }: MapPanelProps) => {
   const { mode } = useTheme();
   const resolvedStyle = mapStyle ?? (mode === "dark" ? mapStyleDark : mapStyleLight);
-  const showStatus = Boolean(status);
+  const statusMessage = statusLabel ??
+    (status === "loading"
+      ? "Cargando datos"
+      : status === "error"
+        ? "Error al cargar datos"
+        : status === "empty"
+          ? "Sin datos para mostrar"
+          : "");
+  const statusTone =
+    status === "error"
+      ? "border-red-500/40 bg-red-500/15 text-red-100"
+      : status === "loading"
+        ? "border-sky-500/40 bg-sky-500/10 text-slate-50"
+        : "border-slate-200/30 bg-slate-900/40 text-slate-100";
   const [hoveredPoint, setHoveredPoint] = React.useState<MapPoint | null>(null);
   const resolvedPointLayerId = pointLayerId ?? "map-points";
   const pointFeatureCollection = React.useMemo(() => {
@@ -228,6 +247,11 @@ export const MapPanel = ({
         interactiveLayerIds={resolvedInteractiveLayerIds}
         ref={mapRef}
       >
+        {highlightPoint ? (
+          <MapMarker longitude={highlightPoint.lng} latitude={highlightPoint.lat}>
+            <div className="map-pulse" />
+          </MapMarker>
+        ) : null}
         {children}
         {renderPointsAsLayer && pointFeatureCollection ? (
           <Source id={`${resolvedPointLayerId}-source`} type="geojson" data={pointFeatureCollection as any}>
@@ -272,24 +296,26 @@ export const MapPanel = ({
                 ],
               }}
             />
-            <Layer
-              id={`${resolvedPointLayerId}-labels`}
-              type="symbol"
-              filter={["==", ["get", "kind"], "tracking"]}
-              layout={{
-                "text-field": ["get", "interviewer"],
-                "text-size": 11,
-                "text-offset": [0, 1.2],
-                "text-anchor": "top",
-                "text-allow-overlap": true,
-                "text-ignore-placement": true,
-              }}
-              paint={{
-                "text-color": "#f8fafc",
-                "text-halo-color": "rgba(15,23,42,0.75)",
-                "text-halo-width": 1.4,
-              }}
-            />
+            {showTrackingLabels ? (
+              <Layer
+                id={`${resolvedPointLayerId}-labels`}
+                type="symbol"
+                filter={["==", ["get", "kind"], "tracking"]}
+                layout={{
+                  "text-field": ["get", "interviewer"],
+                  "text-size": 11,
+                  "text-offset": [0, 1.2],
+                  "text-anchor": "top",
+                  "text-allow-overlap": true,
+                  "text-ignore-placement": true,
+                }}
+                paint={{
+                  "text-color": "#f8fafc",
+                  "text-halo-color": "rgba(15,23,42,0.75)",
+                  "text-halo-width": 1.4,
+                }}
+              />
+            ) : null}
           </Source>
         ) : (
           points.map((point, index) => (
@@ -331,15 +357,22 @@ export const MapPanel = ({
           {frameOverlay}
         </div>
       ) : null}
-      {overlay ? <div className="absolute bottom-4 left-4 z-10">{overlay}</div> : null}
-      {showStatus ? (
-        <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-background/70 text-xs font-semibold text-foreground">
-          {statusLabel ??
-            (status === "loading"
-              ? "Cargando mapa"
-              : status === "error"
-                ? "Error al cargar mapa"
-                : "Sin datos para mostrar")}
+      {overlay ? (
+        <div
+          className={`absolute z-10 ${
+            overlayPosition === "right" ? "right-4 bottom-4" : "left-4 bottom-4"
+          }`}
+        >
+          {overlay}
+        </div>
+      ) : null}
+      {status ? (
+        <div className="pointer-events-none absolute right-4 top-4 z-20">
+          <div
+            className={`rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] shadow-sm backdrop-blur ${statusTone}`}
+          >
+            {statusMessage}
+          </div>
         </div>
       ) : null}
     </div>

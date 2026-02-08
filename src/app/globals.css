@@ -238,6 +238,39 @@
   background-size: 28px 28px, 28px 28px, cover, cover;
 }
 
+.map-pulse {
+  position: relative;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: rgba(255, 200, 0, 0.9);
+  box-shadow: 0 0 0 0 rgba(255, 200, 0, 0.6);
+  animation: map-pulse-ring 1.6s ease-out 1;
+}
+
+.map-pulse::after {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  border-radius: 999px;
+  background: #163960;
+}
+
+@keyframes map-pulse-ring {
+  0% {
+    transform: scale(0.75);
+    box-shadow: 0 0 0 0 rgba(255, 200, 0, 0.6);
+  }
+  70% {
+    transform: scale(1.15);
+    box-shadow: 0 0 0 18px rgba(255, 200, 0, 0);
+  }
+  100% {
+    transform: scale(1.15);
+    box-shadow: 0 0 0 22px rgba(255, 200, 0, 0);
+  }
+}
+
 .dark .map-grid {
   background-image:
     linear-gradient(90deg, rgba(255, 255, 255, 0.06) 1px, transparent 1px),

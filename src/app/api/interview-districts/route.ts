@@ -1,0 +1,53 @@
+import { NextResponse } from "next/server";
+import { sql } from "drizzle-orm";
+import { db } from "@/db/connection";
+
+const clientToCandidate: Record<string, string> = {
+  rocio: "Rocio Porras",
+  giovanna: "Giovanna Castagnino",
+  guillermo: "Guillermo Aliaga",
+};
+
+const cacheHeaders = {
+  "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
+};
+
+export async function GET(request: Request) {
+  const url = new URL(request.url);
+  const candidateParam = url.searchParams.get("candidate");
+  const clientParam = url.searchParams.get("client");
+  const resolvedCandidate =
+    (clientParam ? clientToCandidate[clientParam] : null) ?? candidateParam;
+
+  const query = resolvedCandidate
+    ? sql`
+      SELECT DISTINCT d.ubigeo AS code
+      FROM public.peru_distritos d
+      JOIN public.territory t
+        ON t.latitude IS NOT NULL
+       AND t.longitude IS NOT NULL
+       AND t.candidate = ${resolvedCandidate}
+       AND ST_Intersects(
+         d.geom3857,
+         ST_Transform(ST_SetSRID(ST_MakePoint(t.longitude, t.latitude), 4326), 3857)
+       )
+    `
+    : sql`
+      SELECT DISTINCT d.ubigeo AS code
+      FROM public.peru_distritos d
+      JOIN public.territory t
+        ON t.latitude IS NOT NULL
+       AND t.longitude IS NOT NULL
+       AND ST_Intersects(
+         d.geom3857,
+         ST_Transform(ST_SetSRID(ST_MakePoint(t.longitude, t.latitude), 4326), 3857)
+       )
+    `;
+
+  const { rows } = await db.execute(query);
+  const districts = rows
+    .map((row) => (row as { code?: string | null }).code)
+    .filter((value): value is string => Boolean(value));
+
+  return NextResponse.json({ districts }, { status: 200, headers: cacheHeaders });
+}

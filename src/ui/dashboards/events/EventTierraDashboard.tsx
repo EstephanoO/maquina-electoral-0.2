@@ -8,7 +8,10 @@ import { EmptyState } from "@/ui/shared/EmptyState";
 import { LoadingState } from "@/ui/shared/LoadingState";
 
 const EventMapDashboard = dynamic(
-  () => import("@/ui/dashboards/events/EventMapDashboard").then((mod) => mod.EventMapDashboard),
+  () =>
+    import("@/dashboards/events/containers/EventMapDashboard").then(
+      (mod) => mod.EventMapDashboard,
+    ),
   {
     ssr: false,
     loading: () => <LoadingState title="Cargando dashboard" />,
@@ -26,10 +29,6 @@ const slugToCampaignId: Record<string, string> = {
 };
 
 export const EventTierraDashboard = ({ client }: EventTierraDashboardProps) => {
-  const [mounted, setMounted] = React.useState(false);
-  React.useEffect(() => {
-    setMounted(true);
-  }, []);
   const activeCampaignId = useSessionStore((state) => state.activeCampaignId);
   const campaigns = useCampaignsStore((state) => state.campaigns);
   const campaignProfiles = useCampaignsStore((state) => state.campaignProfiles);
@@ -39,10 +38,6 @@ export const EventTierraDashboard = ({ client }: EventTierraDashboardProps) => {
     [campaigns, resolvedCampaignId],
   );
   const campaignProfile = resolvedCampaignId ? campaignProfiles[resolvedCampaignId] : undefined;
-
-  if (!mounted) {
-    return <LoadingState title="Cargando dashboard" />;
-  }
 
   if (!campaign) {
     return <EmptyState title="Dashboard no disponible" description="Revisa el cliente." />;
@@ -54,7 +49,6 @@ export const EventTierraDashboard = ({ client }: EventTierraDashboardProps) => {
   return (
     <EventMapDashboard
       eventTitle={campaign.name}
-      eventSubtitle="Actualizacion en tiempo real"
       candidateLabels={candidateLabels}
       campaignId={campaign.id}
       clientKey={client}
