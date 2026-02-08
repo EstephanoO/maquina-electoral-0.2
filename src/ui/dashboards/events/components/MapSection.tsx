@@ -1,7 +1,8 @@
 import * as React from "react";
+import dynamic from "next/dynamic";
 import { Card } from "@/ui/primitives/card";
 import { Button } from "@/ui/primitives/button";
-import { PeruMapPanel } from "@/ui/maps/PeruMapPanel";
+import { Maximize2 } from "lucide-react";
 import type { MapRef } from "@vis.gl/react-maplibre";
 import type { MapPoint } from "@/dashboards/events/utils/dataUtils";
 import type {
@@ -11,18 +12,32 @@ import type {
 } from "@/maps/hierarchy/types";
 import useSWR from "swr";
 
+const PeruMapPanel = dynamic(
+  () => import("@/ui/maps/PeruMapPanel").then((mod) => mod.PeruMapPanel),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-full w-full rounded-2xl border border-border/60 bg-muted/20" />
+    ),
+  },
+);
+
 interface MapSectionProps {
   points: MapPoint[];
   hierarchyPoints?: MapPoint[];
+  interviewDistrictCodes?: string[];
   candidateLabels: string[];
   mapStatus: "loading" | "error" | "empty" | undefined;
   mapRef: React.MutableRefObject<MapRef | null>;
   resetMapView: (() => void) | null;
   setResetMapView: React.Dispatch<React.SetStateAction<(() => void) | null>>;
   withLocation: number;
+  className?: string;
+  style?: React.CSSProperties;
   showLegend?: boolean;
   focusPoint?: { lat: number; lng: number } | null;
   onClearFocusPoint?: () => void;
+  highlightPoint?: { lat: number; lng: number } | null;
   campaignId?: string | null;
   onHierarchySelectionChange?: (selection: MapHierarchySelection) => void;
   viewMode?: "tracking" | "interview";
@@ -32,15 +47,19 @@ interface MapSectionProps {
 export const MapSection: React.FC<MapSectionProps> = ({
   points,
   hierarchyPoints,
+  interviewDistrictCodes,
   candidateLabels,
   mapStatus,
   mapRef,
   resetMapView,
   setResetMapView,
   withLocation,
+  className,
+  style,
   showLegend = true,
   focusPoint,
   onClearFocusPoint,
+  highlightPoint,
   campaignId,
   onHierarchySelectionChange,
   viewMode = "tracking",
@@ -50,6 +69,7 @@ export const MapSection: React.FC<MapSectionProps> = ({
   const [currentLevel, setCurrentLevel] = React.useState<GeoLevel>("departamento");
   const isGiovanna = campaignId === "cand-giovanna";
   const [mapSelection, setMapSelection] = React.useState<MapHierarchySelection | null>(null);
+  const shouldHighlightPoints = Boolean(hierarchyPoints && hierarchyPoints.length > 0);
   const getPointColor = React.useCallback((point: MapPoint) => {
     if (point.kind === "tracking") {
       if (point.status === "connected") return "#10b981";
@@ -243,8 +263,25 @@ export const MapSection: React.FC<MapSectionProps> = ({
     [onHierarchySelectionChange],
   );
 
+  const containerRef = React.useRef<HTMLDivElement | null>(null);
+  const handleFullscreen = React.useCallback(() => {
+    const target = containerRef.current;
+    if (!target) return;
+    if (document.fullscreenElement) {
+      document.exitFullscreen?.();
+    } else {
+      target.requestFullscreen?.();
+    }
+  }, []);
+
   return (
-    <div className="relative h-[72vh] min-h-[600px] overflow-hidden rounded-[28px] border border-border/50 bg-card/60 shadow-[0_28px_70px_rgba(15,23,42,0.18)]">
+    <div
+      ref={containerRef}
+      className={`relative overflow-hidden rounded-[28px] border border-border/50 bg-card/60 shadow-[0_28px_70px_rgba(15,23,42,0.18)] ${
+        className ?? "h-[72vh] min-h-[600px]"
+      }`}
+      style={style}
+    >
       <div className="pointer-events-none absolute inset-0 rounded-[28px] bg-[radial-gradient(circle_at_top,_rgba(96,165,250,0.16),_transparent_55%)]" />
       <div className="pointer-events-none absolute inset-0 rounded-[28px] bg-[linear-gradient(180deg,_rgba(15,23,42,0.14),_transparent_35%)] dark:bg-[linear-gradient(180deg,_rgba(2,6,23,0.6),_transparent_35%)]" />
       <div className="sr-only">{withLocation} puntos activos</div>
@@ -265,7 +302,7 @@ export const MapSection: React.FC<MapSectionProps> = ({
               className="h-7 rounded-full px-3 text-[11px]"
               onClick={() => onSetViewMode("interview")}
             >
-              Entrevistas
+              Datos
             </Button>
           </div>
         </div>
@@ -291,6 +328,18 @@ export const MapSection: React.FC<MapSectionProps> = ({
           </div>
         </div>
       ) : null}
+      <div className="absolute right-5 top-5 left-auto z-20">
+        <Button
+          size="icon"
+          variant="outline"
+          className="h-9 w-9"
+          onClick={handleFullscreen}
+          aria-label="Pantalla completa"
+          title="Pantalla completa"
+        >
+          <Maximize2 className="h-4 w-4" />
+        </Button>
+      </div>
       <PeruMapPanel
         height={null}
         className="h-full w-full rounded-2xl"
@@ -302,10 +351,15 @@ export const MapSection: React.FC<MapSectionProps> = ({
         useStreetBase={showStreetBase}
         restrictToPeru
         enablePointTooltip
+        showTrackingLabels={viewMode !== "tracking"}
         focusPoint={focusPoint}
         onClearFocusPoint={onClearFocusPoint}
+        highlightPoint={highlightPoint}
+        overlayPosition="right"
         onHierarchyLevelChange={setCurrentLevel}
         onHierarchySelectionChange={handleHierarchySelectionChange}
+        interviewDistrictCodes={interviewDistrictCodes}
+        highlightPoints={shouldHighlightPoints}
         clientGeojson={activeSectorGeojson ?? activeGeojson}
         clientGeojsonMeta={activeMeta}
         clientGeojsonLayers={resolvedClientLayers}
