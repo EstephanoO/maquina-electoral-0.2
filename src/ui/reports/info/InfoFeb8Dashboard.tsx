@@ -21,7 +21,7 @@ import {
 } from "@/ui/primitives/table";
 
 const DEFAULT_MESSAGE =
-  "Hola, somos el equipo de Somos Peru. Gracias por tu tiempo. Queremos compartirte una breve actualizacion del trabajo en campo.";
+  "Hola {nombre}, somos el equipo de Somos Peru. Gracias por tu tiempo. Queremos compartirte una breve actualizacion del trabajo en campo.";
 const LOADING_ROW_KEYS = [
   "loading-1",
   "loading-2",
@@ -84,6 +84,12 @@ const buildWhatsappUrl = (phone: string, message: string) => {
   const digits = normalizePhone(phone);
   const text = encodeURIComponent(message.trim());
   return `https://wa.me/51${digits}?text=${text}`;
+};
+
+const buildWhatsappMessage = (template: string, name: string) => {
+  const trimmedName = name.trim();
+  const personalized = template.replaceAll("{nombre}", trimmedName);
+  return personalized.replace(/\s+,/g, ",").replace(/\s{2,}/g, " ").trim();
 };
 
 const formatDateTime = (timestamp: string) => {
@@ -478,7 +484,8 @@ export default function InfoFeb8Dashboard() {
                 className="min-h-[120px] rounded-2xl border-border/60 bg-card/70"
               />
               <p className="text-xs text-muted-foreground">
-                Se aplica al abrir WhatsApp desde cualquier fila.
+                Se aplica al abrir WhatsApp desde cualquier fila. Usa {"{nombre}"} para
+                insertar el nombre del entrevistado.
               </p>
             </div>
           </details>
@@ -588,7 +595,14 @@ export default function InfoFeb8Dashboard() {
                                         type="button"
                                         className="inline-flex min-h-[40px] items-center rounded-full border border-[#163960]/30 px-3 py-2 text-sm font-semibold text-[#163960] transition hover:border-[#25D366] hover:text-[#1a8d44]"
                                         onClick={() => {
-                                          const url = buildWhatsappUrl(record.phone, message);
+                                          const personalizedMessage = buildWhatsappMessage(
+                                            message,
+                                            record.name,
+                                          );
+                                          const url = buildWhatsappUrl(
+                                            record.phone,
+                                            personalizedMessage,
+                                          );
                                           window.open(url, "_blank", "noopener,noreferrer");
                                         }}
                                         title="Abrir WhatsApp"
