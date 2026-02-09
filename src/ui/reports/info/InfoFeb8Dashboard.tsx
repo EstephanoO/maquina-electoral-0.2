@@ -117,9 +117,12 @@ export default function InfoFeb8Dashboard() {
     saveTimerRef.current = window.setTimeout(() => setSavePulse(false), 1800);
   }, []);
 
-  const fetchRecords = React.useCallback(async () => {
-    setLoading(true);
-    setError(null);
+  const fetchRecords = React.useCallback(async (options?: { silent?: boolean }) => {
+    const silent = options?.silent ?? false;
+    if (!silent) {
+      setLoading(true);
+      setError(null);
+    }
     try {
       const response = await fetch("/api/info/8-febrero", { cache: "no-store" });
       if (!response.ok) throw new Error("No se pudo cargar los registros.");
@@ -158,9 +161,13 @@ export default function InfoFeb8Dashboard() {
       if (!isMountedRef.current) return;
       setError(err instanceof Error ? err.message : "Error inesperado.");
     } finally {
-      if (isMountedRef.current) setLoading(false);
+      if (!silent && isMountedRef.current) setLoading(false);
     }
   }, []);
+
+  const handleRetry = React.useCallback(() => {
+    void fetchRecords();
+  }, [fetchRecords]);
 
   React.useEffect(() => {
     fetchRecords();
@@ -170,41 +177,12 @@ export default function InfoFeb8Dashboard() {
   }, [fetchRecords]);
 
   React.useEffect(() => {
-    if (typeof window === "undefined") return;
-    const source = new EventSource("/api/info/8-febrero/stream");
-    const handleUpdate = (event: MessageEvent) => {
-      try {
-        const payload = JSON.parse(event.data) as {
-          phone: string;
-          contacted: boolean;
-          replied: boolean;
-          updatedAt: number;
-        };
-        const key = normalizePhone(payload.phone);
-        setStatusMap((current) => ({
-          ...current,
-          [key]: {
-            contacted: payload.contacted,
-            replied: payload.replied,
-            updatedAt: payload.updatedAt,
-          },
-        }));
-        triggerSavePulse();
-      } catch {
-        // ignore malformed payloads
-      }
-    };
-    source.addEventListener("status:update", handleUpdate as EventListener);
-    source.addEventListener("ready", triggerSavePulse as EventListener);
-    source.onerror = () => {
-      // no-op: keep current state, rely on manual refresh if needed
-    };
-    return () => {
-      source.removeEventListener("status:update", handleUpdate as EventListener);
-      source.removeEventListener("ready", triggerSavePulse as EventListener);
-      source.close();
-    };
-  }, [triggerSavePulse]);
+    if (typeof window === "undefined") return undefined;
+    const interval = window.setInterval(() => {
+      void fetchRecords({ silent: true });
+    }, 2000);
+    return () => window.clearInterval(interval);
+  }, [fetchRecords]);
 
   React.useEffect(() => {
     return () => {
@@ -558,7 +536,7 @@ export default function InfoFeb8Dashboard() {
                                 <p>{error}</p>
                                 <button
                                   type="button"
-                                  onClick={fetchRecords}
+                                  onClick={handleRetry}
                                   className="min-h-[36px] rounded-full border border-red-500/40 px-4 text-xs font-semibold uppercase tracking-[0.16em] text-red-500 transition hover:border-red-500"
                                 >
                                   Reintentar
