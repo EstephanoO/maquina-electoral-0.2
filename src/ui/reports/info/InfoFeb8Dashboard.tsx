@@ -88,7 +88,8 @@ const buildWhatsappUrl = (phone: string, message: string) => {
 
 const buildWhatsappMessage = (template: string, name: string) => {
   const trimmedName = name.trim();
-  const personalized = template.replaceAll("{nombre}", trimmedName);
+  const firstName = trimmedName.split(/\s+/).filter(Boolean)[0] ?? "";
+  const personalized = template.replaceAll("{nombre}", firstName);
   return personalized.replace(/\s+,/g, ",").replace(/\s{2,}/g, " ").trim();
 };
 
