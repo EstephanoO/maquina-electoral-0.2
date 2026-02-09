@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
+import { kv } from "@vercel/kv";
 import { db } from "@/db/connection";
 
 type RouteParams = {
@@ -9,12 +10,19 @@ type RouteParams = {
 export const runtime = "nodejs";
 
 const cacheHeaders = {
-  "Cache-Control": "public, s-maxage=604800, stale-while-revalidate=1209600",
+  "Cache-Control": "public, s-maxage=2592000, stale-while-revalidate=604800",
+  "CDN-Cache-Control": "public, s-maxage=2592000, stale-while-revalidate=604800",
+  "Vercel-CDN-Cache-Control": "public, s-maxage=2592000, stale-while-revalidate=604800",
   "Content-Type": "application/x-protobuf",
 };
 
-const TILE_CACHE_LIMIT = 4000;
+const TILE_CACHE_LIMIT = 2000;
 const TILE_CACHE_TTL_MS = 2 * 60 * 60 * 1000;
+const TILE_KV_TTL_SECONDS = 60 * 60 * 24 * 30;
+const TILE_KV_EMPTY = "__empty__";
+
+const isKvAvailable = () =>
+  Boolean(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
 
 type TileCacheEntry = {
   buffer: Buffer | null;
@@ -91,6 +99,28 @@ export async function GET(request: Request, { params }: RouteParams) {
       return new NextResponse(null, { status: 204, headers: cacheHeaders });
     }
     return buildTileResponse(cached.buffer);
+  }
+
+  if (isKvAvailable()) {
+    const kvKey = `peru-tiles:${cacheKey}`;
+    const kvValue = await kv.get<string>(kvKey);
+    if (kvValue === TILE_KV_EMPTY) {
+      writeToCache(tileCache, cacheKey, {
+        buffer: null,
+        status: 204,
+        expiresAt: Date.now() + TILE_CACHE_TTL_MS,
+      });
+      return new NextResponse(null, { status: 204, headers: cacheHeaders });
+    }
+    if (kvValue) {
+      const buffer = Buffer.from(kvValue, "base64");
+      writeToCache(tileCache, cacheKey, {
+        buffer,
+        status: 200,
+        expiresAt: Date.now() + TILE_CACHE_TTL_MS,
+      });
+      return buildTileResponse(buffer);
+    }
   }
 
   const query =
@@ -261,6 +291,11 @@ export async function GET(request: Request, { params }: RouteParams) {
 
   const tileBase64 = rows[0]?.tile as string | undefined;
   if (!tileBase64) {
+    if (isKvAvailable()) {
+      await kv.set(`peru-tiles:${cacheKey}`, TILE_KV_EMPTY, {
+        ex: TILE_KV_TTL_SECONDS,
+      });
+    }
     writeToCache(tileCache, cacheKey, {
       buffer: null,
       status: 204,
@@ -271,12 +306,23 @@ export async function GET(request: Request, { params }: RouteParams) {
 
   const buffer = Buffer.from(tileBase64, "base64");
   if (buffer.length === 0) {
+    if (isKvAvailable()) {
+      await kv.set(`peru-tiles:${cacheKey}`, TILE_KV_EMPTY, {
+        ex: TILE_KV_TTL_SECONDS,
+      });
+    }
     writeToCache(tileCache, cacheKey, {
       buffer: null,
       status: 204,
       expiresAt: Date.now() + TILE_CACHE_TTL_MS,
     });
     return new NextResponse(null, { status: 204, headers: cacheHeaders });
+  }
+
+  if (isKvAvailable()) {
+    await kv.set(`peru-tiles:${cacheKey}`, tileBase64, {
+      ex: TILE_KV_TTL_SECONDS,
+    });
   }
 
   writeToCache(tileCache, cacheKey, {

@@ -10,6 +10,7 @@ import {
   mapStyleDark,
   mapStyleLight,
   peruTilesUrl,
+  peruTilesVersion,
 } from "@/maps/mapConfig";
 import { useTheme } from "@/theme/ThemeProvider";
 import { MapHierarchyTileLayers } from "@/ui/maps/hierarchy/MapHierarchyTileLayers";
@@ -329,7 +330,11 @@ export const PeruMapPanel = ({
 
       const responses = await Promise.allSettled(
         uniqueTiles.map((item) =>
-          fetch(`${baseUrl.replace("{z}", String(clampedZoom)).replace("{x}", String(item.x)).replace("{y}", String(item.y))}?layer=${layerParam}`,
+          fetch(
+            `${baseUrl
+              .replace("{z}", String(clampedZoom))
+              .replace("{x}", String(item.x))
+              .replace("{y}", String(item.y))}?layer=${layerParam}&v=${peruTilesVersion}`,
             { signal },
           ),
         ),
@@ -368,6 +373,37 @@ export const PeruMapPanel = ({
       controller.abort();
     };
   }, [level, mapReady, prefetchTilesForLevel, renderedLevel]);
+
+  React.useEffect(() => {
+    if (!mapReady) return;
+    const nextLevel =
+      renderedLevel === "departamento"
+        ? "provincia"
+        : renderedLevel === "provincia"
+          ? "distrito"
+          : null;
+    if (!nextLevel) return;
+    const controller = new AbortController();
+    const runPrefetch = () => {
+      void prefetchTilesForLevel(nextLevel, controller.signal);
+    };
+    const runtime = globalThis as typeof globalThis & {
+      requestIdleCallback?: (callback: () => void, options?: { timeout: number }) => number;
+      cancelIdleCallback?: (handle: number) => void;
+    };
+    if (runtime.requestIdleCallback) {
+      const id = runtime.requestIdleCallback(runPrefetch, { timeout: 2000 });
+      return () => {
+        runtime.cancelIdleCallback?.(id);
+        controller.abort();
+      };
+    }
+    const timeout = setTimeout(runPrefetch, 600);
+    return () => {
+      clearTimeout(timeout);
+      controller.abort();
+    };
+  }, [mapReady, prefetchTilesForLevel, renderedLevel]);
 
 
   const allowedGeoCodes = React.useMemo(() => {
