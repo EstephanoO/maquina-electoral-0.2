@@ -132,3 +132,24 @@ export const appStateCurrent = pgTable("app_state_current", {
   appVersion: text("app_version"),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+export const infoFeb8Registros = pgTable("info_feb8_registros", {
+  sourceId: text("source_id").primaryKey(),
+  recordedAt: timestamp("recorded_at", { withTimezone: true }),
+  interviewer: text("interviewer"),
+  supervisor: text("supervisor"),
+  name: text("name"),
+  phone: text("phone"),
+  east: doublePrecision("east"),
+  north: doublePrecision("north"),
+  latitude: doublePrecision("latitude"),
+  longitude: doublePrecision("longitude"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
+
+export const infoFeb8Status = pgTable("info_feb8_status", {
+  phone: text("phone").primaryKey(),
+  contacted: boolean("contacted").notNull().default(false),
+  replied: boolean("replied").notNull().default(false),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
