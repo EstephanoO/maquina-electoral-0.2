@@ -3,6 +3,7 @@ import type { EventRecord } from "@/ui/dashboards/events/EventRecordsDialog";
 export interface MapPoint {
   lat: number;
   lng: number;
+  id?: string | null;
   candidate?: string | null;
   interviewer?: string | null;
   name?: string | null;
@@ -31,6 +32,7 @@ export const convertRowsToPoints = (rows: EventRecord[]): MapPoint[] => {
       points.push({
         lat: row.latitude as number,
         lng: row.longitude as number,
+        id: row.id ?? null,
         candidate: row.candidate ?? null,
         interviewer: row.interviewer ?? null,
         name: row.name ?? null,
