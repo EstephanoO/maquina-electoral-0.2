@@ -153,3 +153,26 @@ export const infoFeb8Status = pgTable("info_feb8_status", {
   replied: boolean("replied").notNull().default(false),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+export const infoFeb8GuillermoStatus = pgTable("info_feb8_status_guillermo", {
+  phone: text("phone").primaryKey(),
+  contacted: boolean("contacted").notNull().default(false),
+  replied: boolean("replied").notNull().default(false),
+  deleted: boolean("deleted").notNull().default(false),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const infoFeb8GuillermoRegistros = pgTable("info_feb8_registros_guillermo", {
+  sourceId: text("source_id").primaryKey(),
+  interviewer: text("interviewer"),
+  candidate: text("candidate"),
+  name: text("name"),
+  phone: text("phone"),
+  signature: text("signature"),
+  east: doublePrecision("east"),
+  north: doublePrecision("north"),
+  latitude: doublePrecision("latitude"),
+  longitude: doublePrecision("longitude"),
+  recordedAt: timestamp("recorded_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
