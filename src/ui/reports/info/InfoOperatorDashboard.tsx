@@ -109,7 +109,6 @@ type LinkDraft = {
 
 export default function InfoOperatorDashboard({ operatorSlug }: InfoOperatorDashboardProps) {
   const headerRef = React.useRef<HTMLElement | null>(null);
-  const previousThemeRef = React.useRef<"light" | "dark" | null>(null);
   const { operators, isLoading: operatorsLoading } = useOperators();
   const operator = operators.find((item) => item.slug === operatorSlug);
   const operatorId = operator?.id ?? null;
@@ -191,14 +190,8 @@ export default function InfoOperatorDashboard({ operatorSlug }: InfoOperatorDash
 
   React.useLayoutEffect(() => {
     if (typeof document === "undefined") return undefined;
-    const isDark = document.documentElement.classList.contains("dark");
-    previousThemeRef.current = isDark ? "dark" : "light";
     applyTheme("light");
-    return () => {
-      if (previousThemeRef.current) {
-        applyTheme(previousThemeRef.current);
-      }
-    };
+    return undefined;
   }, []);
 
   const statusCounts = React.useMemo(() => {

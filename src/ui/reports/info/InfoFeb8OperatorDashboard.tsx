@@ -147,7 +147,6 @@ export default function InfoFeb8OperatorDashboard({
   config,
 }: InfoFeb8OperatorDashboardProps) {
   const headerRef = React.useRef<HTMLElement | null>(null);
-  const previousThemeRef = React.useRef<"light" | "dark" | null>(null);
   const [records, setRecords] = React.useState<InterviewRecord[]>([]);
   const [message, setMessage] = React.useState(DEFAULT_MESSAGE);
   const [loading, setLoading] = React.useState(true);
@@ -280,14 +279,8 @@ export default function InfoFeb8OperatorDashboard({
 
   React.useLayoutEffect(() => {
     if (typeof document === "undefined") return undefined;
-    const isDark = document.documentElement.classList.contains("dark");
-    previousThemeRef.current = isDark ? "dark" : "light";
     applyTheme("light");
-    return () => {
-      if (previousThemeRef.current) {
-        applyTheme(previousThemeRef.current);
-      }
-    };
+    return undefined;
   }, []);
 
   const statusCounts = React.useMemo(() => {
