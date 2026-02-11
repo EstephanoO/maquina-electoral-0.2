@@ -1,0 +1,166 @@
+{
+  "filas": [
+    {
+      "departamento": "ICA",
+      "provincia": "PISCO",
+      "distrito": "TUPAC AMARU INCA",
+      "electores": 12974,
+      "datos_a_recopilar": 1000,
+      "porcentaje": 7.71
+    },
+    {
+      "departamento": "ICA",
+      "provincia": "PISCO",
+      "distrito": "PISCO",
+      "electores": 54183,
+      "datos_a_recopilar": 5000,
+      "porcentaje": 9.23
+    },
+    {
+      "departamento": "ICA",
+      "provincia": "PISCO",
+      "distrito": "SAN CLEMENTE",
+      "electores": 18086,
+      "datos_a_recopilar": 1000,
+      "porcentaje": 5.53
+    },
+    {
+      "departamento": "ICA",
+      "provincia": "CHINCHA",
+      "distrito": "CHINCHA ALTA",
+      "electores": 63131,
+      "datos_a_recopilar": 6000,
+      "porcentaje": 9.5
+    },
+    {
+      "departamento": "ICA",
+      "provincia": "CHINCHA",
+      "distrito": "SUNAMPE",
+      "electores": 20995,
+      "datos_a_recopilar": 2000,
+      "porcentaje": 9.53
+    },
+    {
+      "departamento": "ICA",
+      "provincia": "CHINCHA",
+      "distrito": "PUEBLO NUEVO",
+      "electores": 41064,
+      "datos_a_recopilar": 4000,
+      "porcentaje": 9.74
+    },
+    {
+      "departamento": "LIMA",
+      "provincia": "LIMA",
+      "distrito": "SANTA ROSA",
+      "electores": 19577,
+      "datos_a_recopilar": 2000,
+      "porcentaje": 10.22
+    },
+    {
+      "departamento": "LIMA",
+      "provincia": "LIMA",
+      "distrito": "ANCON",
+      "electores": 48210,
+      "datos_a_recopilar": 4000,
+      "porcentaje": 8.3
+    },
+    {
+      "departamento": "LIMA",
+      "provincia": "LIMA",
+      "distrito": "PUENTE PIEDRA",
+      "electores": 263049,
+      "datos_a_recopilar": 18000,
+      "porcentaje": 6.84
+    },
+    {
+      "departamento": "LIMA",
+      "provincia": "HUARAL",
+      "distrito": "AUCALLAMA",
+      "electores": 14727,
+      "datos_a_recopilar": 2000,
+      "porcentaje": 13.58
+    },
+    {
+      "departamento": "LIMA",
+      "provincia": "HUARAL",
+      "distrito": "HUARAL",
+      "electores": 87907,
+      "datos_a_recopilar": 8000,
+      "porcentaje": 9.1
+    },
+    {
+      "departamento": "LIMA",
+      "provincia": "HUARAL",
+      "distrito": "CHANCAY",
+      "electores": 51741,
+      "datos_a_recopilar": 5000,
+      "porcentaje": 9.66
+    },
+    {
+      "departamento": "LIMA",
+      "provincia": "HUAURA",
+      "distrito": "HUACHO",
+      "electores": 56677,
+      "datos_a_recopilar": 5000,
+      "porcentaje": 8.82
+    },
+    {
+      "departamento": "LIMA",
+      "provincia": "HUAURA",
+      "distrito": "SANTA MARIA",
+      "electores": 31578,
+      "datos_a_recopilar": 3000,
+      "porcentaje": 9.5
+    },
+    {
+      "departamento": "LIMA",
+      "provincia": "HUAURA",
+      "distrito": "HUALMAY",
+      "electores": 22038,
+      "datos_a_recopilar": 2000,
+      "porcentaje": 9.08
+    },
+    {
+      "departamento": "LIMA",
+      "provincia": "HUAURA",
+      "distrito": "HUAURA",
+      "electores": 28286,
+      "datos_a_recopilar": 3000,
+      "porcentaje": 10.61
+    },
+    {
+      "departamento": "LIMA",
+      "provincia": "BARRANCA",
+      "distrito": "BARRANCA",
+      "electores": 57044,
+      "datos_a_recopilar": 5000,
+      "porcentaje": 8.77
+    },
+    {
+      "departamento": "LIMA",
+      "provincia": "BARRANCA",
+      "distrito": "PATIVILCA",
+      "electores": 15304,
+      "datos_a_recopilar": 2000,
+      "porcentaje": 13.07
+    },
+    {
+      "departamento": "LIMA",
+      "provincia": "BARRANCA",
+      "distrito": "PARAMONGA",
+      "electores": 19335,
+      "datos_a_recopilar": 2000,
+      "porcentaje": 10.34
+    }
+  ],
+  "resumen": {
+    "total": {
+      "electores": 925906,
+      "datos_a_recopilar": 80000
+    },
+    "meta": {
+      "datos_a_recopilar": 80000,
+      "porcentaje": 100.0
+    }
+  }
+}
