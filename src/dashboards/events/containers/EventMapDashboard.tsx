@@ -20,9 +20,17 @@ import {
 import type { MapHierarchySelection } from "@/maps/hierarchy/types";
 import objectiveSp from "@/objetive-sp.json";
 import votosRocio from "@/lib/votos_rocio.json";
+import datosGiovanna from "@/db/constants/datos-giovanna.json";
 import { EventMapDashboardView } from "@/ui/dashboards/events/EventMapDashboardView";
 
 type RocioRecord = {
+  departamento?: string;
+  provincia?: string;
+  distrito?: string;
+  datos_a_recopilar?: number;
+};
+
+type GiovannaRecord = {
   departamento?: string;
   provincia?: string;
   distrito?: string;
@@ -63,6 +71,7 @@ export const EventMapDashboard = ({
   hideMapLegend = false,
 }: EventMapDashboardProps) => {
   const isRocio = clientKey === "rocio";
+  const isGiovanna = clientKey === "giovanna";
   const dataGoalOverride = isRocio ? 80000 : null;
   const [mapSelection, setMapSelection] = React.useState<MapHierarchySelection | null>(null);
   const [mapViewMode, setMapViewMode] = React.useState<"tracking" | "interview">(
@@ -251,6 +260,57 @@ export const EventMapDashboard = ({
     normalizeDepartmentName,
   ]);
 
+  const giovannaMetaGoal = React.useMemo(() => {
+    if (!isGiovanna) return null;
+    const payload = datosGiovanna as {
+      registros?: GiovannaRecord[];
+      resumen?: { total_datos_a_recopilar?: number };
+    };
+    const records = payload.registros ?? [];
+    const summaryTotal = Number(payload.resumen?.total_datos_a_recopilar) || 0;
+    if (records.length === 0) return summaryTotal || null;
+    const totalRecords = records.reduce(
+      (acc, item) => acc + (Number(item.datos_a_recopilar) || 0),
+      0,
+    );
+    const depKey = normalizeDepartmentName(mapSelection?.depName);
+    const provKey = normalizeDepartmentName(mapSelection?.provName);
+    const distKey = normalizeDepartmentName(mapSelection?.distName);
+    let sum = 0;
+
+    for (const item of records) {
+      const dep = normalizeDepartmentName(item.departamento);
+      const prov = normalizeDepartmentName(item.provincia);
+      const dist = normalizeDepartmentName(item.distrito);
+      if (distKey) {
+        if (depKey && dep !== depKey) continue;
+        if (provKey && prov !== provKey) continue;
+        if (dist !== distKey) continue;
+        sum += Number(item.datos_a_recopilar) || 0;
+        continue;
+      }
+      if (provKey) {
+        if (depKey && dep !== depKey) continue;
+        if (prov !== provKey) continue;
+        sum += Number(item.datos_a_recopilar) || 0;
+        continue;
+      }
+      if (depKey) {
+        if (dep !== depKey) continue;
+        sum += Number(item.datos_a_recopilar) || 0;
+      }
+    }
+
+    if (distKey || provKey || depKey) return sum;
+    return summaryTotal || totalRecords;
+  }, [
+    isGiovanna,
+    mapSelection?.depName,
+    mapSelection?.distName,
+    mapSelection?.provName,
+    normalizeDepartmentName,
+  ]);
+
   const objectiveByDepartment = React.useMemo(() => {
     const map = new Map<string, number>();
     for (const item of objectiveSp.departamentos ?? []) {
@@ -324,6 +384,10 @@ export const EventMapDashboard = ({
       if (typeof rocioMetaGoal === "number") return rocioMetaGoal;
       return dataGoalOverride ?? (Number(dataGoal) || 0);
     }
+    if (isGiovanna) {
+      if (typeof giovannaMetaGoal === "number") return giovannaMetaGoal;
+      return Number(dataGoal) || 0;
+    }
     if (dataGoalOverride) return dataGoalOverride;
     if (selectedDepartmentCode) {
       const byCode = objectiveByDepartmentCode.get(selectedDepartmentCode);
@@ -341,6 +405,8 @@ export const EventMapDashboard = ({
   }, [
     dataGoal,
     dataGoalOverride,
+    giovannaMetaGoal,
+    isGiovanna,
     isRocio,
     rocioMetaGoal,
     interviewDepartmentNameByCode,
@@ -387,7 +453,7 @@ export const EventMapDashboard = ({
   );
 
   const totalLabel = total.toLocaleString("en-US");
-  const votesGoal = 80000;
+  const votesGoal = 20000;
   const selectionLabel = selectionTotal.toLocaleString("en-US");
   const goalNumeric = typeof resolvedDataGoal === "number" ? resolvedDataGoal : Number(resolvedDataGoal) || 0;
   const goalProgress = goalNumeric > 0 ? (selectionTotal / goalNumeric) * 100 : 0;
@@ -541,7 +607,7 @@ export const EventMapDashboard = ({
       nowLabel={nowLabel}
       topInterviewerForChart={topInterviewerForChart}
       interviewerColors={interviewerColors}
-      hideMapLegend={isRocio || hideMapLegend}
+      hideMapLegend={isRocio || isGiovanna || hideMapLegend}
       updates={updates}
       updatesFull={updatesFull}
       onUpdateFocus={handleUpdateFocus}

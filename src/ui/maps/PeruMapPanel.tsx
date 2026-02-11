@@ -89,6 +89,9 @@ type PeruMapPanelProps = {
     provincia?: GeoFeatureCollection | null;
     distrito?: GeoFeatureCollection | null;
   } | null;
+  clientFillColor?: string;
+  clientLineColor?: string;
+  clientLineHoverColor?: string;
   priorityGeojsonLayers?: {
     departamento?: GeoFeatureCollection | null;
     provincia?: GeoFeatureCollection | null;
@@ -130,6 +133,9 @@ export const PeruMapPanel = ({
   clientGeojson = null,
   clientGeojsonMeta = null,
   clientGeojsonLayers = null,
+  clientFillColor,
+  clientLineColor,
+  clientLineHoverColor,
   priorityGeojsonLayers = null,
   onHierarchyLevelChange,
   onHierarchySelectionChange,
@@ -251,7 +257,9 @@ export const PeruMapPanel = ({
   const highlightFillColor =
     level === "distrito" ? "rgba(239,68,68,0.35)" : "rgba(59,130,246,0.22)";
   const highlightFillOpacity = 0.35;
-  const clientFillColor = "rgba(59,130,246,0.18)";
+  const resolvedClientFillColor = clientFillColor ?? "rgba(59,130,246,0.18)";
+  const resolvedClientLineColor = clientLineColor ?? "rgba(0,0,0,0.9)";
+  const resolvedClientLineHoverColor = clientLineHoverColor ?? "rgba(239,68,68,0.95)";
   const resolvedMapStyle = useStreetBase
     ? mode === "dark"
       ? mapStyleDark
@@ -1384,7 +1392,7 @@ export const PeruMapPanel = ({
             type="fill"
             filter={clientFillFilter}
             paint={{
-              "fill-color": clientFillColor,
+              "fill-color": resolvedClientFillColor,
               "fill-opacity": highlightFillOpacity,
               "fill-antialias": true,
               "fill-opacity-transition": { duration: 220, delay: 0 },
@@ -1398,8 +1406,8 @@ export const PeruMapPanel = ({
               "line-color": [
                 "case",
                 ["boolean", ["feature-state", "hover"], false],
-                "rgba(239,68,68,0.95)",
-                "rgba(0,0,0,0.9)",
+                resolvedClientLineHoverColor,
+                resolvedClientLineColor,
               ],
               "line-width": 2,
             }}

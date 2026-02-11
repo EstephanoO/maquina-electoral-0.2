@@ -395,13 +395,16 @@ export const MapSection: React.FC<MapSectionProps> = ({
         overlayPosition="right"
         onHierarchyLevelChange={setCurrentLevel}
         onHierarchySelectionChange={handleHierarchySelectionChange}
-      interviewDistrictCodes={interviewDistrictCodes}
-      highlightPoints={shouldHighlightPoints}
-      clientGeojson={activeSectorGeojson ?? activeGeojson}
-      clientGeojsonMeta={activeMeta}
-      clientGeojsonLayers={resolvedClientLayers}
-      priorityGeojsonLayers={priorityLayers}
-      renderPointTooltip={(point) => (
+        interviewDistrictCodes={interviewDistrictCodes}
+        highlightPoints={shouldHighlightPoints}
+        clientGeojson={activeSectorGeojson ?? activeGeojson}
+        clientGeojsonMeta={activeMeta}
+        clientGeojsonLayers={resolvedClientLayers}
+        clientFillColor={isGiovanna ? "rgba(239,68,68,0.3)" : undefined}
+        clientLineColor={isGiovanna ? "rgba(239,68,68,0.9)" : undefined}
+        clientLineHoverColor={isGiovanna ? "rgba(239,68,68,0.95)" : undefined}
+        priorityGeojsonLayers={priorityLayers}
+        renderPointTooltip={(point) => (
           point.kind === "tracking" ? (
             <div className="space-y-2 rounded-xl bg-slate-950/90 px-3 py-2 text-xs text-slate-100 shadow-lg">
               <div className="space-y-1">
