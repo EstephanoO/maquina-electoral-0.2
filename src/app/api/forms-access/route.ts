@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { and, eq, inArray } from "drizzle-orm";
-import { db } from "@/db/connection";
+import { dbInfo } from "@/db/connection-info";
 import { forms, formsOperatorAccess, formsOperatorStatus, operators } from "@/db/schema";
 
 export const runtime = "nodejs";
@@ -16,7 +16,7 @@ type AccessPayload = {
 const resolveOperatorIds = async (payload: AccessPayload) => {
   if (payload.operatorIds?.length) return payload.operatorIds;
   if (payload.operatorSlug) {
-    const row = await db
+    const row = await dbInfo
       .select({ id: operators.id })
       .from(operators)
       .where(eq(operators.slug, payload.operatorSlug))
@@ -29,7 +29,7 @@ const resolveOperatorIds = async (payload: AccessPayload) => {
 const resolveFormIds = async (payload: AccessPayload) => {
   if (payload.formIds?.length) return payload.formIds;
   if (payload.clientIds?.length) {
-    const rows = await db
+    const rows = await dbInfo
       .select({ id: forms.id })
       .from(forms)
       .where(inArray(forms.clientId, payload.clientIds));
@@ -45,7 +45,7 @@ export async function GET(request: Request) {
   let resolvedOperatorId = operatorId;
 
   if (!resolvedOperatorId && operatorSlug) {
-    const row = await db
+    const row = await dbInfo
       .select({ id: operators.id })
       .from(operators)
       .where(eq(operators.slug, operatorSlug))
@@ -57,7 +57,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Missing operator" }, { status: 400 });
   }
 
-  const accessRows = await db
+  const accessRows = await dbInfo
     .select({
       formId: formsOperatorAccess.formId,
       enabledAt: formsOperatorAccess.enabledAt,
@@ -73,7 +73,7 @@ export async function GET(request: Request) {
     .innerJoin(forms, eq(forms.id, formsOperatorAccess.formId))
     .where(eq(formsOperatorAccess.operatorId, resolvedOperatorId));
 
-  const statusRows = await db
+  const statusRows = await dbInfo
     .select({
       formId: formsOperatorStatus.formId,
       operatorId: formsOperatorStatus.operatorId,
@@ -106,7 +106,7 @@ export async function POST(request: Request) {
     formIds.map((formId) => ({ formId, operatorId, enabledAt, enabledBy })),
   );
 
-  await db.insert(formsOperatorAccess).values(values).onConflictDoNothing();
+  await dbInfo.insert(formsOperatorAccess).values(values).onConflictDoNothing();
 
   return NextResponse.json({ ok: true, operatorIds, formIds });
 }
@@ -119,7 +119,7 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: "Missing operator/forms" }, { status: 400 });
   }
 
-  await db
+  await dbInfo
     .delete(formsOperatorAccess)
     .where(
       and(

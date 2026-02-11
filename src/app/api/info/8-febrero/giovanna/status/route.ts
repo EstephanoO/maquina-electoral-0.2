@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { db } from "@/db/connection";
+import { dbInfo } from "@/db/connection-info";
 import { infoFeb8GiovannaStatus } from "@/db/schema";
 
 export const runtime = "nodejs";
@@ -21,7 +21,7 @@ export async function PATCH(request: Request) {
   const replied = Boolean(payload.replied);
   const updatedAt = new Date();
 
-  await db
+  await dbInfo
     .insert(infoFeb8GiovannaStatus)
     .values({ phone, contacted, replied, updatedAt })
     .onConflictDoUpdate({

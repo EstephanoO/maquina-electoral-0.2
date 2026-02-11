@@ -1,4 +1,4 @@
-import { getRealtimeClient } from "@/db/realtime";
+import { getRealtimeInfoClient } from "@/db/realtime-info";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -8,7 +8,7 @@ export const fetchCache = "force-no-store";
 export async function GET() {
   const encoder = new TextEncoder();
   let pingTimer: ReturnType<typeof setInterval> | null = null;
-  let client: Awaited<ReturnType<typeof getRealtimeClient>> | null = null;
+  let client: Awaited<ReturnType<typeof getRealtimeInfoClient>> | null = null;
   let notificationHandler: ((message: { channel: string; payload?: string }) => void) | null = null;
 
   const stream = new ReadableStream({
@@ -19,7 +19,7 @@ export async function GET() {
       };
       controller.enqueue(encoder.encode("retry: 2000\n\n"));
       try {
-        client = await getRealtimeClient();
+        client = await getRealtimeInfoClient();
         await client.query("LISTEN info_feb8_status");
         notificationHandler = (message) => {
           if (message.channel !== "info_feb8_status" || !message.payload) return;

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { and, eq } from "drizzle-orm";
-import { db } from "@/db/connection";
+import { dbInfo } from "@/db/connection-info";
 import { forms, territory } from "@/db/schema";
 
 export const runtime = "nodejs";
@@ -104,7 +104,7 @@ export async function GET(request: Request) {
   if (clientParam) conditions.push(eq(forms.clientId, clientParam));
   if (candidateParam) conditions.push(eq(forms.candidate, candidateParam));
 
-  const query = db
+  const query = dbInfo
     .select({
       id: forms.id,
       clientId: forms.clientId,

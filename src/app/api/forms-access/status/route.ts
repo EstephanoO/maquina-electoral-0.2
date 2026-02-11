@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { db } from "@/db/connection";
+import { dbInfo } from "@/db/connection-info";
 import { formsOperatorStatus } from "@/db/schema";
 
 export const runtime = "nodejs";
@@ -25,7 +25,7 @@ export async function PATCH(request: Request) {
   const deleted = Boolean(payload.deleted);
   const updatedAt = new Date();
 
-  await db
+  await dbInfo
     .insert(formsOperatorStatus)
     .values({ operatorId, formId, contacted, replied, deleted, updatedAt })
     .onConflictDoUpdate({

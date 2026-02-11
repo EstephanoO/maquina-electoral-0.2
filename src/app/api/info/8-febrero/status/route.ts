@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { db } from "@/db/connection";
+import { dbInfo } from "@/db/connection-info";
 import { infoFeb8Status } from "@/db/schema";
-import { notifyInfoFeb8Status } from "@/db/realtime";
+import { notifyInfoFeb8StatusInfo } from "@/db/realtime-info";
 
 export const runtime = "nodejs";
 
@@ -22,7 +22,7 @@ export async function PATCH(request: Request) {
   const replied = Boolean(payload.replied);
   const updatedAt = new Date();
 
-  await db
+  await dbInfo
     .insert(infoFeb8Status)
     .values({ phone, contacted, replied, updatedAt })
     .onConflictDoUpdate({
@@ -31,7 +31,7 @@ export async function PATCH(request: Request) {
     });
 
   const updatedAtMs = updatedAt.getTime();
-  await notifyInfoFeb8Status({ phone, contacted, replied, updatedAt: updatedAtMs });
+  await notifyInfoFeb8StatusInfo({ phone, contacted, replied, updatedAt: updatedAtMs });
 
   return NextResponse.json({ phone, contacted, replied, updatedAt: updatedAtMs });
 }

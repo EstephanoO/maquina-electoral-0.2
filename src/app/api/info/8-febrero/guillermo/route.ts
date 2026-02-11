@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
-import { db } from "@/db/connection";
+import { dbInfo } from "@/db/connection-info";
 import { desc, eq } from "drizzle-orm";
 import { infoFeb8GuillermoRegistros, infoFeb8GuillermoStatus } from "@/db/schema";
 
 export const runtime = "nodejs";
 
 export async function GET() {
-  const records = await db
+  const records = await dbInfo
     .select({
       sourceId: infoFeb8GuillermoRegistros.sourceId,
       recordedAt: infoFeb8GuillermoRegistros.recordedAt,
@@ -22,7 +22,7 @@ export async function GET() {
     .from(infoFeb8GuillermoRegistros)
     .orderBy(desc(infoFeb8GuillermoRegistros.recordedAt));
 
-  const statuses = await db
+  const statuses = await dbInfo
     .select({
       phone: infoFeb8GuillermoStatus.phone,
       contacted: infoFeb8GuillermoStatus.contacted,
@@ -51,7 +51,7 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: "Missing id" }, { status: 400 });
   }
 
-  const target = await db
+  const target = await dbInfo
     .select({ phone: infoFeb8GuillermoRegistros.phone })
     .from(infoFeb8GuillermoRegistros)
     .where(eq(infoFeb8GuillermoRegistros.sourceId, id))
@@ -62,7 +62,7 @@ export async function DELETE(request: Request) {
   }
 
   const updatedAt = new Date();
-  await db
+  await dbInfo
     .insert(infoFeb8GuillermoStatus)
     .values({
       phone,

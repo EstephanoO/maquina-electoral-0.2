@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { asc, eq } from "drizzle-orm";
-import { db } from "@/db/connection";
+import { dbInfo } from "@/db/connection-info";
 import { operators } from "@/db/schema";
 
 export const runtime = "nodejs";
@@ -8,7 +8,7 @@ export const runtime = "nodejs";
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const includeInactive = url.searchParams.get("includeInactive") === "1";
-  const query = db
+  const query = dbInfo
     .select({
       id: operators.id,
       name: operators.name,

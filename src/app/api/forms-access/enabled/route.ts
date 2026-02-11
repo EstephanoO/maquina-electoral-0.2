@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { eq, isNotNull } from "drizzle-orm";
-import { db } from "@/db/connection";
+import { dbInfo } from "@/db/connection-info";
 import { forms, formsOperatorAccess } from "@/db/schema";
 
 export const runtime = "nodejs";
 
 export async function GET() {
-  const rows = await db
+  const rows = await dbInfo
     .select({ clientId: forms.clientId })
     .from(formsOperatorAccess)
     .innerJoin(forms, eq(forms.id, formsOperatorAccess.formId))
