@@ -487,6 +487,17 @@ export const EventMapDashboard = ({
     [candidateLabels, candidateProfile?.image, eventTitle],
   );
 
+  const handleHierarchySelectionChange = React.useCallback(
+    (selection: MapHierarchySelection) => {
+      if (!selection.depCode && !selection.provCode && !selection.distCode) {
+        setMapSelection(null);
+        return;
+      }
+      setMapSelection(selection);
+    },
+    [],
+  );
+
   return (
     <EventMapDashboardView
       eventTitle={eventTitle}
@@ -519,7 +530,7 @@ export const EventMapDashboard = ({
       displayMapPoints={displayMapPoints}
       filteredInterviewPoints={filteredInterviewPoints}
       interviewDistrictCodes={interviewDistrictCodes}
-      onHierarchySelectionChange={setMapSelection}
+      onHierarchySelectionChange={handleHierarchySelectionChange}
       focusPoint={focusPoint}
       onClearFocusPoint={() => setFocusPoint(null)}
       highlightPoint={highlightPoint}
