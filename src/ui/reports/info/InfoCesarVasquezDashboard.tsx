@@ -5,6 +5,7 @@ import Image from "next/image";
 import { Badge } from "@/ui/primitives/badge";
 import { Input } from "@/ui/primitives/input";
 import { Textarea } from "@/ui/primitives/textarea";
+import { applyTheme } from "@/theme/theme";
 import {
   Table,
   TableBody,
@@ -134,6 +135,7 @@ const formatDateTime = (timestamp: string) => {
 
 export default function InfoCesarVasquezDashboard() {
   const headerRef = React.useRef<HTMLElement | null>(null);
+  const previousThemeRef = React.useRef<"light" | "dark" | null>(null);
   const [message, setMessage] = React.useState(DEFAULT_MESSAGE);
   const [search, setSearch] = React.useState("");
   const [statusMap, setStatusMap] = React.useState<Record<string, RecordStatus>>({});
@@ -172,6 +174,18 @@ export default function InfoCesarVasquezDashboard() {
     return () => {
       observer.disconnect();
       window.removeEventListener("resize", updateHeaderHeight);
+    };
+  }, []);
+
+  React.useLayoutEffect(() => {
+    if (typeof document === "undefined") return undefined;
+    const isDark = document.documentElement.classList.contains("dark");
+    previousThemeRef.current = isDark ? "dark" : "light";
+    applyTheme("light");
+    return () => {
+      if (previousThemeRef.current) {
+        applyTheme(previousThemeRef.current);
+      }
     };
   }, []);
 
