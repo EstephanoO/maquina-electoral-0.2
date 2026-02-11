@@ -12,14 +12,51 @@ const cacheHeaders = {
   "Cache-Control": "public, s-maxage=30, stale-while-revalidate=120",
 };
 
+const normalizeCode = (value: string | null, length: number) => {
+  if (!value) return null;
+  const digits = value.replace(/\D/g, "");
+  if (!digits) return value;
+  return digits.padStart(length, "0");
+};
+
+const pointGeometry = sql`
+  CASE
+    WHEN t.latitude IS NOT NULL AND t.longitude IS NOT NULL
+      THEN ST_SetSRID(ST_MakePoint(t.longitude, t.latitude), 4326)
+    WHEN (t.address_location->>'longitude') IS NOT NULL
+      AND (t.address_location->>'latitude') IS NOT NULL
+      THEN ST_SetSRID(
+        ST_MakePoint(
+          (t.address_location->>'longitude')::double precision,
+          (t.address_location->>'latitude')::double precision
+        ),
+        4326
+      )
+    WHEN (t.location->>'easting') IS NOT NULL
+      AND (t.location->>'northing') IS NOT NULL
+      AND (t.location->>'datumEpsg') IN ('32618', '32718', '4326')
+      THEN ST_Transform(
+        ST_SetSRID(
+          ST_MakePoint(
+            (t.location->>'easting')::double precision,
+            (t.location->>'northing')::double precision
+          ),
+          (t.location->>'datumEpsg')::int
+        ),
+        4326
+      )
+    ELSE NULL
+  END
+`;
+
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const candidateParam = url.searchParams.get("candidate");
   const clientParam = url.searchParams.get("client");
   const level = url.searchParams.get("level");
-  const depCode = url.searchParams.get("dep");
-  const provCode = url.searchParams.get("prov");
-  const distCode = url.searchParams.get("dist");
+  const depCode = normalizeCode(url.searchParams.get("dep"), 2);
+  const provCode = normalizeCode(url.searchParams.get("prov"), 2);
+  const distCode = normalizeCode(url.searchParams.get("dist"), 6);
   const resolvedCandidate =
     (clientParam ? clientToCandidate[clientParam] : null) ?? candidateParam;
 
@@ -42,12 +79,8 @@ export async function GET(request: Request) {
     : sql``;
 
   const pointIntersect = sql`
-    t.latitude IS NOT NULL
-    AND t.longitude IS NOT NULL
-    AND ST_Intersects(
-      geom.geom3857,
-      ST_Transform(ST_SetSRID(ST_MakePoint(t.longitude, t.latitude), 4326), 3857)
-    )
+    ${pointGeometry} IS NOT NULL
+    AND ST_Intersects(geom.geom3857, ST_Transform(${pointGeometry}, 3857))
   `;
 
   if (level === "departamento") {

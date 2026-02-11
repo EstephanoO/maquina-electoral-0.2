@@ -770,8 +770,15 @@ export const PeruMapPanel = ({
       const depCode = selectedCodes.dep;
       const provCode = selectedCodes.prov;
       const distCode = selectedCodes.dist;
+      const selectionLevel: GeoLevel = distCode
+        ? "distrito"
+        : depCode && provCode
+          ? "provincia"
+          : depCode
+            ? "departamento"
+            : level;
       const selection: MapHierarchySelection = {
-        level,
+        level: selectionLevel,
         depCode,
         provCode,
         distCode,
@@ -1035,6 +1042,7 @@ export const PeruMapPanel = ({
     },
     [
       activeClientLayer,
+      activePriorityLayer,
       actions,
       clickableCodes,
       enableHierarchy,
@@ -1256,7 +1264,6 @@ export const PeruMapPanel = ({
     },
     [
       activeClientLayer,
-      activePriorityLayer,
       clearHover,
       clickableCodes,
       enableBoxSelect,
