@@ -6,6 +6,7 @@ export type InfoFeb8OperatorConfig = {
   tableTitle: string;
   tableDescription: string;
   apiBasePath: string;
+  supervisor?: string;
 };
 
 export type InfoHabilitacionesOperatorConfig = {
@@ -26,6 +27,7 @@ export const infoOperatorConfigs = {
     tableTitle: "Tabla consolidada",
     tableDescription: "Registros cargados desde el CSV compartido.",
     apiBasePath: "/api/info/8-febrero",
+    supervisor: "Guillermo",
   },
   giovanna: {
     type: "feb8",
@@ -35,6 +37,7 @@ export const infoOperatorConfigs = {
     tableTitle: "Tabla consolidada",
     tableDescription: "Registros cargados desde el CSV compartido.",
     apiBasePath: "/api/info/8-febrero",
+    supervisor: "Giovanna Castagnino",
   },
   rocio: {
     type: "feb8",
@@ -44,5 +47,6 @@ export const infoOperatorConfigs = {
     tableTitle: "Tabla consolidada",
     tableDescription: "Registros cargados desde el CSV compartido.",
     apiBasePath: "/api/info/8-febrero",
+    supervisor: "Rocio Porras",
   },
 } as const satisfies Record<string, InfoOperatorConfig>;

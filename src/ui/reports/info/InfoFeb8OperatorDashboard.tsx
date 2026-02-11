@@ -183,7 +183,10 @@ export default function InfoFeb8OperatorDashboard({
         setError(null);
       }
       try {
-        const response = await fetch(config.apiBasePath, {
+        const recordsUrl = config.supervisor
+          ? `${config.apiBasePath}?supervisor=${encodeURIComponent(config.supervisor)}`
+          : config.apiBasePath;
+        const response = await fetch(recordsUrl, {
           cache: "no-store",
         });
         if (!response.ok) throw new Error("No se pudo cargar los registros.");

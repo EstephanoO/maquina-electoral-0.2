@@ -5,8 +5,10 @@ import { infoFeb8Registros, infoFeb8Status } from "@/db/schema";
 
 export const runtime = "nodejs";
 
-export async function GET() {
-  const records = await dbInfo
+export async function GET(request: Request) {
+  const url = new URL(request.url);
+  const supervisor = url.searchParams.get("supervisor")?.trim();
+  const baseQuery = dbInfo
     .select({
       sourceId: infoFeb8Registros.sourceId,
       recordedAt: infoFeb8Registros.recordedAt,
@@ -19,8 +21,11 @@ export async function GET() {
       latitude: infoFeb8Registros.latitude,
       longitude: infoFeb8Registros.longitude,
     })
-    .from(infoFeb8Registros)
-    .orderBy(desc(infoFeb8Registros.recordedAt));
+    .from(infoFeb8Registros);
+  const records = await (supervisor
+    ? baseQuery.where(eq(infoFeb8Registros.supervisor, supervisor))
+    : baseQuery
+  ).orderBy(desc(infoFeb8Registros.recordedAt));
 
   const statuses = await dbInfo
     .select({
