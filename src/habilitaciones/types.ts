@@ -37,5 +37,6 @@ export type FormAccessStatus = {
   deleted: boolean;
   homeMapsUrl: string | null;
   pollingPlaceUrl: string | null;
+  linksComment: string | null;
   updatedAt: string | null;
 };

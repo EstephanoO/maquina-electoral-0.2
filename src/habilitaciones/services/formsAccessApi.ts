@@ -56,6 +56,7 @@ export const updateFormAccessStatus = async (payload: {
   deleted?: boolean;
   homeMapsUrl?: string | null;
   pollingPlaceUrl?: string | null;
+  linksComment?: string | null;
 }) => {
   const response = await fetch("/api/forms-access/status", {
     method: "PATCH",

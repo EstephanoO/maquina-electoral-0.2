@@ -16,6 +16,7 @@ export async function GET(request: Request) {
       supervisor: infoFeb8Registros.supervisor,
       name: infoFeb8Registros.name,
       phone: infoFeb8Registros.phone,
+      linksComment: infoFeb8Registros.linksComment,
       east: infoFeb8Registros.east,
       north: infoFeb8Registros.north,
       latitude: infoFeb8Registros.latitude,

@@ -45,6 +45,7 @@ type InterviewRecord = {
   phone: string;
   homeMapsUrl?: string | null;
   pollingPlaceUrl?: string | null;
+  linksComment?: string | null;
   east?: string;
   north?: string;
   lat?: string;
@@ -68,6 +69,7 @@ type InfoFeb8ApiRecord = {
   phone: string | null;
   homeMapsUrl: string | null;
   pollingPlaceUrl: string | null;
+  linksComment: string | null;
   east: string | null;
   north: string | null;
   latitude: string | null;
@@ -141,6 +143,7 @@ type InfoFeb8OperatorDashboardProps = {
 type LinkDraft = {
   homeMapsUrl: string;
   pollingPlaceUrl: string;
+  linksComment: string;
 };
 
 export default function InfoFeb8OperatorDashboard({
@@ -159,6 +162,7 @@ export default function InfoFeb8OperatorDashboard({
   const [linksDraft, setLinksDraft] = React.useState<LinkDraft>({
     homeMapsUrl: "",
     pollingPlaceUrl: "",
+    linksComment: "",
   });
   const [linksErrors, setLinksErrors] = React.useState<Partial<LinkDraft>>({});
   const [activeRecord, setActiveRecord] = React.useState<InterviewRecord | null>(null);
@@ -166,7 +170,7 @@ export default function InfoFeb8OperatorDashboard({
   const isMountedRef = React.useRef(true);
   const [statusFilter, setStatusFilter] = React.useState<
     "all" | "uncontacted" | "contacted" | "replied"
-  >("uncontacted");
+  >("all");
 
   const triggerSavePulse = React.useCallback(() => {
     if (typeof window === "undefined") return;
@@ -199,17 +203,18 @@ export default function InfoFeb8OperatorDashboard({
           .map((record) => ({
             sourceId: record.sourceId,
             timestamp: record.recordedAt ?? "",
-          interviewer: record.interviewer ?? "",
-          candidate: record.candidate ?? "",
-          name: record.name ?? "",
-          phone: record.phone ?? "",
-          homeMapsUrl: record.homeMapsUrl ?? null,
-          pollingPlaceUrl: record.pollingPlaceUrl ?? null,
-          east: record.east ?? "",
-          north: record.north ?? "",
-          lat: record.latitude !== null ? String(record.latitude) : "",
-          lng: record.longitude !== null ? String(record.longitude) : "",
-        }))
+            interviewer: record.interviewer ?? "",
+            candidate: record.candidate ?? "",
+            name: record.name ?? "",
+            phone: record.phone ?? "",
+            homeMapsUrl: record.homeMapsUrl ?? null,
+            pollingPlaceUrl: record.pollingPlaceUrl ?? null,
+            linksComment: record.linksComment ?? null,
+            east: record.east ?? "",
+            north: record.north ?? "",
+            lat: record.latitude !== null ? String(record.latitude) : "",
+            lng: record.longitude !== null ? String(record.longitude) : "",
+          }))
           .filter((record) => record.timestamp && record.interviewer && record.phone);
         const nextStatusMap = (payload.statuses ?? []).reduce(
           (acc, status) => {
@@ -286,25 +291,30 @@ export default function InfoFeb8OperatorDashboard({
     return undefined;
   }, []);
 
+  const recordsWithLinks = React.useMemo(
+    () => records.filter((record) => getLinkCount(record) > 0),
+    [records],
+  );
+
   const statusCounts = React.useMemo(() => {
     let contacted = 0;
     let replied = 0;
-    records.forEach((record) => {
+    recordsWithLinks.forEach((record) => {
       const status = statusMap[normalizePhone(record.phone)] ?? {};
       if (status.contacted) contacted += 1;
       if (status.replied) replied += 1;
     });
     return {
-      all: records.length,
+      all: recordsWithLinks.length,
       contacted,
       replied,
-      uncontacted: Math.max(records.length - contacted, 0),
+      uncontacted: Math.max(recordsWithLinks.length - contacted, 0),
     };
-  }, [records, statusMap]);
+  }, [recordsWithLinks, statusMap]);
 
   const filteredRecords = React.useMemo(() => {
     const query = search.trim().toLowerCase();
-    return records.filter((record) => {
+    return recordsWithLinks.filter((record) => {
       if (query) {
         const match = [record.interviewer, record.candidate, record.name, record.phone]
           .filter(Boolean)
@@ -317,7 +327,7 @@ export default function InfoFeb8OperatorDashboard({
       if (statusFilter === "replied") return Boolean(status.replied);
       return true;
     });
-  }, [records, search, statusFilter, statusMap]);
+  }, [recordsWithLinks, search, statusFilter, statusMap]);
 
   const setRecordStatus = React.useCallback(
     async (phone: string, next: Partial<RecordStatus>) => {
@@ -406,6 +416,7 @@ export default function InfoFeb8OperatorDashboard({
     setLinksDraft({
       homeMapsUrl: record.homeMapsUrl ?? "",
       pollingPlaceUrl: record.pollingPlaceUrl ?? "",
+      linksComment: record.linksComment ?? "",
     });
     setLinksErrors({});
     setLinksOpen(true);
@@ -421,6 +432,7 @@ export default function InfoFeb8OperatorDashboard({
     if (!activeRecord) return;
     const nextHome = linksDraft.homeMapsUrl.trim();
     const nextPolling = linksDraft.pollingPlaceUrl.trim();
+    const nextComment = linksDraft.linksComment.trim();
     const errors: Partial<LinkDraft> = {};
     if (nextHome && !getValidUrl(nextHome)) {
       errors.homeMapsUrl = "URL invalida";
@@ -438,6 +450,7 @@ export default function InfoFeb8OperatorDashboard({
       ...activeRecord,
       homeMapsUrl: nextHome || null,
       pollingPlaceUrl: nextPolling || null,
+      linksComment: nextComment || null,
     };
     setRecords((current) =>
       current.map((item) => (item.sourceId === activeRecord.sourceId ? updated : item)),
@@ -451,6 +464,7 @@ export default function InfoFeb8OperatorDashboard({
           sourceId: activeRecord.sourceId,
           homeMapsUrl: updated.homeMapsUrl,
           pollingPlaceUrl: updated.pollingPlaceUrl,
+          linksComment: updated.linksComment,
         }),
       });
       if (!response.ok) throw new Error("No se pudo guardar los links.");
@@ -458,6 +472,7 @@ export default function InfoFeb8OperatorDashboard({
         sourceId?: string;
         homeMapsUrl?: string | null;
         pollingPlaceUrl?: string | null;
+        linksComment?: string | null;
       };
       setRecords((current) =>
         current.map((item) =>
@@ -466,6 +481,7 @@ export default function InfoFeb8OperatorDashboard({
                 ...item,
                 homeMapsUrl: payload.homeMapsUrl ?? updated.homeMapsUrl ?? null,
                 pollingPlaceUrl: payload.pollingPlaceUrl ?? updated.pollingPlaceUrl ?? null,
+                linksComment: payload.linksComment ?? updated.linksComment ?? null,
               }
             : item,
         ),
@@ -483,7 +499,7 @@ export default function InfoFeb8OperatorDashboard({
     <main className="min-h-screen bg-[#f5f2ea] text-foreground">
       <header
         ref={headerRef}
-        className="relative overflow-hidden border-b border-white/10 bg-[radial-gradient(circle_at_top,_rgba(255,200,0,0.22),_transparent_55%),radial-gradient(circle_at_bottom,_rgba(15,34,61,0.92),_rgba(15,34,61,0.96))] px-6 py-8 text-white"
+        className="relative overflow-hidden border-b border-white/10 bg-[radial-gradient(circle_at_top,_rgba(255,200,0,0.22),_transparent_55%),radial-gradient(circle_at_bottom,_rgba(15,34,61,0.92),_rgba(15,34,61,0.96))] px-6 py-8 text-white [&_*]:!text-white"
       >
         <div className="mx-auto flex w-full max-w-[1760px] flex-wrap items-center justify-between gap-6">
           <div className="flex items-center gap-4">
@@ -521,7 +537,7 @@ export default function InfoFeb8OperatorDashboard({
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-xs uppercase tracking-[0.2em] text-white/80">
-              {records.length || 0} registros
+              {recordsWithLinks.length || 0} registros
             </div>
             <div
               className={`rounded-2xl border px-4 py-3 text-xs uppercase tracking-[0.2em] ${
@@ -536,7 +552,7 @@ export default function InfoFeb8OperatorDashboard({
         </div>
       </header>
 
-      <div className="mx-auto flex w-full max-w-[1760px] flex-1 flex-col gap-4 px-6 pb-6 pt-4">
+      <div className="mx-auto flex w-full max-w-[1760px] flex-1 flex-col gap-4 px-6 pb-6 pt-4 [&_*]:!text-black">
         <section className="panel fade-rise flex min-h-0 flex-1 flex-col rounded-3xl border border-border/70 bg-white/92 px-6 py-5 shadow-[0_20px_50px_rgba(15,34,61,0.12)]">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="space-y-1">
@@ -731,9 +747,7 @@ export default function InfoFeb8OperatorDashboard({
                               <TableCell className="text-right">
                                 <div className="flex flex-wrap justify-end gap-2">
                                   <span className="min-h-[38px] rounded-full border border-border/60 bg-white px-4 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                                    {linkCount === 0
-                                      ? "Sin links"
-                                      : `${linkCount} link${linkCount === 1 ? "" : "s"}`}
+                                    {`${linkCount} link${linkCount === 1 ? "" : "s"}`}
                                   </span>
                                   <button
                                     type="button"
@@ -853,6 +867,26 @@ export default function InfoFeb8OperatorDashboard({
               {linksErrors.pollingPlaceUrl ? (
                 <p className="mt-2 text-xs text-red-500">{linksErrors.pollingPlaceUrl}</p>
               ) : null}
+            </div>
+            <div>
+              <label
+                htmlFor="links-comment"
+                className="text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground"
+              >
+                Comentario
+              </label>
+              <Textarea
+                id="links-comment"
+                value={linksDraft.linksComment}
+                onChange={(event) =>
+                  setLinksDraft((current) => ({
+                    ...current,
+                    linksComment: event.target.value,
+                  }))
+                }
+                placeholder="Notas adicionales"
+                className="mt-2 min-h-[100px] rounded-2xl border-border/60 bg-white"
+              />
             </div>
           </div>
           <DialogFooter className="sm:justify-between">

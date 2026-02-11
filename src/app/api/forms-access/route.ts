@@ -82,6 +82,7 @@ export async function GET(request: Request) {
       deleted: formsOperatorStatus.deleted,
       homeMapsUrl: formsOperatorStatus.homeMapsUrl,
       pollingPlaceUrl: formsOperatorStatus.pollingPlaceUrl,
+      linksComment: formsOperatorStatus.linksComment,
       updatedAt: formsOperatorStatus.updatedAt,
     })
     .from(formsOperatorStatus)

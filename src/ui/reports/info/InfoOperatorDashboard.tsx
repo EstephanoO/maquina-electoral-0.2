@@ -45,6 +45,7 @@ type RecordStatus = {
   deleted?: boolean;
   homeMapsUrl?: string | null;
   pollingPlaceUrl?: string | null;
+  linksComment?: string | null;
   updatedAt?: number;
 };
 
@@ -105,6 +106,7 @@ type InfoOperatorDashboardProps = {
 type LinkDraft = {
   homeMapsUrl: string;
   pollingPlaceUrl: string;
+  linksComment: string;
 };
 
 export default function InfoOperatorDashboard({ operatorSlug }: InfoOperatorDashboardProps) {
@@ -124,13 +126,14 @@ export default function InfoOperatorDashboard({ operatorSlug }: InfoOperatorDash
   const [linksDraft, setLinksDraft] = React.useState<LinkDraft>({
     homeMapsUrl: "",
     pollingPlaceUrl: "",
+    linksComment: "",
   });
   const [linksErrors, setLinksErrors] = React.useState<Partial<LinkDraft>>({});
   const [activeRecord, setActiveRecord] = React.useState<FormAccessRecord | null>(null);
   const saveTimerRef = React.useRef<number | null>(null);
   const [statusFilter, setStatusFilter] = React.useState<
     "all" | "uncontacted" | "contacted" | "replied" | "trash"
-  >("uncontacted");
+  >("all");
   const dateFromMs = React.useMemo(() => parseDateInput(dateFrom, "start"), [dateFrom]);
   const dateToMs = React.useMemo(() => parseDateInput(dateTo, "end"), [dateTo]);
   const hasDateFilter = Boolean(dateFrom || dateTo);
@@ -144,6 +147,7 @@ export default function InfoOperatorDashboard({ operatorSlug }: InfoOperatorDash
           deleted: status.deleted,
           homeMapsUrl: status.homeMapsUrl ?? null,
           pollingPlaceUrl: status.pollingPlaceUrl ?? null,
+          linksComment: status.linksComment ?? null,
           updatedAt: status.updatedAt ? new Date(status.updatedAt).getTime() : undefined,
         };
         return acc;
@@ -194,11 +198,16 @@ export default function InfoOperatorDashboard({ operatorSlug }: InfoOperatorDash
     return undefined;
   }, []);
 
+  const recordsWithLinks = React.useMemo(
+    () => records.filter((record) => getLinkCount(statusMap[record.formId] ?? {}) > 0),
+    [records, statusMap, getLinkCount],
+  );
+
   const statusCounts = React.useMemo(() => {
     let contacted = 0;
     let replied = 0;
     let trash = 0;
-    records.forEach((record) => {
+    recordsWithLinks.forEach((record) => {
       const status = statusMap[record.formId] ?? {};
       if (status.deleted) {
         trash += 1;
@@ -207,7 +216,7 @@ export default function InfoOperatorDashboard({ operatorSlug }: InfoOperatorDash
       if (status.contacted) contacted += 1;
       if (status.replied) replied += 1;
     });
-    const activeTotal = Math.max(records.length - trash, 0);
+    const activeTotal = Math.max(recordsWithLinks.length - trash, 0);
     return {
       all: activeTotal,
       contacted,
@@ -215,11 +224,11 @@ export default function InfoOperatorDashboard({ operatorSlug }: InfoOperatorDash
       uncontacted: Math.max(activeTotal - contacted, 0),
       trash,
     };
-  }, [records, statusMap]);
+  }, [recordsWithLinks, statusMap]);
 
   const filteredRecords = React.useMemo(() => {
     const query = search.trim().toLowerCase();
-    return records.filter((record) => {
+    return recordsWithLinks.filter((record) => {
       const status = statusMap[record.formId] ?? {};
       if (query) {
         const match = [record.interviewer, record.name, record.phone]
@@ -240,7 +249,15 @@ export default function InfoOperatorDashboard({ operatorSlug }: InfoOperatorDash
       if (statusFilter === "replied") return Boolean(status.replied);
       return true;
     });
-  }, [records, search, statusFilter, statusMap, dateFromMs, dateToMs, hasDateFilter]);
+  }, [
+    recordsWithLinks,
+    search,
+    statusFilter,
+    statusMap,
+    dateFromMs,
+    dateToMs,
+    hasDateFilter,
+  ]);
 
   const hasActiveFilters = Boolean(search.trim()) || statusFilter !== "uncontacted" || hasDateFilter;
 
@@ -260,6 +277,7 @@ export default function InfoOperatorDashboard({ operatorSlug }: InfoOperatorDash
           deleted: Boolean(optimistic.deleted),
           homeMapsUrl: optimistic.homeMapsUrl ?? null,
           pollingPlaceUrl: optimistic.pollingPlaceUrl ?? null,
+          linksComment: optimistic.linksComment ?? null,
         })) as FormAccessStatus;
         setStatusMap((current) => ({
           ...current,
@@ -269,6 +287,7 @@ export default function InfoOperatorDashboard({ operatorSlug }: InfoOperatorDash
             deleted: payload.deleted,
             homeMapsUrl: payload.homeMapsUrl ?? null,
             pollingPlaceUrl: payload.pollingPlaceUrl ?? null,
+            linksComment: payload.linksComment ?? null,
             updatedAt: payload.updatedAt ? new Date(payload.updatedAt).getTime() : undefined,
           },
         }));
@@ -304,6 +323,7 @@ export default function InfoOperatorDashboard({ operatorSlug }: InfoOperatorDash
       setLinksDraft({
         homeMapsUrl: status.homeMapsUrl ?? "",
         pollingPlaceUrl: status.pollingPlaceUrl ?? "",
+        linksComment: status.linksComment ?? "",
       });
       setLinksErrors({});
       setLinksOpen(true);
@@ -321,6 +341,7 @@ export default function InfoOperatorDashboard({ operatorSlug }: InfoOperatorDash
     if (!activeRecord) return;
     const nextHome = linksDraft.homeMapsUrl.trim();
     const nextPolling = linksDraft.pollingPlaceUrl.trim();
+    const nextComment = linksDraft.linksComment.trim();
     const errors: Partial<LinkDraft> = {};
     if (nextHome && !getValidUrl(nextHome)) {
       errors.homeMapsUrl = "URL invalida";
@@ -335,6 +356,7 @@ export default function InfoOperatorDashboard({ operatorSlug }: InfoOperatorDash
     await setRecordStatus(activeRecord, {
       homeMapsUrl: nextHome || null,
       pollingPlaceUrl: nextPolling || null,
+      linksComment: nextComment || null,
     });
     closeLinksModal();
   }, [activeRecord, linksDraft, setRecordStatus, closeLinksModal]);
@@ -359,7 +381,7 @@ export default function InfoOperatorDashboard({ operatorSlug }: InfoOperatorDash
     <main className="min-h-screen bg-[#f5f2ea] text-foreground">
       <header
         ref={headerRef}
-        className="relative overflow-hidden border-b border-white/10 bg-[radial-gradient(circle_at_top,_rgba(255,200,0,0.22),_transparent_55%),radial-gradient(circle_at_bottom,_rgba(15,34,61,0.92),_rgba(15,34,61,0.96))] px-6 py-8 text-white"
+        className="relative overflow-hidden border-b border-white/10 bg-[radial-gradient(circle_at_top,_rgba(255,200,0,0.22),_transparent_55%),radial-gradient(circle_at_bottom,_rgba(15,34,61,0.92),_rgba(15,34,61,0.96))] px-6 py-8 text-white [&_*]:!text-white"
       >
         <div className="mx-auto flex w-full max-w-[1760px] flex-wrap items-center justify-between gap-6">
           <div className="flex items-center gap-4">
@@ -395,7 +417,7 @@ export default function InfoOperatorDashboard({ operatorSlug }: InfoOperatorDash
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-xs uppercase tracking-[0.2em] text-white/80">
-              {records.length || 0} registros
+              {recordsWithLinks.length || 0} registros
             </div>
             <div
               className={`rounded-2xl border px-4 py-3 text-xs uppercase tracking-[0.2em] ${
@@ -410,7 +432,7 @@ export default function InfoOperatorDashboard({ operatorSlug }: InfoOperatorDash
         </div>
       </header>
 
-      <div className="mx-auto flex w-full max-w-[1760px] flex-1 flex-col gap-4 px-6 pb-6 pt-4">
+      <div className="mx-auto flex w-full max-w-[1760px] flex-1 flex-col gap-4 px-6 pb-6 pt-4 [&_*]:!text-black">
         <section className="panel fade-rise flex min-h-0 flex-1 flex-col rounded-3xl border border-border/70 bg-white/92 px-6 py-5 shadow-[0_20px_50px_rgba(15,34,61,0.12)]">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="space-y-1">
@@ -794,6 +816,26 @@ export default function InfoOperatorDashboard({ operatorSlug }: InfoOperatorDash
               {linksErrors.pollingPlaceUrl ? (
                 <p className="mt-2 text-xs text-red-500">{linksErrors.pollingPlaceUrl}</p>
               ) : null}
+            </div>
+            <div>
+              <label
+                htmlFor="links-comment"
+                className="text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground"
+              >
+                Comentario
+              </label>
+              <Textarea
+                id="links-comment"
+                value={linksDraft.linksComment}
+                onChange={(event) =>
+                  setLinksDraft((current) => ({
+                    ...current,
+                    linksComment: event.target.value,
+                  }))
+                }
+                placeholder="Notas adicionales"
+                className="mt-2 min-h-[100px] rounded-2xl border-border/60 bg-white"
+              />
             </div>
           </div>
           <DialogFooter className="sm:justify-between">

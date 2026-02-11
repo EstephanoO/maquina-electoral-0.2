@@ -12,6 +12,7 @@ type StatusPayload = {
   deleted?: boolean;
   homeMapsUrl?: string | null;
   pollingPlaceUrl?: string | null;
+  linksComment?: string | null;
 };
 
 export async function PATCH(request: Request) {
@@ -27,6 +28,7 @@ export async function PATCH(request: Request) {
   const deleted = Boolean(payload.deleted);
   const homeMapsUrl = payload.homeMapsUrl ?? null;
   const pollingPlaceUrl = payload.pollingPlaceUrl ?? null;
+  const linksComment = payload.linksComment ?? null;
   const updatedAt = new Date();
 
   await dbInfo
@@ -39,11 +41,12 @@ export async function PATCH(request: Request) {
       deleted,
       homeMapsUrl,
       pollingPlaceUrl,
+      linksComment,
       updatedAt,
     })
     .onConflictDoUpdate({
       target: [formsOperatorStatus.formId, formsOperatorStatus.operatorId],
-      set: { contacted, replied, deleted, homeMapsUrl, pollingPlaceUrl, updatedAt },
+      set: { contacted, replied, deleted, homeMapsUrl, pollingPlaceUrl, linksComment, updatedAt },
     });
 
   return NextResponse.json({
@@ -54,6 +57,7 @@ export async function PATCH(request: Request) {
     deleted,
     homeMapsUrl,
     pollingPlaceUrl,
+    linksComment,
     updatedAt,
   });
 }

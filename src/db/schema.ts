@@ -142,6 +142,7 @@ export const infoFeb8Registros = pgTable("info_feb8_registros", {
   phone: text("phone"),
   homeMapsUrl: text("home_maps_url"),
   pollingPlaceUrl: text("polling_place_url"),
+  linksComment: text("links_comment"),
   east: doublePrecision("east"),
   north: doublePrecision("north"),
   latitude: doublePrecision("latitude"),
@@ -244,6 +245,7 @@ export const formsOperatorStatus = pgTable(
     deleted: boolean("deleted").notNull().default(false),
     homeMapsUrl: text("home_maps_url"),
     pollingPlaceUrl: text("polling_place_url"),
+    linksComment: text("links_comment"),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => ({
