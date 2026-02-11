@@ -291,10 +291,10 @@ export default function InfoFeb8OperatorDashboard({
     return undefined;
   }, []);
 
-  const recordsWithLinks = React.useMemo(
-    () => records.filter((record) => getLinkCount(record) > 0),
-    [records],
-  );
+  const recordsWithLinks = React.useMemo(() => {
+    if (config.allowRecordsWithoutLinks) return records;
+    return records.filter((record) => getLinkCount(record) > 0);
+  }, [config.allowRecordsWithoutLinks, records]);
 
   const statusCounts = React.useMemo(() => {
     let contacted = 0;

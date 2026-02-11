@@ -7,6 +7,7 @@ export type InfoFeb8OperatorConfig = {
   tableDescription: string;
   apiBasePath: string;
   supervisor?: string;
+  allowRecordsWithoutLinks?: boolean;
 };
 
 export type InfoHabilitacionesOperatorConfig = {
@@ -28,6 +29,7 @@ export const infoOperatorConfigs = {
     tableDescription: "Registros cargados desde el CSV compartido.",
     apiBasePath: "/api/info/8-febrero",
     supervisor: "Guillermo",
+    allowRecordsWithoutLinks: true,
   },
   giovanna: {
     type: "feb8",
