@@ -40,6 +40,7 @@ export const infoOperatorConfigs = {
     tableDescription: "Registros cargados desde el CSV compartido.",
     apiBasePath: "/api/info/8-febrero",
     supervisor: "Giovanna Castagnino",
+    allowRecordsWithoutLinks: true,
   },
   rocio: {
     type: "feb8",
@@ -50,5 +51,6 @@ export const infoOperatorConfigs = {
     tableDescription: "Registros cargados desde el CSV compartido.",
     apiBasePath: "/api/info/8-febrero",
     supervisor: "Rocio Porras",
+    allowRecordsWithoutLinks: true,
   },
 } as const satisfies Record<string, InfoOperatorConfig>;

@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Image from "next/image";
+import { ChevronsLeft, ChevronsRight } from "lucide-react";
 import { Badge } from "@/ui/primitives/badge";
 import { Input } from "@/ui/primitives/input";
 import { Textarea } from "@/ui/primitives/textarea";
@@ -170,7 +171,9 @@ export default function InfoFeb8OperatorDashboard({
   const isMountedRef = React.useRef(true);
   const [statusFilter, setStatusFilter] = React.useState<
     "all" | "uncontacted" | "contacted" | "replied"
-  >("all");
+  >("uncontacted");
+  const [pageSize, setPageSize] = React.useState(20);
+  const [pageIndex, setPageIndex] = React.useState(1);
 
   const triggerSavePulse = React.useCallback(() => {
     if (typeof window === "undefined") return;
@@ -238,7 +241,7 @@ export default function InfoFeb8OperatorDashboard({
         if (!silent && isMountedRef.current) setLoading(false);
       }
     },
-    [config.apiBasePath],
+    [config.apiBasePath, config.supervisor],
   );
 
   const handleRetry = React.useCallback(() => {
@@ -328,6 +331,16 @@ export default function InfoFeb8OperatorDashboard({
       return true;
     });
   }, [recordsWithLinks, search, statusFilter, statusMap]);
+
+  const totalPages = Math.max(Math.ceil(filteredRecords.length / pageSize), 1);
+  const safePageIndex = Math.min(pageIndex, totalPages);
+  const pagedRecords = React.useMemo(() => {
+    const start = (safePageIndex - 1) * pageSize;
+    return filteredRecords.slice(start, start + pageSize);
+  }, [filteredRecords, pageSize, safePageIndex]);
+  const pageStart = filteredRecords.length === 0 ? 0 : (safePageIndex - 1) * pageSize + 1;
+  const pageEnd = Math.min(pageStart + pageSize - 1, filteredRecords.length);
+
 
   const setRecordStatus = React.useCallback(
     async (phone: string, next: Partial<RecordStatus>) => {
@@ -585,7 +598,10 @@ export default function InfoFeb8OperatorDashboard({
               <Input
                 id="record-search"
                 value={search}
-                onChange={(event) => setSearch(event.target.value)}
+                onChange={(event) => {
+                  setSearch(event.target.value);
+                  setPageIndex(1);
+                }}
                 placeholder="Entrevistador, candidato, nombre o telefono"
                 className="mt-2 h-12 rounded-2xl border-border/60 bg-white/80"
               />
@@ -600,7 +616,10 @@ export default function InfoFeb8OperatorDashboard({
                 <button
                   key={item.id}
                   type="button"
-                  onClick={() => setStatusFilter(item.id)}
+                    onClick={() => {
+                      setStatusFilter(item.id);
+                      setPageIndex(1);
+                    }}
                   className={`min-h-[40px] rounded-full border px-4 text-[11px] font-semibold uppercase tracking-[0.2em] transition ${
                     statusFilter === item.id
                       ? "border-[#163960] bg-[#163960]/10 text-[#163960]"
@@ -692,17 +711,30 @@ export default function InfoFeb8OperatorDashboard({
                               onClick={() => {
                                 setSearch("");
                                 setStatusFilter("uncontacted");
+                                setPageIndex(1);
                               }}
                               className="min-h-[36px] rounded-full border border-border/60 px-4 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground transition hover:border-[#163960]/50 hover:text-[#163960]"
                             >
                               Limpiar busqueda
                             </button>
                           )}
+                          {statusFilter === "uncontacted" && !search && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setStatusFilter("all");
+                                setPageIndex(1);
+                              }}
+                              className="min-h-[36px] rounded-full border border-[#163960]/30 px-4 text-xs font-semibold uppercase tracking-[0.16em] text-[#163960] transition hover:border-[#163960]"
+                            >
+                              Ver todos
+                            </button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filteredRecords.map((record, index) => (
+                    pagedRecords.map((record, index) => (
                       <TableRow
                         key={record.sourceId}
                         className={`border-border/60 ${
@@ -715,6 +747,12 @@ export default function InfoFeb8OperatorDashboard({
                           const replied = Boolean(status.replied);
                           const canDelete = deletingId === record.sourceId;
                           const linkCount = getLinkCount(record);
+                          const linkBadgeClass =
+                            linkCount === 2
+                              ? "border-[#25D366]/60 bg-[#25D366]/15 text-[#1a8d44]"
+                              : linkCount === 1
+                                ? "border-[#FFC800]/60 bg-[#FFC800]/20 text-[#7a5b00]"
+                                : "border-border/60 bg-white text-muted-foreground";
                           return (
                             <>
                               <TableCell>{formatDateTime(record.timestamp)}</TableCell>
@@ -746,8 +784,10 @@ export default function InfoFeb8OperatorDashboard({
                               </TableCell>
                               <TableCell className="text-right">
                                 <div className="flex flex-wrap justify-end gap-2">
-                                  <span className="min-h-[38px] rounded-full border border-border/60 bg-white px-4 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                                    {`${linkCount} link${linkCount === 1 ? "" : "s"}`}
+                                  <span
+                                    className={`min-h-[38px] min-w-[38px] rounded-full border px-4 text-[11px] font-semibold uppercase tracking-[0.2em] ${linkBadgeClass}`}
+                                  >
+                                    {linkCount}
                                   </span>
                                   <button
                                     type="button"
@@ -809,6 +849,87 @@ export default function InfoFeb8OperatorDashboard({
                   )}
                 </TableBody>
               </Table>
+            </div>
+          </div>
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+            <div className="flex flex-wrap items-center gap-3">
+              <span>
+                {pageStart}-{pageEnd} de {filteredRecords.length}
+              </span>
+              <div className="flex items-center gap-2">
+                {[20, 50, 100].map((size) => (
+                  <button
+                    key={size}
+                    type="button"
+                    onClick={() => {
+                      setPageSize(size);
+                      setPageIndex(1);
+                    }}
+                    className={`min-h-[32px] rounded-full border px-3 text-[10px] font-semibold uppercase tracking-[0.2em] transition ${
+                      pageSize === size
+                        ? "border-[#163960] bg-[#163960]/10 text-[#163960]"
+                        : "border-border/60 text-muted-foreground hover:border-[#163960]/50 hover:text-[#163960]"
+                    }`}
+                  >
+                    {size}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setPageIndex(1)}
+                disabled={safePageIndex <= 1}
+                className={`min-h-[32px] rounded-full border px-2 text-[10px] font-semibold uppercase tracking-[0.2em] transition ${
+                  safePageIndex <= 1
+                    ? "border-border/40 text-muted-foreground/40"
+                    : "border-border/60 text-muted-foreground hover:border-[#163960]/50 hover:text-[#163960]"
+                }`}
+                title="Primera pagina"
+              >
+                <ChevronsLeft className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setPageIndex((current) => Math.max(current - 1, 1))}
+                disabled={safePageIndex <= 1}
+                className={`min-h-[32px] rounded-full border px-3 text-[10px] font-semibold uppercase tracking-[0.2em] transition ${
+                  safePageIndex <= 1
+                    ? "border-border/40 text-muted-foreground/40"
+                    : "border-border/60 text-muted-foreground hover:border-[#163960]/50 hover:text-[#163960]"
+                }`}
+              >
+                Anterior
+              </button>
+              <span className="min-h-[32px] rounded-full border border-border/60 px-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                {safePageIndex} / {totalPages}
+              </span>
+              <button
+                type="button"
+                onClick={() => setPageIndex((current) => Math.min(current + 1, totalPages))}
+                disabled={safePageIndex >= totalPages}
+                className={`min-h-[32px] rounded-full border px-3 text-[10px] font-semibold uppercase tracking-[0.2em] transition ${
+                  safePageIndex >= totalPages
+                    ? "border-border/40 text-muted-foreground/40"
+                    : "border-border/60 text-muted-foreground hover:border-[#163960]/50 hover:text-[#163960]"
+                }`}
+              >
+                Siguiente
+              </button>
+              <button
+                type="button"
+                onClick={() => setPageIndex(totalPages)}
+                disabled={safePageIndex >= totalPages}
+                className={`min-h-[32px] rounded-full border px-2 text-[10px] font-semibold uppercase tracking-[0.2em] transition ${
+                  safePageIndex >= totalPages
+                    ? "border-border/40 text-muted-foreground/40"
+                    : "border-border/60 text-muted-foreground hover:border-[#163960]/50 hover:text-[#163960]"
+                }`}
+                title="Ultima pagina"
+              >
+                <ChevronsRight className="h-4 w-4" />
+              </button>
             </div>
           </div>
         </section>

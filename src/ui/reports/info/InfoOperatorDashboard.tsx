@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Image from "next/image";
+import { ChevronsLeft, ChevronsRight } from "lucide-react";
 import { Badge } from "@/ui/primitives/badge";
 import { Input } from "@/ui/primitives/input";
 import { Textarea } from "@/ui/primitives/textarea";
@@ -45,7 +46,6 @@ type RecordStatus = {
   deleted?: boolean;
   homeMapsUrl?: string | null;
   pollingPlaceUrl?: string | null;
-  linksComment?: string | null;
   updatedAt?: number;
 };
 
@@ -106,7 +106,6 @@ type InfoOperatorDashboardProps = {
 type LinkDraft = {
   homeMapsUrl: string;
   pollingPlaceUrl: string;
-  linksComment: string;
 };
 
 export default function InfoOperatorDashboard({ operatorSlug }: InfoOperatorDashboardProps) {
@@ -126,14 +125,15 @@ export default function InfoOperatorDashboard({ operatorSlug }: InfoOperatorDash
   const [linksDraft, setLinksDraft] = React.useState<LinkDraft>({
     homeMapsUrl: "",
     pollingPlaceUrl: "",
-    linksComment: "",
   });
   const [linksErrors, setLinksErrors] = React.useState<Partial<LinkDraft>>({});
   const [activeRecord, setActiveRecord] = React.useState<FormAccessRecord | null>(null);
   const saveTimerRef = React.useRef<number | null>(null);
   const [statusFilter, setStatusFilter] = React.useState<
     "all" | "uncontacted" | "contacted" | "replied" | "trash"
-  >("all");
+  >("uncontacted");
+  const [pageSize, setPageSize] = React.useState(20);
+  const [pageIndex, setPageIndex] = React.useState(1);
   const dateFromMs = React.useMemo(() => parseDateInput(dateFrom, "start"), [dateFrom]);
   const dateToMs = React.useMemo(() => parseDateInput(dateTo, "end"), [dateTo]);
   const hasDateFilter = Boolean(dateFrom || dateTo);
@@ -147,7 +147,6 @@ export default function InfoOperatorDashboard({ operatorSlug }: InfoOperatorDash
           deleted: status.deleted,
           homeMapsUrl: status.homeMapsUrl ?? null,
           pollingPlaceUrl: status.pollingPlaceUrl ?? null,
-          linksComment: status.linksComment ?? null,
           updatedAt: status.updatedAt ? new Date(status.updatedAt).getTime() : undefined,
         };
         return acc;
@@ -261,6 +260,15 @@ export default function InfoOperatorDashboard({ operatorSlug }: InfoOperatorDash
 
   const hasActiveFilters = Boolean(search.trim()) || statusFilter !== "uncontacted" || hasDateFilter;
 
+  const totalPages = Math.max(Math.ceil(filteredRecords.length / pageSize), 1);
+  const safePageIndex = Math.min(pageIndex, totalPages);
+  const pagedRecords = React.useMemo(() => {
+    const start = (safePageIndex - 1) * pageSize;
+    return filteredRecords.slice(start, start + pageSize);
+  }, [filteredRecords, pageSize, safePageIndex]);
+  const pageStart = filteredRecords.length === 0 ? 0 : (safePageIndex - 1) * pageSize + 1;
+  const pageEnd = Math.min(pageStart + pageSize - 1, filteredRecords.length);
+
   const setRecordStatus = React.useCallback(
     async (record: FormAccessRecord, next: Partial<RecordStatus>) => {
       if (!operatorId) return;
@@ -277,7 +285,6 @@ export default function InfoOperatorDashboard({ operatorSlug }: InfoOperatorDash
           deleted: Boolean(optimistic.deleted),
           homeMapsUrl: optimistic.homeMapsUrl ?? null,
           pollingPlaceUrl: optimistic.pollingPlaceUrl ?? null,
-          linksComment: optimistic.linksComment ?? null,
         })) as FormAccessStatus;
         setStatusMap((current) => ({
           ...current,
@@ -287,7 +294,6 @@ export default function InfoOperatorDashboard({ operatorSlug }: InfoOperatorDash
             deleted: payload.deleted,
             homeMapsUrl: payload.homeMapsUrl ?? null,
             pollingPlaceUrl: payload.pollingPlaceUrl ?? null,
-            linksComment: payload.linksComment ?? null,
             updatedAt: payload.updatedAt ? new Date(payload.updatedAt).getTime() : undefined,
           },
         }));
@@ -323,7 +329,6 @@ export default function InfoOperatorDashboard({ operatorSlug }: InfoOperatorDash
       setLinksDraft({
         homeMapsUrl: status.homeMapsUrl ?? "",
         pollingPlaceUrl: status.pollingPlaceUrl ?? "",
-        linksComment: status.linksComment ?? "",
       });
       setLinksErrors({});
       setLinksOpen(true);
@@ -341,7 +346,6 @@ export default function InfoOperatorDashboard({ operatorSlug }: InfoOperatorDash
     if (!activeRecord) return;
     const nextHome = linksDraft.homeMapsUrl.trim();
     const nextPolling = linksDraft.pollingPlaceUrl.trim();
-    const nextComment = linksDraft.linksComment.trim();
     const errors: Partial<LinkDraft> = {};
     if (nextHome && !getValidUrl(nextHome)) {
       errors.homeMapsUrl = "URL invalida";
@@ -356,7 +360,6 @@ export default function InfoOperatorDashboard({ operatorSlug }: InfoOperatorDash
     await setRecordStatus(activeRecord, {
       homeMapsUrl: nextHome || null,
       pollingPlaceUrl: nextPolling || null,
-      linksComment: nextComment || null,
     });
     closeLinksModal();
   }, [activeRecord, linksDraft, setRecordStatus, closeLinksModal]);
@@ -451,6 +454,7 @@ export default function InfoOperatorDashboard({ operatorSlug }: InfoOperatorDash
                   onClick={() => {
                     setDateFrom("");
                     setDateTo("");
+                    setPageIndex(1);
                   }}
                   className="min-h-[36px] rounded-full border border-border/60 px-3 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground transition hover:border-[#163960]/50 hover:text-[#163960]"
                 >
@@ -460,7 +464,10 @@ export default function InfoOperatorDashboard({ operatorSlug }: InfoOperatorDash
               {search && (
                 <button
                   type="button"
-                  onClick={() => setSearch("")}
+                  onClick={() => {
+                    setSearch("");
+                    setPageIndex(1);
+                  }}
                   className="min-h-[36px] rounded-full border border-border/60 px-3 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground transition hover:border-[#163960]/50 hover:text-[#163960]"
                 >
                   Limpiar busqueda
@@ -479,7 +486,10 @@ export default function InfoOperatorDashboard({ operatorSlug }: InfoOperatorDash
               <Input
                 id="record-search"
                 value={search}
-                onChange={(event) => setSearch(event.target.value)}
+                onChange={(event) => {
+                  setSearch(event.target.value);
+                  setPageIndex(1);
+                }}
                 placeholder="Entrevistador, nombre o telefono"
                 className="mt-2 h-12 rounded-2xl border-border/60 bg-white/80"
               />
@@ -496,7 +506,10 @@ export default function InfoOperatorDashboard({ operatorSlug }: InfoOperatorDash
                   id="record-date-from"
                   type="date"
                   value={dateFrom}
-                  onChange={(event) => setDateFrom(event.target.value)}
+                  onChange={(event) => {
+                    setDateFrom(event.target.value);
+                    setPageIndex(1);
+                  }}
                   max={dateTo || undefined}
                   className="mt-2 h-11 rounded-2xl border-border/60 bg-white/80"
                 />
@@ -512,7 +525,10 @@ export default function InfoOperatorDashboard({ operatorSlug }: InfoOperatorDash
                   id="record-date-to"
                   type="date"
                   value={dateTo}
-                  onChange={(event) => setDateTo(event.target.value)}
+                  onChange={(event) => {
+                    setDateTo(event.target.value);
+                    setPageIndex(1);
+                  }}
                   min={dateFrom || undefined}
                   className="mt-2 h-11 rounded-2xl border-border/60 bg-white/80"
                 />
@@ -529,7 +545,10 @@ export default function InfoOperatorDashboard({ operatorSlug }: InfoOperatorDash
                 <button
                   key={item.id}
                   type="button"
-                  onClick={() => setStatusFilter(item.id)}
+                  onClick={() => {
+                    setStatusFilter(item.id);
+                    setPageIndex(1);
+                  }}
                   className={`min-h-[40px] rounded-full border px-4 text-[11px] font-semibold uppercase tracking-[0.2em] transition ${
                     statusFilter === item.id
                       ? "border-[#163960] bg-[#163960]/10 text-[#163960]"
@@ -617,17 +636,30 @@ export default function InfoOperatorDashboard({ operatorSlug }: InfoOperatorDash
                                 setStatusFilter("uncontacted");
                                 setDateFrom("");
                                 setDateTo("");
+                                setPageIndex(1);
                               }}
                               className="min-h-[36px] rounded-full border border-border/60 px-4 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground transition hover:border-[#163960]/50 hover:text-[#163960]"
                             >
                               Limpiar filtros
                             </button>
                           )}
+                          {!hasActiveFilters && statusFilter === "uncontacted" && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setStatusFilter("all");
+                                setPageIndex(1);
+                              }}
+                              className="min-h-[36px] rounded-full border border-[#163960]/30 px-4 text-xs font-semibold uppercase tracking-[0.16em] text-[#163960] transition hover:border-[#163960]"
+                            >
+                              Ver todos
+                            </button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filteredRecords.map((record, index) => (
+                    pagedRecords.map((record, index) => (
                       <TableRow
                         key={record.formId}
                         className={`border-border/60 ${
@@ -760,6 +792,87 @@ export default function InfoOperatorDashboard({ operatorSlug }: InfoOperatorDash
               </Table>
             </div>
           </div>
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+            <div className="flex flex-wrap items-center gap-3">
+              <span>
+                {pageStart}-{pageEnd} de {filteredRecords.length}
+              </span>
+              <div className="flex items-center gap-2">
+                {[20, 50, 100].map((size) => (
+                  <button
+                    key={size}
+                    type="button"
+                    onClick={() => {
+                      setPageSize(size);
+                      setPageIndex(1);
+                    }}
+                    className={`min-h-[32px] rounded-full border px-3 text-[10px] font-semibold uppercase tracking-[0.2em] transition ${
+                      pageSize === size
+                        ? "border-[#163960] bg-[#163960]/10 text-[#163960]"
+                        : "border-border/60 text-muted-foreground hover:border-[#163960]/50 hover:text-[#163960]"
+                    }`}
+                  >
+                    {size}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setPageIndex(1)}
+                disabled={safePageIndex <= 1}
+                className={`min-h-[32px] rounded-full border px-2 text-[10px] font-semibold uppercase tracking-[0.2em] transition ${
+                  safePageIndex <= 1
+                    ? "border-border/40 text-muted-foreground/40"
+                    : "border-border/60 text-muted-foreground hover:border-[#163960]/50 hover:text-[#163960]"
+                }`}
+                title="Primera pagina"
+              >
+                <ChevronsLeft className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setPageIndex((current) => Math.max(current - 1, 1))}
+                disabled={safePageIndex <= 1}
+                className={`min-h-[32px] rounded-full border px-3 text-[10px] font-semibold uppercase tracking-[0.2em] transition ${
+                  safePageIndex <= 1
+                    ? "border-border/40 text-muted-foreground/40"
+                    : "border-border/60 text-muted-foreground hover:border-[#163960]/50 hover:text-[#163960]"
+                }`}
+              >
+                Anterior
+              </button>
+              <span className="min-h-[32px] rounded-full border border-border/60 px-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                {safePageIndex} / {totalPages}
+              </span>
+              <button
+                type="button"
+                onClick={() => setPageIndex((current) => Math.min(current + 1, totalPages))}
+                disabled={safePageIndex >= totalPages}
+                className={`min-h-[32px] rounded-full border px-3 text-[10px] font-semibold uppercase tracking-[0.2em] transition ${
+                  safePageIndex >= totalPages
+                    ? "border-border/40 text-muted-foreground/40"
+                    : "border-border/60 text-muted-foreground hover:border-[#163960]/50 hover:text-[#163960]"
+                }`}
+              >
+                Siguiente
+              </button>
+              <button
+                type="button"
+                onClick={() => setPageIndex(totalPages)}
+                disabled={safePageIndex >= totalPages}
+                className={`min-h-[32px] rounded-full border px-2 text-[10px] font-semibold uppercase tracking-[0.2em] transition ${
+                  safePageIndex >= totalPages
+                    ? "border-border/40 text-muted-foreground/40"
+                    : "border-border/60 text-muted-foreground hover:border-[#163960]/50 hover:text-[#163960]"
+                }`}
+                title="Ultima pagina"
+              >
+                <ChevronsRight className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
         </section>
       </div>
       <Dialog open={linksOpen} onOpenChange={(open) => (open ? null : closeLinksModal())}>
@@ -816,26 +929,6 @@ export default function InfoOperatorDashboard({ operatorSlug }: InfoOperatorDash
               {linksErrors.pollingPlaceUrl ? (
                 <p className="mt-2 text-xs text-red-500">{linksErrors.pollingPlaceUrl}</p>
               ) : null}
-            </div>
-            <div>
-              <label
-                htmlFor="links-comment"
-                className="text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground"
-              >
-                Comentario
-              </label>
-              <Textarea
-                id="links-comment"
-                value={linksDraft.linksComment}
-                onChange={(event) =>
-                  setLinksDraft((current) => ({
-                    ...current,
-                    linksComment: event.target.value,
-                  }))
-                }
-                placeholder="Notas adicionales"
-                className="mt-2 min-h-[100px] rounded-2xl border-border/60 bg-white"
-              />
             </div>
           </div>
           <DialogFooter className="sm:justify-between">
