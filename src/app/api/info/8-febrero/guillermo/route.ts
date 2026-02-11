@@ -14,6 +14,8 @@ export async function GET() {
       candidate: infoFeb8GuillermoRegistros.candidate,
       name: infoFeb8GuillermoRegistros.name,
       phone: infoFeb8GuillermoRegistros.phone,
+      homeMapsUrl: infoFeb8GuillermoRegistros.homeMapsUrl,
+      pollingPlaceUrl: infoFeb8GuillermoRegistros.pollingPlaceUrl,
       east: infoFeb8GuillermoRegistros.east,
       north: infoFeb8GuillermoRegistros.north,
       latitude: infoFeb8GuillermoRegistros.latitude,

@@ -12,14 +12,16 @@ export async function GET() {
         .select({
           sourceId: infoFeb8GiovannaRegistros.sourceId,
           recordedAt: infoFeb8GiovannaRegistros.recordedAt,
-          interviewer: infoFeb8GiovannaRegistros.interviewer,
-          candidate: infoFeb8GiovannaRegistros.candidate,
-          name: infoFeb8GiovannaRegistros.name,
-          phone: infoFeb8GiovannaRegistros.phone,
-          east: infoFeb8GiovannaRegistros.east,
-          north: infoFeb8GiovannaRegistros.north,
-          latitude: infoFeb8GiovannaRegistros.latitude,
-          longitude: infoFeb8GiovannaRegistros.longitude,
+      interviewer: infoFeb8GiovannaRegistros.interviewer,
+      candidate: infoFeb8GiovannaRegistros.candidate,
+      name: infoFeb8GiovannaRegistros.name,
+      phone: infoFeb8GiovannaRegistros.phone,
+      homeMapsUrl: infoFeb8GiovannaRegistros.homeMapsUrl,
+      pollingPlaceUrl: infoFeb8GiovannaRegistros.pollingPlaceUrl,
+      east: infoFeb8GiovannaRegistros.east,
+      north: infoFeb8GiovannaRegistros.north,
+      latitude: infoFeb8GiovannaRegistros.latitude,
+      longitude: infoFeb8GiovannaRegistros.longitude,
         })
         .from(infoFeb8GiovannaRegistros)
         .orderBy(desc(infoFeb8GiovannaRegistros.recordedAt));

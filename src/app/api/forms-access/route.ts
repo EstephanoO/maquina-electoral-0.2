@@ -80,6 +80,8 @@ export async function GET(request: Request) {
       contacted: formsOperatorStatus.contacted,
       replied: formsOperatorStatus.replied,
       deleted: formsOperatorStatus.deleted,
+      homeMapsUrl: formsOperatorStatus.homeMapsUrl,
+      pollingPlaceUrl: formsOperatorStatus.pollingPlaceUrl,
       updatedAt: formsOperatorStatus.updatedAt,
     })
     .from(formsOperatorStatus)

@@ -10,6 +10,8 @@ type StatusPayload = {
   contacted?: boolean;
   replied?: boolean;
   deleted?: boolean;
+  homeMapsUrl?: string | null;
+  pollingPlaceUrl?: string | null;
 };
 
 export async function PATCH(request: Request) {
@@ -23,15 +25,35 @@ export async function PATCH(request: Request) {
   const contacted = Boolean(payload.contacted);
   const replied = Boolean(payload.replied);
   const deleted = Boolean(payload.deleted);
+  const homeMapsUrl = payload.homeMapsUrl ?? null;
+  const pollingPlaceUrl = payload.pollingPlaceUrl ?? null;
   const updatedAt = new Date();
 
   await dbInfo
     .insert(formsOperatorStatus)
-    .values({ operatorId, formId, contacted, replied, deleted, updatedAt })
+    .values({
+      operatorId,
+      formId,
+      contacted,
+      replied,
+      deleted,
+      homeMapsUrl,
+      pollingPlaceUrl,
+      updatedAt,
+    })
     .onConflictDoUpdate({
       target: [formsOperatorStatus.formId, formsOperatorStatus.operatorId],
-      set: { contacted, replied, deleted, updatedAt },
+      set: { contacted, replied, deleted, homeMapsUrl, pollingPlaceUrl, updatedAt },
     });
 
-  return NextResponse.json({ operatorId, formId, contacted, replied, deleted, updatedAt });
+  return NextResponse.json({
+    operatorId,
+    formId,
+    contacted,
+    replied,
+    deleted,
+    homeMapsUrl,
+    pollingPlaceUrl,
+    updatedAt,
+  });
 }
