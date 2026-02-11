@@ -1,5 +1,6 @@
-import InfoFeb8GuillermoDashboard from "@/ui/reports/info/InfoFeb8GuillermoDashboard";
+import InfoOperatorPage from "@/ui/reports/info/InfoOperatorPage";
+import { infoOperatorConfigs } from "@/ui/reports/info/infoOperatorConfigs";
 
 export default function InfoFeb8GuillermoPage() {
-  return <InfoFeb8GuillermoDashboard />;
+  return <InfoOperatorPage config={infoOperatorConfigs.guillermo} />;
 }

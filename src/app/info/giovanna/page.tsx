@@ -1,5 +1,6 @@
-import InfoFeb8GiovannaDashboard from "@/ui/reports/info/InfoFeb8GiovannaDashboard";
+import InfoOperatorPage from "@/ui/reports/info/InfoOperatorPage";
+import { infoOperatorConfigs } from "@/ui/reports/info/infoOperatorConfigs";
 
 export default function InfoGiovannaPage() {
-  return <InfoFeb8GiovannaDashboard />;
+  return <InfoOperatorPage config={infoOperatorConfigs.giovanna} />;
 }

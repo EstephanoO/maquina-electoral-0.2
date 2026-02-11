@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
 import { db } from "@/db/connection";
+import {
+  CESAR_VASQUEZ_DEPARTMENT_SUMMARY,
+  CESAR_VASQUEZ_TOTAL,
+} from "@/db/constants/cesar-vasquez-mock";
 
 const clientToCandidate: Record<string, string> = {
   rocio: "Rocio Porras",
@@ -48,6 +52,12 @@ export async function GET(request: Request) {
   const clientParam = url.searchParams.get("client");
   const resolvedCandidate =
     (clientParam ? clientToCandidate[clientParam] : null) ?? candidateParam;
+  if (clientParam === "cesar-vasquez") {
+    return NextResponse.json(
+      { total: CESAR_VASQUEZ_TOTAL, departments: CESAR_VASQUEZ_DEPARTMENT_SUMMARY },
+      { status: 200, headers: cacheHeaders },
+    );
+  }
 
   const query = resolvedCandidate
     ? sql`

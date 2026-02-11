@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { and, eq, gte, isNotNull, lte, or } from "drizzle-orm";
 import { db } from "@/db/connection";
 import { territory } from "@/db/schema";
+import { CESAR_VASQUEZ_INTERVIEWS } from "@/db/constants/cesar-vasquez-mock";
 
 type InterviewPayload = {
   id?: string | null;
@@ -179,6 +180,9 @@ export async function GET(request: Request) {
   const clientParam = url.searchParams.get("client");
   const startDateParam = url.searchParams.get("startDate");
   const endDateParam = url.searchParams.get("endDate");
+  if (clientParam === "cesar-vasquez") {
+    return NextResponse.json({ points: CESAR_VASQUEZ_INTERVIEWS });
+  }
   if (clientParam && !clientToCandidate[clientParam]) {
     return NextResponse.json({ error: "Invalid client" }, { status: 400 });
   }

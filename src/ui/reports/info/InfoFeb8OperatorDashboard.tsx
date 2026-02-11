@@ -12,6 +12,7 @@ import {
   TableRow,
   TableCell,
 } from "@/ui/primitives/table";
+import type { InfoFeb8OperatorConfig } from "@/ui/reports/info/infoOperatorConfigs";
 
 const DEFAULT_MESSAGE =
   "Hola {nombre}, somos el equipo de Somos Peru. Gracias por tu tiempo. Queremos compartirte una breve actualizacion del trabajo en campo.";
@@ -24,6 +25,7 @@ const LOADING_ROW_KEYS = [
   "loading-6",
   "loading-7",
 ];
+const TABLE_COLUMN_COUNT = 6;
 
 type InterviewRecord = {
   sourceId: string;
@@ -106,7 +108,13 @@ const formatDateTime = (timestamp: string) => {
   }).format(value);
 };
 
-export default function InfoFeb8GuillermoDashboard() {
+type InfoFeb8OperatorDashboardProps = {
+  config: InfoFeb8OperatorConfig;
+};
+
+export default function InfoFeb8OperatorDashboard({
+  config,
+}: InfoFeb8OperatorDashboardProps) {
   const headerRef = React.useRef<HTMLElement | null>(null);
   const [records, setRecords] = React.useState<InterviewRecord[]>([]);
   const [message, setMessage] = React.useState(DEFAULT_MESSAGE);
@@ -129,58 +137,61 @@ export default function InfoFeb8GuillermoDashboard() {
     saveTimerRef.current = window.setTimeout(() => setSavePulse(false), 1800);
   }, []);
 
-  const fetchRecords = React.useCallback(async (options?: { silent?: boolean }) => {
-    const silent = options?.silent ?? false;
-    if (!silent) {
-      setLoading(true);
-      setError(null);
-    }
-    try {
-      const response = await fetch("/api/info/8-febrero/guillermo", {
-        cache: "no-store",
-      });
-      if (!response.ok) throw new Error("No se pudo cargar los registros.");
-      const payload = (await response.json()) as {
-        records?: InfoFeb8ApiRecord[];
-        statuses?: InfoFeb8ApiStatus[];
-      };
-      const parsed = (payload.records ?? [])
-        .filter((record) => record.sourceId && record.phone)
-        .map((record) => ({
-          sourceId: record.sourceId,
-          timestamp: record.recordedAt ?? "",
-          interviewer: record.interviewer ?? "",
-          candidate: record.candidate ?? "",
-          name: record.name ?? "",
-          phone: record.phone ?? "",
-          east: record.east ?? "",
-          north: record.north ?? "",
-          lat: record.latitude !== null ? String(record.latitude) : "",
-          lng: record.longitude !== null ? String(record.longitude) : "",
-        }))
-        .filter((record) => record.timestamp && record.interviewer && record.phone);
-      const nextStatusMap = (payload.statuses ?? []).reduce(
-        (acc, status) => {
-          acc[normalizePhone(status.phone)] = {
-            contacted: status.contacted,
-            replied: status.replied,
-            deleted: status.deleted,
-            updatedAt: status.updatedAt ? new Date(status.updatedAt).getTime() : undefined,
-          };
-          return acc;
-        },
-        {} as Record<string, RecordStatus>,
-      );
-      if (!isMountedRef.current) return;
-      setRecords(parsed);
-      setStatusMap(nextStatusMap);
-    } catch (err) {
-      if (!isMountedRef.current) return;
-      setError(err instanceof Error ? err.message : "Error inesperado.");
-    } finally {
-      if (!silent && isMountedRef.current) setLoading(false);
-    }
-  }, []);
+  const fetchRecords = React.useCallback(
+    async (options?: { silent?: boolean }) => {
+      const silent = options?.silent ?? false;
+      if (!silent) {
+        setLoading(true);
+        setError(null);
+      }
+      try {
+        const response = await fetch(config.apiBasePath, {
+          cache: "no-store",
+        });
+        if (!response.ok) throw new Error("No se pudo cargar los registros.");
+        const payload = (await response.json()) as {
+          records?: InfoFeb8ApiRecord[];
+          statuses?: InfoFeb8ApiStatus[];
+        };
+        const parsed = (payload.records ?? [])
+          .filter((record) => record.sourceId && record.phone)
+          .map((record) => ({
+            sourceId: record.sourceId,
+            timestamp: record.recordedAt ?? "",
+            interviewer: record.interviewer ?? "",
+            candidate: record.candidate ?? "",
+            name: record.name ?? "",
+            phone: record.phone ?? "",
+            east: record.east ?? "",
+            north: record.north ?? "",
+            lat: record.latitude !== null ? String(record.latitude) : "",
+            lng: record.longitude !== null ? String(record.longitude) : "",
+          }))
+          .filter((record) => record.timestamp && record.interviewer && record.phone);
+        const nextStatusMap = (payload.statuses ?? []).reduce(
+          (acc, status) => {
+            acc[normalizePhone(status.phone)] = {
+              contacted: status.contacted,
+              replied: status.replied,
+              deleted: status.deleted,
+              updatedAt: status.updatedAt ? new Date(status.updatedAt).getTime() : undefined,
+            };
+            return acc;
+          },
+          {} as Record<string, RecordStatus>,
+        );
+        if (!isMountedRef.current) return;
+        setRecords(parsed);
+        setStatusMap(nextStatusMap);
+      } catch (err) {
+        if (!isMountedRef.current) return;
+        setError(err instanceof Error ? err.message : "Error inesperado.");
+      } finally {
+        if (!silent && isMountedRef.current) setLoading(false);
+      }
+    },
+    [config.apiBasePath],
+  );
 
   const handleRetry = React.useCallback(() => {
     void fetchRecords();
@@ -274,7 +285,7 @@ export default function InfoFeb8GuillermoDashboard() {
       }));
       triggerSavePulse();
       try {
-        const response = await fetch("/api/info/8-febrero/guillermo/status", {
+        const response = await fetch(`${config.apiBasePath}/status`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -307,7 +318,7 @@ export default function InfoFeb8GuillermoDashboard() {
         setError(err instanceof Error ? err.message : "Error inesperado.");
       }
     },
-    [statusMap, triggerSavePulse],
+    [config.apiBasePath, statusMap, triggerSavePulse],
   );
 
   const handleDelete = React.useCallback(
@@ -320,13 +331,11 @@ export default function InfoFeb8GuillermoDashboard() {
       setDeletingId(record.sourceId);
       try {
         const response = await fetch(
-          `/api/info/8-febrero/guillermo?id=${encodeURIComponent(record.sourceId)}`,
+          `${config.apiBasePath}?id=${encodeURIComponent(record.sourceId)}`,
           { method: "DELETE" },
         );
         if (!response.ok) throw new Error("No se pudo eliminar el registro.");
-        setRecords((current) =>
-          current.filter((item) => item.sourceId !== record.sourceId),
-        );
+        setRecords((current) => current.filter((item) => item.sourceId !== record.sourceId));
         setStatusMap((current) => {
           const key = normalizePhone(record.phone);
           if (!current[key]) return current;
@@ -340,7 +349,7 @@ export default function InfoFeb8GuillermoDashboard() {
         setDeletingId((current) => (current === record.sourceId ? null : current));
       }
     },
-    [],
+    [config.apiBasePath],
   );
 
   return (
@@ -363,17 +372,17 @@ export default function InfoFeb8GuillermoDashboard() {
                 Reporte diario
               </p>
               <h1 className="heading-display text-2xl font-semibold text-foreground md:text-3xl">
-                Registros Guillermo
+                {config.title}
               </h1>
-              <p className="text-sm text-muted-foreground">
-                Jornada de campo del 08 de febrero de 2026
-              </p>
+              <p className="text-sm text-muted-foreground">{config.subtitle}</p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            <Badge variant="secondary" className="bg-[#163960]/10 text-[#163960]">
-              08 Feb 2026
-            </Badge>
+            {config.badgeDate ? (
+              <Badge variant="secondary" className="bg-[#163960]/10 text-[#163960]">
+                {config.badgeDate}
+              </Badge>
+            ) : null}
             <Badge variant="secondary" className="bg-[#FFC800]/20 text-[#7a5b00]">
               {records.length || 0} registros
             </Badge>
@@ -468,10 +477,8 @@ export default function InfoFeb8GuillermoDashboard() {
         <section className="panel fade-rise rounded-3xl border border-border/70 px-5 py-6 md:px-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="space-y-1">
-              <h2 className="heading-display text-xl font-semibold">Tabla consolidada</h2>
-              <p className="text-sm text-muted-foreground">
-                Registros cargados desde el CSV compartido.
-              </p>
+              <h2 className="heading-display text-xl font-semibold">{config.tableTitle}</h2>
+              <p className="text-sm text-muted-foreground">{config.tableDescription}</p>
             </div>
           </div>
           <div className="mt-4 overflow-hidden rounded-2xl border border-border/60">
@@ -491,14 +498,17 @@ export default function InfoFeb8GuillermoDashboard() {
                   {loading ? (
                     LOADING_ROW_KEYS.map((rowKey) => (
                       <TableRow key={rowKey} className="border-border/60">
-                        <TableCell colSpan={5} className="py-6">
+                        <TableCell colSpan={TABLE_COLUMN_COUNT} className="py-6">
                           <div className="h-4 w-full animate-pulse rounded-full bg-muted/50" />
                         </TableCell>
                       </TableRow>
                     ))
                   ) : error ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="py-8 text-center text-sm text-red-500">
+                      <TableCell
+                        colSpan={TABLE_COLUMN_COUNT}
+                        className="py-8 text-center text-sm text-red-500"
+                      >
                         <div className="space-y-3">
                           <p>{error}</p>
                           <button
@@ -513,7 +523,7 @@ export default function InfoFeb8GuillermoDashboard() {
                     </TableRow>
                   ) : filteredRecords.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="py-10 text-center text-sm">
+                      <TableCell colSpan={TABLE_COLUMN_COUNT} className="py-10 text-center text-sm">
                         <div className="space-y-3">
                           <p>No hay registros para mostrar.</p>
                           {(search || statusFilter !== "uncontacted") && (
@@ -546,83 +556,83 @@ export default function InfoFeb8GuillermoDashboard() {
                           const canDelete = deletingId === record.sourceId;
                           return (
                             <>
-                        <TableCell>{formatDateTime(record.timestamp)}</TableCell>
-                        <TableCell className="whitespace-normal" title={record.interviewer}>
-                          {record.interviewer}
-                        </TableCell>
-                        <TableCell className="whitespace-normal" title={record.candidate}>
-                          {record.candidate}
-                        </TableCell>
-                        <TableCell className="whitespace-normal" title={record.name}>
-                          {record.name}
-                        </TableCell>
-                        <TableCell className="font-medium">
-                          <button
-                            type="button"
-                            className="inline-flex min-h-[40px] items-center rounded-full border border-[#163960]/30 px-3 py-2 text-sm font-semibold text-[#163960] transition hover:border-[#25D366] hover:text-[#1a8d44]"
-                            onClick={() => {
-                              const personalizedMessage = buildWhatsappMessage(
-                                message,
-                                record.name,
-                              );
-                              const url = buildWhatsappUrl(record.phone, personalizedMessage);
-                              window.open(url, "_blank", "noopener,noreferrer");
-                            }}
-                            title="Abrir WhatsApp"
-                          >
-                            <span className="mr-2 inline-flex h-7 w-7 items-center justify-center rounded-full bg-[#25D366]/15 text-[10px] font-semibold text-[#1a8d44]">
-                              WA
-                            </span>
-                            {formatPhone(record.phone)}
-                          </button>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex flex-wrap justify-end gap-2">
-                            <button
-                              type="button"
-                              className={`min-h-[36px] rounded-full border px-3 text-xs font-semibold uppercase tracking-[0.16em] transition ${
-                                contacted
-                                  ? "border-[#FFC800] bg-[#FFC800]/20 text-[#7a5b00]"
-                                  : "border-border/60 text-muted-foreground hover:border-[#FFC800]/60 hover:text-[#7a5b00]"
-                              }`}
-                              onClick={() =>
-                                setRecordStatus(record.phone, {
-                                  contacted: !contacted,
-                                })
-                              }
-                            >
-                              Hablado
-                            </button>
-                            <button
-                              type="button"
-                              className={`min-h-[36px] rounded-full border px-3 text-xs font-semibold uppercase tracking-[0.16em] transition ${
-                                replied
-                                  ? "border-[#25D366] bg-[#25D366]/15 text-[#1a8d44]"
-                                  : "border-border/60 text-muted-foreground hover:border-[#25D366]/60 hover:text-[#1a8d44]"
-                              }`}
-                              onClick={() =>
-                                setRecordStatus(record.phone, {
-                                  replied: !replied,
-                                  contacted: true,
-                                })
-                              }
-                            >
-                              Respondio
-                            </button>
-                            <button
-                              type="button"
-                              disabled={canDelete}
-                              onClick={() => handleDelete(record)}
-                              className={`min-h-[36px] rounded-full border px-3 text-xs font-semibold uppercase tracking-[0.16em] transition ${
-                                canDelete
-                                  ? "cursor-wait border-red-500/40 text-red-500"
-                                  : "border-border/60 text-muted-foreground hover:border-red-500/60 hover:text-red-500"
-                              }`}
-                            >
-                              {canDelete ? "Eliminando" : "Eliminar"}
-                            </button>
-                          </div>
-                        </TableCell>
+                              <TableCell>{formatDateTime(record.timestamp)}</TableCell>
+                              <TableCell className="whitespace-normal" title={record.interviewer}>
+                                {record.interviewer}
+                              </TableCell>
+                              <TableCell className="whitespace-normal" title={record.candidate}>
+                                {record.candidate}
+                              </TableCell>
+                              <TableCell className="whitespace-normal" title={record.name}>
+                                {record.name}
+                              </TableCell>
+                              <TableCell className="font-medium">
+                                <button
+                                  type="button"
+                                  className="inline-flex min-h-[40px] items-center rounded-full border border-[#163960]/30 px-3 py-2 text-sm font-semibold text-[#163960] transition hover:border-[#25D366] hover:text-[#1a8d44]"
+                                  onClick={() => {
+                                    const personalizedMessage = buildWhatsappMessage(
+                                      message,
+                                      record.name,
+                                    );
+                                    const url = buildWhatsappUrl(record.phone, personalizedMessage);
+                                    window.open(url, "_blank", "noopener,noreferrer");
+                                  }}
+                                  title="Abrir WhatsApp"
+                                >
+                                  <span className="mr-2 inline-flex h-7 w-7 items-center justify-center rounded-full bg-[#25D366]/15 text-[10px] font-semibold text-[#1a8d44]">
+                                    WA
+                                  </span>
+                                  {formatPhone(record.phone)}
+                                </button>
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <div className="flex flex-wrap justify-end gap-2">
+                                  <button
+                                    type="button"
+                                    className={`min-h-[36px] rounded-full border px-3 text-xs font-semibold uppercase tracking-[0.16em] transition ${
+                                      contacted
+                                        ? "border-[#FFC800] bg-[#FFC800]/20 text-[#7a5b00]"
+                                        : "border-border/60 text-muted-foreground hover:border-[#FFC800]/60 hover:text-[#7a5b00]"
+                                    }`}
+                                    onClick={() =>
+                                      setRecordStatus(record.phone, {
+                                        contacted: !contacted,
+                                      })
+                                    }
+                                  >
+                                    Hablado
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className={`min-h-[36px] rounded-full border px-3 text-xs font-semibold uppercase tracking-[0.16em] transition ${
+                                      replied
+                                        ? "border-[#25D366] bg-[#25D366]/15 text-[#1a8d44]"
+                                        : "border-border/60 text-muted-foreground hover:border-[#25D366]/60 hover:text-[#1a8d44]"
+                                    }`}
+                                    onClick={() =>
+                                      setRecordStatus(record.phone, {
+                                        replied: !replied,
+                                        contacted: true,
+                                      })
+                                    }
+                                  >
+                                    Respondio
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={canDelete}
+                                    onClick={() => handleDelete(record)}
+                                    className={`min-h-[36px] rounded-full border px-3 text-xs font-semibold uppercase tracking-[0.16em] transition ${
+                                      canDelete
+                                        ? "cursor-wait border-red-500/40 text-red-500"
+                                        : "border-border/60 text-muted-foreground hover:border-red-500/60 hover:text-red-500"
+                                    }`}
+                                  >
+                                    {canDelete ? "Eliminando" : "Eliminar"}
+                                  </button>
+                                </div>
+                              </TableCell>
                             </>
                           );
                         })()}

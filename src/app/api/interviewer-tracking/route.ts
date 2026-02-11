@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
 import { db } from "@/db/connection";
 import { interviewerTracking } from "@/db/schema";
+import { CESAR_VASQUEZ_TRACKING } from "@/db/constants/cesar-vasquez-mock";
 
 type TrackingCoords = {
   latitude?: number;
@@ -117,6 +118,12 @@ export async function GET(request: Request) {
   const clientParam = url.searchParams.get("client");
   const modeParam = url.searchParams.get("mode");
   const includePrevious = url.searchParams.get("includePrevious") === "1";
+  if (clientParam === "cesar-vasquez") {
+    const filtered = modeParam
+      ? CESAR_VASQUEZ_TRACKING.filter((item) => item.mode === modeParam)
+      : CESAR_VASQUEZ_TRACKING;
+    return NextResponse.json({ points: filtered });
+  }
   if (clientParam && !clientToCandidate[clientParam]) {
     return NextResponse.json({ error: "Invalid client" }, { status: 400 });
   }

@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { Card } from "@/ui/primitives/card";
 import { Button } from "@/ui/primitives/button";
 import {
@@ -316,6 +317,9 @@ export const EventMapDashboardView = ({
               triggerLabel="Ver datos"
               filterCandidate={tableFilterCandidate}
             />
+            <Button asChild size="sm" variant="outline" className="h-7 rounded-full px-3 text-[11px]">
+              <Link href="/info/cesar-vasquez">Ver inboxs</Link>
+            </Button>
           </div>
         </section>
 

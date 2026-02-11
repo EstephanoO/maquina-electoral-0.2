@@ -1,5 +1,6 @@
-import InfoOperatorDashboard from "@/ui/reports/info/InfoOperatorDashboard";
+import InfoOperatorPage from "@/ui/reports/info/InfoOperatorPage";
+import { infoOperatorConfigs } from "@/ui/reports/info/infoOperatorConfigs";
 
 export default function InfoRocioPage() {
-  return <InfoOperatorDashboard operatorSlug="rocio" />;
+  return <InfoOperatorPage config={infoOperatorConfigs.rocio} />;
 }

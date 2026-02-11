@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { Badge } from "@/ui/primitives/badge";
 import { Input } from "@/ui/primitives/input";
 import { Textarea } from "@/ui/primitives/textarea";
@@ -15,8 +16,13 @@ import {
   TableCell,
 } from "@/ui/primitives/table";
 
-const DEFAULT_MESSAGE =
-  "Hola {nombre}, somos el equipo de Cesar Vasquez (APP). Gracias por tu tiempo. Queremos compartirte una breve actualizacion del trabajo territorial.";
+import {
+  CESAR_VASQUEZ_CONFIG_STORAGE_KEY,
+  CESAR_VASQUEZ_CONFIG_URL,
+  DEFAULT_CESAR_VASQUEZ_CONFIG,
+  type CesarVasquezConfig,
+  normalizeCesarVasquezConfig,
+} from "@/ui/reports/info/cesarVasquezConfig";
 
 const SIMULATED_RECORDS = [
   {
@@ -122,6 +128,20 @@ const buildWhatsappMessage = (template: string, name: string) => {
   return personalized.replace(/\s+,/g, ",").replace(/\s{2,}/g, " ").trim();
 };
 
+const parseMetaValue = (value: string) => {
+  const normalized = value.replace(/[^0-9.]/g, "");
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const formatMetaProgress = (current: string, total: string) => {
+  const currentValue = parseMetaValue(current);
+  const totalValue = parseMetaValue(total);
+  if (currentValue === null || totalValue === null) return null;
+  if (totalValue === 0) return null;
+  return `${((currentValue / totalValue) * 100).toFixed(2)}%`;
+};
+
 const formatDateTime = (timestamp: string) => {
   const value = new Date(timestamp);
   if (Number.isNaN(value.getTime())) return timestamp;
@@ -136,7 +156,12 @@ const formatDateTime = (timestamp: string) => {
 export default function InfoCesarVasquezDashboard() {
   const headerRef = React.useRef<HTMLElement | null>(null);
   const previousThemeRef = React.useRef<"light" | "dark" | null>(null);
-  const [message, setMessage] = React.useState(DEFAULT_MESSAGE);
+  const [config, setConfig] = React.useState<CesarVasquezConfig>(
+    DEFAULT_CESAR_VASQUEZ_CONFIG,
+  );
+  const [message, setMessage] = React.useState(
+    DEFAULT_CESAR_VASQUEZ_CONFIG.messageTemplate,
+  );
   const [search, setSearch] = React.useState("");
   const [statusMap, setStatusMap] = React.useState<Record<string, RecordStatus>>({});
   const [savePulse, setSavePulse] = React.useState(false);
@@ -174,6 +199,43 @@ export default function InfoCesarVasquezDashboard() {
     return () => {
       observer.disconnect();
       window.removeEventListener("resize", updateHeaderHeight);
+    };
+  }, []);
+
+  React.useEffect(() => {
+    let active = true;
+    const loadConfig = async () => {
+      let nextConfig = DEFAULT_CESAR_VASQUEZ_CONFIG;
+      try {
+        const response = await fetch(CESAR_VASQUEZ_CONFIG_URL, { cache: "no-store" });
+        if (response.ok) {
+          const payload = (await response.json()) as Partial<CesarVasquezConfig>;
+          nextConfig = normalizeCesarVasquezConfig(payload, nextConfig);
+        }
+      } catch (error) {
+        nextConfig = DEFAULT_CESAR_VASQUEZ_CONFIG;
+      }
+
+      if (typeof window !== "undefined") {
+        const stored = window.localStorage.getItem(CESAR_VASQUEZ_CONFIG_STORAGE_KEY);
+        if (stored) {
+          try {
+            const parsed = JSON.parse(stored) as Partial<CesarVasquezConfig>;
+            nextConfig = normalizeCesarVasquezConfig(parsed, nextConfig);
+          } catch (error) {
+            window.localStorage.removeItem(CESAR_VASQUEZ_CONFIG_STORAGE_KEY);
+          }
+        }
+      }
+
+      if (!active) return;
+      setConfig(nextConfig);
+      setMessage(nextConfig.messageTemplate);
+    };
+
+    void loadConfig();
+    return () => {
+      active = false;
     };
   }, []);
 
@@ -253,8 +315,8 @@ export default function InfoCesarVasquezDashboard() {
           <div className="flex items-center gap-4">
             <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/10 p-2 shadow-[0_18px_40px_rgba(0,0,0,0.35)] ring-1 ring-white/20">
               <Image
-                src="/Logoapp.png"
-                alt="APP"
+                src={config.logoSrc}
+                alt={config.logoAlt}
                 width={56}
                 height={56}
                 className="h-full w-full rounded-lg object-contain"
@@ -262,23 +324,61 @@ export default function InfoCesarVasquezDashboard() {
               />
             </div>
             <div className="space-y-2">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-white/70">
-                Reporte diario
-              </p>
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="rounded-full border border-white/25 bg-white/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.24em] text-white/80">
+                  {config.brandName}
+                </span>
+                <span className="text-[11px] font-semibold uppercase tracking-[0.32em] text-white/70">
+                  {config.reportKicker}
+                </span>
+              </div>
               <h1 className="heading-display text-3xl font-semibold text-white md:text-4xl">
-                Registros Cesar Vasquez
+                {config.reportTitle}
               </h1>
               <div className="flex flex-wrap items-center gap-3 text-sm text-white/70">
-                <span>Partido APP</span>
+                <span className="text-white/90">{config.candidateName}</span>
+                <span>{config.partyName}</span>
                 <span className="rounded-full border border-white/25 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.28em] text-white">
-                  SENADOR NACIONAL #3
+                  {config.positionLabel}
                 </span>
               </div>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-xs uppercase tracking-[0.2em] text-white/80">
-              11 Feb 2026
+              {config.dateLabel}
+            </div>
+            <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-white/80">
+              <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/60">
+                Meta de datos
+              </div>
+              <div className="text-sm font-semibold text-white">
+                {config.metaDataCurrent} / {config.metaDataTotal}
+              </div>
+              {(() => {
+                const progress = formatMetaProgress(
+                  config.metaDataCurrent,
+                  config.metaDataTotal,
+                );
+                if (!progress) return null;
+                return <div className="text-[10px] text-white/60">{progress}</div>;
+              })()}
+            </div>
+            <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-white/80">
+              <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/60">
+                Meta de votos
+              </div>
+              <div className="text-sm font-semibold text-white">
+                {config.metaVotesCurrent} / {config.metaVotesTotal}
+              </div>
+              {(() => {
+                const progress = formatMetaProgress(
+                  config.metaVotesCurrent,
+                  config.metaVotesTotal,
+                );
+                if (!progress) return null;
+                return <div className="text-[10px] text-white/60">{progress}</div>;
+              })()}
             </div>
             <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-xs uppercase tracking-[0.2em] text-white/80">
               {SIMULATED_RECORDS.length} registros
@@ -292,6 +392,12 @@ export default function InfoCesarVasquezDashboard() {
             >
               {savePulse ? "Guardado" : "Simulado"}
             </div>
+            <Link
+              href="/info/cesar-vasquez/config"
+              className="min-h-[42px] rounded-full border border-white/20 bg-white/10 px-4 text-xs font-semibold uppercase tracking-[0.2em] text-white/80 transition hover:border-white/40 hover:bg-white/20"
+            >
+              Configurar
+            </Link>
           </div>
         </div>
       </header>

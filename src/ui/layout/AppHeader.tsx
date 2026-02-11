@@ -19,22 +19,7 @@ export const AppHeader = () => {
   };
 
   return (
-    <header className="flex items-center justify-between border-b border-border/60 bg-card/40 px-6 py-3 backdrop-blur">
-      <div className="flex items-center gap-3">
-        <img
-          src="/isotipo(2).jpg"
-          alt="GOBERNA"
-          className="h-8 w-8 rounded-full border border-border/60 bg-white"
-        />
-        <div>
-          <p className="text-[0.65rem] font-semibold uppercase tracking-[0.4em] text-primary">
-            GOBERNA
-          </p>
-          <p className="text-xs font-semibold uppercase tracking-[0.25em] text-muted-foreground">
-            Consola admin
-          </p>
-        </div>
-      </div>
+    <header className="flex items-center justify-end border-b border-border/60 bg-card/40 px-6 py-3 backdrop-blur">
       <Button variant="ghost" className="text-xs" onClick={handleLogout}>
         Salir
       </Button>
