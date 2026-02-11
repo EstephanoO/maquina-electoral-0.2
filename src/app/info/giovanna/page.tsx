@@ -1,5 +1,5 @@
-import InfoFeb8GiovannaDashboard from "@/ui/reports/info/InfoFeb8GiovannaDashboard";
+import InfoGiovannaContactsDashboard from "@/ui/reports/info/InfoGiovannaContactsDashboard";
 
 export default function InfoGiovannaPage() {
-  return <InfoFeb8GiovannaDashboard />;
+  return <InfoGiovannaContactsDashboard />;
 }
