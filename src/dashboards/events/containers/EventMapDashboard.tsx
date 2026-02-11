@@ -8,6 +8,7 @@ import { useTrackingStatus } from "@/dashboards/events/hooks/useTrackingStatus";
 import { useRealtimeTrackingStream } from "@/dashboards/events/hooks/useRealtimeTrackingStream";
 import { useInterviewDistricts } from "@/dashboards/events/hooks/useInterviewDistricts";
 import { useInterviewDepartmentSummary } from "@/dashboards/events/hooks/useInterviewDepartmentSummary";
+import { useInterviewSelectionCount } from "@/dashboards/events/hooks/useInterviewSelectionCount";
 import {
   convertRowsToPoints,
   calculateCandidateCounts,
@@ -18,7 +19,15 @@ import {
 } from "@/dashboards/events/utils/dataUtils";
 import type { MapHierarchySelection } from "@/maps/hierarchy/types";
 import objectiveSp from "@/objetive-sp.json";
+import votosRocio from "@/lib/votos_rocio.json";
 import { EventMapDashboardView } from "@/ui/dashboards/events/EventMapDashboardView";
+
+type RocioRecord = {
+  departamento?: string;
+  provincia?: string;
+  distrito?: string;
+  datos_a_recopilar?: number;
+};
 
 type EventMapDashboardProps = {
   eventTitle: string;
@@ -53,6 +62,8 @@ export const EventMapDashboard = ({
   dataGoal,
   hideMapLegend = false,
 }: EventMapDashboardProps) => {
+  const isRocio = clientKey === "rocio";
+  const dataGoalOverride = isRocio ? 80000 : null;
   const [mapSelection, setMapSelection] = React.useState<MapHierarchySelection | null>(null);
   const [mapViewMode, setMapViewMode] = React.useState<"tracking" | "interview">(
     "tracking",
@@ -82,6 +93,12 @@ export const EventMapDashboard = ({
     departments: interviewDepartments,
   } = useInterviewDepartmentSummary({
     clientKey,
+    refreshInterval: 15000,
+  });
+
+  const { count: interviewSelectionCount } = useInterviewSelectionCount({
+    clientKey,
+    selection: mapSelection,
     refreshInterval: 15000,
   });
 
@@ -187,6 +204,53 @@ export const EventMapDashboard = ({
     return digits.padStart(2, "0");
   }, []);
 
+  const rocioMetaGoal = React.useMemo(() => {
+    if (!isRocio) return null;
+    const records = (votosRocio as { registros?: RocioRecord[] }).registros ?? [];
+    if (records.length === 0) return dataGoalOverride ?? null;
+    const totalRecords = records.reduce(
+      (acc, item) => acc + (Number(item.datos_a_recopilar) || 0),
+      0,
+    );
+    const depKey = normalizeDepartmentName(mapSelection?.depName);
+    const provKey = normalizeDepartmentName(mapSelection?.provName);
+    const distKey = normalizeDepartmentName(mapSelection?.distName);
+    let sum = 0;
+
+    for (const item of records) {
+      const dep = normalizeDepartmentName(item.departamento);
+      const prov = normalizeDepartmentName(item.provincia);
+      const dist = normalizeDepartmentName(item.distrito);
+      if (distKey) {
+        if (depKey && dep !== depKey) continue;
+        if (provKey && prov !== provKey) continue;
+        if (dist !== distKey) continue;
+        sum += Number(item.datos_a_recopilar) || 0;
+        continue;
+      }
+      if (provKey) {
+        if (depKey && dep !== depKey) continue;
+        if (prov !== provKey) continue;
+        sum += Number(item.datos_a_recopilar) || 0;
+        continue;
+      }
+      if (depKey) {
+        if (dep !== depKey) continue;
+        sum += Number(item.datos_a_recopilar) || 0;
+      }
+    }
+
+    if (distKey || provKey || depKey) return sum;
+    return dataGoalOverride ?? totalRecords;
+  }, [
+    dataGoalOverride,
+    isRocio,
+    mapSelection?.depName,
+    mapSelection?.distName,
+    mapSelection?.provName,
+    normalizeDepartmentName,
+  ]);
+
   const objectiveByDepartment = React.useMemo(() => {
     const map = new Map<string, number>();
     for (const item of objectiveSp.departamentos ?? []) {
@@ -208,11 +272,12 @@ export const EventMapDashboard = ({
   }, []);
 
   const totalObjectiveGoal = React.useMemo(() => {
+    if (dataGoalOverride) return dataGoalOverride;
     return (objectiveSp.departamentos ?? []).reduce(
       (acc, item) => acc + (Number(item.meta_datos_minima) || 0),
       0,
     );
-  }, []);
+  }, [dataGoalOverride]);
 
   const interviewCountsByDepartment = React.useMemo(() => {
     const map = new Map<string, number>();
@@ -255,6 +320,11 @@ export const EventMapDashboard = ({
   }, [mapSelection?.depCode, normalizeDepartmentCode]);
 
   const resolvedDataGoal = React.useMemo(() => {
+    if (isRocio) {
+      if (typeof rocioMetaGoal === "number") return rocioMetaGoal;
+      return dataGoalOverride ?? (Number(dataGoal) || 0);
+    }
+    if (dataGoalOverride) return dataGoalOverride;
     if (selectedDepartmentCode) {
       const byCode = objectiveByDepartmentCode.get(selectedDepartmentCode);
       if (typeof byCode === "number") return byCode;
@@ -270,6 +340,9 @@ export const EventMapDashboard = ({
     return totalObjectiveGoal || (Number(dataGoal) || 0);
   }, [
     dataGoal,
+    dataGoalOverride,
+    isRocio,
+    rocioMetaGoal,
     interviewDepartmentNameByCode,
     normalizeDepartmentName,
     objectiveByDepartment,
@@ -280,17 +353,22 @@ export const EventMapDashboard = ({
   ]);
 
   const selectionTotal = React.useMemo(() => {
+    if (mapSelection) {
+      return typeof interviewSelectionCount === "number" ? interviewSelectionCount : 0;
+    }
     if (selectedDepartmentCode) {
       return interviewCountsByDepartmentCode.get(selectedDepartmentCode) ?? 0;
     }
     if (selectedDepartmentKey) {
       return interviewCountsByDepartment.get(selectedDepartmentKey) ?? 0;
     }
-    return interviewTotal || total;
+    return total || interviewTotal;
   }, [
+    interviewSelectionCount,
     interviewCountsByDepartment,
     interviewCountsByDepartmentCode,
     interviewTotal,
+    mapSelection,
     selectedDepartmentCode,
     selectedDepartmentKey,
     total,
@@ -309,7 +387,7 @@ export const EventMapDashboard = ({
   );
 
   const totalLabel = total.toLocaleString("en-US");
-  const votesGoal = 1100000;
+  const votesGoal = 80000;
   const selectionLabel = selectionTotal.toLocaleString("en-US");
   const goalNumeric = typeof resolvedDataGoal === "number" ? resolvedDataGoal : Number(resolvedDataGoal) || 0;
   const goalProgress = goalNumeric > 0 ? (selectionTotal / goalNumeric) * 100 : 0;
@@ -426,6 +504,7 @@ export const EventMapDashboard = ({
       metaVotesGoalLabel={votesGoal.toLocaleString("en-US")}
       metaVotesProgressLabel="0.00%"
       metaVotesProgress={0}
+      showMetaVotes={!isRocio}
       goalScopeLabel={goalScopeLabel}
       lastUpdatedLabel={lastUpdatedLabel}
       mapViewMode={mapViewMode}
@@ -451,7 +530,7 @@ export const EventMapDashboard = ({
       nowLabel={nowLabel}
       topInterviewerForChart={topInterviewerForChart}
       interviewerColors={interviewerColors}
-      hideMapLegend={hideMapLegend}
+      hideMapLegend={isRocio || hideMapLegend}
       updates={updates}
       updatesFull={updatesFull}
       onUpdateFocus={handleUpdateFocus}

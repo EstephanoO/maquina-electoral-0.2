@@ -1,0 +1,140 @@
+
+{
+  "registros": [
+    {
+      "departamento": "HUÁNUCO",
+      "provincia": "HUÁNUCO",
+      "distrito": "PILLCO MARCA",
+      "electores": 28672,
+      "datos_a_recopilar": 2753,
+      "dias_de_trabajo": 1.72
+    },
+    {
+      "departamento": "HUÁNUCO",
+      "provincia": "HUÁNUCO",
+      "distrito": "SAN FRANCISCO DE CAYRAN",
+      "electores": 5547,
+      "datos_a_recopilar": 533,
+      "dias_de_trabajo": 0.33
+    },
+    {
+      "departamento": "HUÁNUCO",
+      "provincia": "HUÁNUCO",
+      "distrito": "AMARILIS",
+      "electores": 66922,
+      "datos_a_recopilar": 6425,
+      "dias_de_trabajo": 4.02
+    },
+    {
+      "departamento": "HUÁNUCO",
+      "provincia": "HUÁNUCO",
+      "distrito": "HUÁNUCO",
+      "electores": 67989,
+      "datos_a_recopilar": 6527,
+      "dias_de_trabajo": 4.08
+    },
+    {
+      "departamento": "HUÁNUCO",
+      "provincia": "HUÁNUCO",
+      "distrito": "SANTA MARÍA DEL VALLE",
+      "electores": 19010,
+      "datos_a_recopilar": 1825,
+      "dias_de_trabajo": 1.14
+    },
+    {
+      "departamento": "HUÁNUCO",
+      "provincia": "AMBO",
+      "distrito": "SAN RAFAEL",
+      "electores": 8696,
+      "datos_a_recopilar": 835,
+      "dias_de_trabajo": 0.52
+    },
+    {
+      "departamento": "HUÁNUCO",
+      "provincia": "AMBO",
+      "distrito": "AMBO",
+      "electores": 15266,
+      "datos_a_recopilar": 1466,
+      "dias_de_trabajo": 0.92
+    },
+    {
+      "departamento": "HUÁNUCO",
+      "provincia": "AMBO",
+      "distrito": "CONCHAMARCA",
+      "electores": 5891,
+      "datos_a_recopilar": 566,
+      "dias_de_trabajo": 0.35
+    },
+    {
+      "departamento": "AREQUIPA",
+      "provincia": "CAYLLOMA",
+      "distrito": "CAYLLOMA",
+      "electores": 3464,
+      "datos_a_recopilar": 333,
+      "dias_de_trabajo": 0.21
+    },
+    {
+      "departamento": "AREQUIPA",
+      "provincia": "CAYLLOMA",
+      "distrito": "SIBAYO",
+      "electores": 799,
+      "datos_a_recopilar": 77,
+      "dias_de_trabajo": 0.05
+    },
+    {
+      "departamento": "AREQUIPA",
+      "provincia": "CAYLLOMA",
+      "distrito": "CALLALLI",
+      "electores": 1744,
+      "datos_a_recopilar": 167,
+      "dias_de_trabajo": 0.1
+    },
+    {
+      "departamento": "AREQUIPA",
+      "provincia": "CAYLLOMA",
+      "distrito": "YANQUE",
+      "electores": 2156,
+      "datos_a_recopilar": 207,
+      "dias_de_trabajo": 0.13
+    },
+    {
+      "departamento": "AREQUIPA",
+      "provincia": "AREQUIPA",
+      "distrito": "YURA",
+      "electores": 28260,
+      "datos_a_recopilar": 2713,
+      "dias_de_trabajo": 1.7
+    },
+    {
+      "departamento": "AREQUIPA",
+      "provincia": "AREQUIPA",
+      "distrito": "CERRO COLORADO",
+      "electores": 149639,
+      "datos_a_recopilar": 14365,
+      "dias_de_trabajo": 8.98
+    },
+    {
+      "departamento": "AREQUIPA",
+      "provincia": "AREQUIPA",
+      "distrito": "SACHACA",
+      "electores": 26913,
+      "datos_a_recopilar": 2584,
+      "dias_de_trabajo": 1.61
+    },
+    {
+      "departamento": "LIMA",
+      "provincia": "LIMA",
+      "distrito": "SAN JUAN DE MIRAFLORES",
+      "electores": 333092,
+      "datos_a_recopilar": 31977,
+      "dias_de_trabajo": 19.99
+    },
+    {
+      "departamento": "LIMA",
+      "provincia": "LIMA",
+      "distrito": "VILLA MARÍA DEL TRIUNFO",
+      "electores": 367015,
+      "datos_a_recopilar": 6647
+    }
+  ]
+}

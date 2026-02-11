@@ -92,6 +92,7 @@ type EventMapDashboardViewProps = {
   metaVotesGoalLabel: string;
   metaVotesProgressLabel: string;
   metaVotesProgress: number;
+  showMetaVotes?: boolean;
   goalScopeLabel?: string | null;
   lastUpdatedLabel: string;
   mapViewMode: "tracking" | "interview";
@@ -126,6 +127,10 @@ type EventMapDashboardViewProps = {
   hideMapLegend?: boolean;
   timelineScope?: "day" | "week";
   onTimelineScopeChange?: (scope: "day" | "week") => void;
+  enableBoxSelect?: boolean;
+  onBoxSelect?: (points: MapPoint[]) => void;
+  selectionPanel?: React.ReactNode;
+  headerActions?: React.ReactNode;
 };
 
 export const EventMapDashboardView = ({
@@ -144,6 +149,7 @@ export const EventMapDashboardView = ({
   metaVotesGoalLabel,
   metaVotesProgressLabel,
   metaVotesProgress,
+  showMetaVotes = true,
   goalScopeLabel,
   lastUpdatedLabel,
   mapViewMode,
@@ -178,6 +184,10 @@ export const EventMapDashboardView = ({
   hideMapLegend = false,
   timelineScope = "day",
   onTimelineScopeChange,
+  enableBoxSelect = false,
+  onBoxSelect,
+  selectionPanel,
+  headerActions,
 }: EventMapDashboardViewProps) => {
   const showCandidatePicker = Boolean(candidateFilters && candidateFilters.length > 1);
   const identityBlock = (
@@ -258,27 +268,30 @@ export const EventMapDashboardView = ({
                   />
                 </div>
               </div>
-              <div className="rounded-xl border border-border/60 bg-muted/20 px-3 py-2">
-                <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
-                  Meta de votos
-                </p>
-                <div className="mt-1 flex items-center gap-2 text-[11px] text-muted-foreground">
-                  <span className="uppercase tracking-[0.2em]">Total</span>
-                  <span className="text-foreground">
-                    {metaVotesCountLabel}/{metaVotesGoalLabel}
-                  </span>
-                  <span>{metaVotesProgressLabel}</span>
+              {showMetaVotes ? (
+                <div className="rounded-xl border border-border/60 bg-muted/20 px-3 py-2">
+                  <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+                    Meta de votos
+                  </p>
+                  <div className="mt-1 flex items-center gap-2 text-[11px] text-muted-foreground">
+                    <span className="uppercase tracking-[0.2em]">Total</span>
+                    <span className="text-foreground">
+                      {metaVotesCountLabel}/{metaVotesGoalLabel}
+                    </span>
+                    <span>{metaVotesProgressLabel}</span>
+                  </div>
+                  <div className="mt-2 h-1.5 w-full rounded-full bg-muted/40">
+                    <div
+                      className="h-1.5 rounded-full bg-gradient-to-r from-[#163960] via-[#2b4f86] to-[#ffc800]"
+                      style={{ width: `${Math.min(metaVotesProgress, 100)}%` }}
+                    />
+                  </div>
                 </div>
-                <div className="mt-2 h-1.5 w-full rounded-full bg-muted/40">
-                  <div
-                    className="h-1.5 rounded-full bg-gradient-to-r from-[#163960] via-[#2b4f86] to-[#ffc800]"
-                    style={{ width: `${Math.min(metaVotesProgress, 100)}%` }}
-                  />
-                </div>
-              </div>
+              ) : null}
             </div>
           </div>
           <div className="ml-auto flex flex-wrap items-center gap-2">
+            {headerActions}
             <div className="flex items-center gap-1 rounded-full border border-border/60 bg-background/80 p-1">
               <Button
                 size="sm"
@@ -327,6 +340,8 @@ export const EventMapDashboardView = ({
               highlightPoint={highlightPoint}
               campaignId={campaignId}
               onHierarchySelectionChange={onHierarchySelectionChange}
+              enableBoxSelect={enableBoxSelect}
+              onBoxSelect={onBoxSelect}
             />
 
             <Card className="border-border/60 bg-card/80 p-4">
@@ -363,6 +378,7 @@ export const EventMapDashboardView = ({
           </div>
 
           <aside className="space-y-4">
+            {selectionPanel}
 
             <Card className="border-border/60 bg-card/80 p-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
