@@ -28,8 +28,6 @@ import { Source, Layer } from "@vis.gl/react-maplibre";
 type PeruMapPoint = {
   lat: number;
   lng: number;
-  id?: string | null;
-  clientId?: string | null;
   candidate?: string | null;
   interviewer?: string | null;
   name?: string | null;
@@ -89,11 +87,6 @@ type PeruMapPanelProps = {
     provincia?: GeoFeatureCollection | null;
     distrito?: GeoFeatureCollection | null;
   } | null;
-  priorityGeojsonLayers?: {
-    departamento?: GeoFeatureCollection | null;
-    provincia?: GeoFeatureCollection | null;
-    distrito?: GeoFeatureCollection | null;
-  } | null;
   onHierarchyLevelChange?: (level: GeoLevel) => void;
   onHierarchySelectionChange?: (selection: MapHierarchySelection) => void;
   enableBoxSelect?: boolean;
@@ -130,7 +123,6 @@ export const PeruMapPanel = ({
   clientGeojson = null,
   clientGeojsonMeta = null,
   clientGeojsonLayers = null,
-  priorityGeojsonLayers = null,
   onHierarchyLevelChange,
   onHierarchySelectionChange,
   enableBoxSelect = false,
@@ -518,13 +510,6 @@ export const PeruMapPanel = ({
     return clientGeojsonLayers.distrito ?? null;
   }, [clientGeojson, clientGeojsonLayers, isSectorLayerActive, level]);
 
-  const activePriorityLayer = React.useMemo(() => {
-    if (!priorityGeojsonLayers) return null;
-    if (level === "departamento") return priorityGeojsonLayers.departamento ?? null;
-    if (level === "provincia") return priorityGeojsonLayers.provincia ?? null;
-    return priorityGeojsonLayers.distrito ?? null;
-  }, [level, priorityGeojsonLayers]);
-
   const clickableCodes = React.useMemo(() => {
     if (!allowedGeoCodes) return null;
     return {
@@ -666,8 +651,6 @@ export const PeruMapPanel = ({
     selectedSector,
   ]);
 
-  const priorityLayerFilter = React.useMemo(() => clientLayerFilter, [clientLayerFilter]);
-
   const clientFillFilter = React.useMemo(() => {
     const geometryFilter = [
       "match",
@@ -680,18 +663,6 @@ export const PeruMapPanel = ({
     return ["all", clientLayerFilter, geometryFilter] as any;
   }, [clientLayerFilter]);
 
-  const priorityFillFilter = React.useMemo(() => {
-    const geometryFilter = [
-      "match",
-      ["geometry-type"],
-      ["Polygon", "MultiPolygon"],
-      true,
-      false,
-    ] as any;
-    if (!priorityLayerFilter) return geometryFilter;
-    return ["all", priorityLayerFilter, geometryFilter] as any;
-  }, [priorityLayerFilter]);
-
   const clientLineFilter = React.useMemo(() => {
     const geometryFilter = [
       "match",
@@ -703,18 +674,6 @@ export const PeruMapPanel = ({
     if (!clientLayerFilter) return geometryFilter;
     return ["all", clientLayerFilter, geometryFilter] as any;
   }, [clientLayerFilter]);
-
-  const priorityLineFilter = React.useMemo(() => {
-    const geometryFilter = [
-      "match",
-      ["geometry-type"],
-      ["LineString", "MultiLineString", "Polygon", "MultiPolygon"],
-      true,
-      false,
-    ] as any;
-    if (!priorityLayerFilter) return geometryFilter;
-    return ["all", priorityLayerFilter, geometryFilter] as any;
-  }, [priorityLayerFilter]);
 
   const resetView = React.useCallback(() => {
     if (!resolvedRef.current) return;
@@ -879,22 +838,6 @@ export const PeruMapPanel = ({
       if (!enableHierarchy && !activeClientLayer) return;
       if (focusPoint) {
         onClearFocusPoint?.();
-      }
-      const priorityFeature = activePriorityLayer
-        ? event.features?.find((item) => item.layer?.id === "priority-geojson-fill")
-        : undefined;
-      if (priorityFeature?.geometry) {
-        const bounds = getGeoJsonBounds({
-          features: [priorityFeature as { geometry: { coordinates: unknown } }],
-        });
-        resolvedRef.current?.fitBounds(
-          [
-            [bounds[0], bounds[1]],
-            [bounds[2], bounds[3]],
-          ],
-          { padding: 24, duration: 650 },
-        );
-        if (!enableHierarchy) return;
       }
       if (!enableHierarchy && activeClientLayer) {
         const clientFeature = event.features?.find(
@@ -1256,7 +1199,6 @@ export const PeruMapPanel = ({
     },
     [
       activeClientLayer,
-      activePriorityLayer,
       clearHover,
       clickableCodes,
       enableBoxSelect,
@@ -1277,9 +1219,8 @@ export const PeruMapPanel = ({
       else ids.push("peru-distritos-fill");
     }
     if (activeClientLayer) ids.push("client-geojson-fill");
-    if (activePriorityLayer) ids.push("priority-geojson-fill");
     return ids.length > 0 ? ids : undefined;
-  }, [activeClientLayer, activePriorityLayer, enableHierarchy, renderedLevel]);
+  }, [activeClientLayer, enableHierarchy, renderedLevel]);
 
   return (
     <MapPanel
@@ -1394,38 +1335,6 @@ export const PeruMapPanel = ({
                 "rgba(239,68,68,0.95)",
                 "rgba(0,0,0,0.9)",
               ],
-              "line-width": 2,
-            }}
-            layout={{
-              "line-join": "round",
-              "line-cap": "round",
-            }}
-          />
-        </Source>
-      ) : null}
-      {activePriorityLayer ? (
-        <Source
-          id="priority-geojson"
-          type="geojson"
-          data={activePriorityLayer as unknown as any}
-          generateId
-        >
-          <Layer
-            id="priority-geojson-fill"
-            type="fill"
-            filter={priorityFillFilter}
-            paint={{
-              "fill-color": "rgba(239,68,68,0.3)",
-              "fill-opacity": 0.35,
-              "fill-antialias": true,
-            }}
-          />
-          <Layer
-            id="priority-geojson-line"
-            type="line"
-            filter={priorityLineFilter}
-            paint={{
-              "line-color": "rgba(239,68,68,0.9)",
               "line-width": 2,
             }}
             layout={{

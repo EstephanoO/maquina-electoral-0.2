@@ -1,5 +1,5 @@
-import InfoOperatorDashboard from "@/ui/reports/info/InfoOperatorDashboard";
+import InfoFeb8Dashboard from "@/ui/reports/info/InfoFeb8Dashboard";
 
 export default function InfoFeb8Page() {
-  return <InfoOperatorDashboard operatorSlug="rocio" />;
+  return <InfoFeb8Dashboard />;
 }

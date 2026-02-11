@@ -68,27 +68,16 @@ type InfoFeb8ApiStatus = {
 
 const normalizePhone = (phone: string) => phone.replace(/\D/g, "");
 
-const splitPeruPhone = (phone: string) => {
-  const digits = normalizePhone(phone);
-  if (digits.length === 11 && digits.startsWith("51")) {
-    return { country: "51", local: digits.slice(2), raw: digits };
-  }
-  if (digits.length === 9) {
-    return { country: "51", local: digits, raw: `51${digits}` };
-  }
-  return { country: "51", local: digits, raw: digits };
-};
-
 const formatPhone = (phone: string) => {
-  const { local } = splitPeruPhone(phone);
-  if (local.length !== 9) return `+51 ${local}`;
-  return `+51 ${local.slice(0, 3)} ${local.slice(3, 6)} ${local.slice(6)}`;
+  const digits = normalizePhone(phone);
+  if (digits.length !== 9) return `+51 ${digits}`;
+  return `+51 ${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}`;
 };
 
 const buildWhatsappUrl = (phone: string, message: string) => {
-  const { raw } = splitPeruPhone(phone);
+  const digits = normalizePhone(phone);
   const text = encodeURIComponent(message.trim());
-  return `https://wa.me/${raw}?text=${text}`;
+  return `https://wa.me/51${digits}?text=${text}`;
 };
 
 const buildWhatsappMessage = (template: string, name: string) => {
@@ -484,6 +473,10 @@ export default function InfoFeb8GuillermoDashboard() {
                     <TableHead>Candidato</TableHead>
                     <TableHead>Ciudadano</TableHead>
                     <TableHead>Telefono (WhatsApp)</TableHead>
+                    <TableHead>Este (UTM)</TableHead>
+                    <TableHead>Norte (UTM)</TableHead>
+                    <TableHead>Lat</TableHead>
+                    <TableHead>Lng</TableHead>
                     <TableHead className="text-right">Estado</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -491,14 +484,14 @@ export default function InfoFeb8GuillermoDashboard() {
                   {loading ? (
                     LOADING_ROW_KEYS.map((rowKey) => (
                       <TableRow key={rowKey} className="border-border/60">
-                        <TableCell colSpan={5} className="py-6">
+                        <TableCell colSpan={9} className="py-6">
                           <div className="h-4 w-full animate-pulse rounded-full bg-muted/50" />
                         </TableCell>
                       </TableRow>
                     ))
                   ) : error ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="py-8 text-center text-sm text-red-500">
+                      <TableCell colSpan={9} className="py-8 text-center text-sm text-red-500">
                         <div className="space-y-3">
                           <p>{error}</p>
                           <button
@@ -513,7 +506,7 @@ export default function InfoFeb8GuillermoDashboard() {
                     </TableRow>
                   ) : filteredRecords.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="py-10 text-center text-sm">
+                      <TableCell colSpan={9} className="py-10 text-center text-sm">
                         <div className="space-y-3">
                           <p>No hay registros para mostrar.</p>
                           {(search || statusFilter !== "uncontacted") && (
@@ -575,6 +568,18 @@ export default function InfoFeb8GuillermoDashboard() {
                             </span>
                             {formatPhone(record.phone)}
                           </button>
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {record.east || "—"}
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {record.north || "—"}
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {record.lat || "—"}
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {record.lng || "—"}
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex flex-wrap justify-end gap-2">

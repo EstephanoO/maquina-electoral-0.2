@@ -53,8 +53,6 @@ export const EventMapDashboard = ({
   dataGoal,
   hideMapLegend = false,
 }: EventMapDashboardProps) => {
-  const isRocio = clientKey === "rocio";
-  const dataGoalOverride = isRocio ? 80000 : null;
   const [mapSelection, setMapSelection] = React.useState<MapHierarchySelection | null>(null);
   const [mapViewMode, setMapViewMode] = React.useState<"tracking" | "interview">(
     "tracking",
@@ -210,12 +208,11 @@ export const EventMapDashboard = ({
   }, []);
 
   const totalObjectiveGoal = React.useMemo(() => {
-    if (dataGoalOverride) return dataGoalOverride;
     return (objectiveSp.departamentos ?? []).reduce(
       (acc, item) => acc + (Number(item.meta_datos_minima) || 0),
       0,
     );
-  }, [dataGoalOverride]);
+  }, []);
 
   const interviewCountsByDepartment = React.useMemo(() => {
     const map = new Map<string, number>();
@@ -258,7 +255,6 @@ export const EventMapDashboard = ({
   }, [mapSelection?.depCode, normalizeDepartmentCode]);
 
   const resolvedDataGoal = React.useMemo(() => {
-    if (dataGoalOverride) return dataGoalOverride;
     if (selectedDepartmentCode) {
       const byCode = objectiveByDepartmentCode.get(selectedDepartmentCode);
       if (typeof byCode === "number") return byCode;
@@ -274,7 +270,6 @@ export const EventMapDashboard = ({
     return totalObjectiveGoal || (Number(dataGoal) || 0);
   }, [
     dataGoal,
-    dataGoalOverride,
     interviewDepartmentNameByCode,
     normalizeDepartmentName,
     objectiveByDepartment,
@@ -291,7 +286,7 @@ export const EventMapDashboard = ({
     if (selectedDepartmentKey) {
       return interviewCountsByDepartment.get(selectedDepartmentKey) ?? 0;
     }
-    return total || interviewTotal;
+    return interviewTotal || total;
   }, [
     interviewCountsByDepartment,
     interviewCountsByDepartmentCode,
@@ -314,7 +309,7 @@ export const EventMapDashboard = ({
   );
 
   const totalLabel = total.toLocaleString("en-US");
-  const votesGoal = 80000;
+  const votesGoal = 1100000;
   const selectionLabel = selectionTotal.toLocaleString("en-US");
   const goalNumeric = typeof resolvedDataGoal === "number" ? resolvedDataGoal : Number(resolvedDataGoal) || 0;
   const goalProgress = goalNumeric > 0 ? (selectionTotal / goalNumeric) * 100 : 0;
@@ -431,7 +426,6 @@ export const EventMapDashboard = ({
       metaVotesGoalLabel={votesGoal.toLocaleString("en-US")}
       metaVotesProgressLabel="0.00%"
       metaVotesProgress={0}
-      showMetaVotes={!isRocio}
       goalScopeLabel={goalScopeLabel}
       lastUpdatedLabel={lastUpdatedLabel}
       mapViewMode={mapViewMode}
@@ -457,7 +451,7 @@ export const EventMapDashboard = ({
       nowLabel={nowLabel}
       topInterviewerForChart={topInterviewerForChart}
       interviewerColors={interviewerColors}
-      hideMapLegend={isRocio || hideMapLegend}
+      hideMapLegend={hideMapLegend}
       updates={updates}
       updatesFull={updatesFull}
       onUpdateFocus={handleUpdateFocus}

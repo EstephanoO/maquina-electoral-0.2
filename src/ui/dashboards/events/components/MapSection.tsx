@@ -42,8 +42,6 @@ interface MapSectionProps {
   onHierarchySelectionChange?: (selection: MapHierarchySelection) => void;
   viewMode?: "tracking" | "interview";
   onSetViewMode?: (mode: "tracking" | "interview") => void;
-  enableBoxSelect?: boolean;
-  onBoxSelect?: (points: MapPoint[]) => void;
 }
 
 export const MapSection: React.FC<MapSectionProps> = ({
@@ -66,13 +64,10 @@ export const MapSection: React.FC<MapSectionProps> = ({
   onHierarchySelectionChange,
   viewMode = "tracking",
   onSetViewMode,
-  enableBoxSelect = false,
-  onBoxSelect,
 }) => {
   const showStreetBase = true;
   const [currentLevel, setCurrentLevel] = React.useState<GeoLevel>("departamento");
   const isGiovanna = campaignId === "cand-giovanna";
-  const isRocio = campaignId === "cand-rocio";
   const [mapSelection, setMapSelection] = React.useState<MapHierarchySelection | null>(null);
   const shouldHighlightPoints = Boolean(hierarchyPoints && hierarchyPoints.length > 0);
   const getPointColor = React.useCallback((point: MapPoint) => {
@@ -180,21 +175,6 @@ export const MapSection: React.FC<MapSectionProps> = ({
     geojsonFetcher,
     swrOptions,
   );
-  const { data: rocioDepartamentos } = useSWR(
-    isRocio ? "/geo/abuelo_rocio.geojson" : null,
-    geojsonFetcher,
-    swrOptions,
-  );
-  const { data: rocioProvincias } = useSWR(
-    isRocio ? "/geo/padre_rocio.geojson" : null,
-    geojsonFetcher,
-    swrOptions,
-  );
-  const { data: rocioDistritos } = useSWR(
-    isRocio ? "/geo/hijo_rocio.geojson" : null,
-    geojsonFetcher,
-    swrOptions,
-  );
 
   const layerData = React.useMemo(() => {
     if (isGiovanna) {
@@ -251,21 +231,6 @@ export const MapSection: React.FC<MapSectionProps> = ({
       distrito: asFeatureCollection(layerData.distrito?.geojson),
     };
   }, [asFeatureCollection, layerData]);
-
-  const priorityLayers = React.useMemo(() => {
-    if (!isRocio) return null;
-    return {
-      departamento: asFeatureCollection(rocioDepartamentos?.geojson),
-      provincia: asFeatureCollection(rocioProvincias?.geojson),
-      distrito: asFeatureCollection(rocioDistritos?.geojson),
-    };
-  }, [
-    asFeatureCollection,
-    isRocio,
-    rocioDepartamentos?.geojson,
-    rocioDistritos?.geojson,
-    rocioProvincias?.geojson,
-  ]);
 
   const resolvedClientLayers = React.useMemo(() => {
     if (!clientLayers) return null;
@@ -387,21 +352,18 @@ export const MapSection: React.FC<MapSectionProps> = ({
         restrictToPeru
         enablePointTooltip
         showTrackingLabels={viewMode !== "tracking"}
-        enableBoxSelect={enableBoxSelect}
-        onBoxSelect={(selected) => onBoxSelect?.(selected as MapPoint[])}
         focusPoint={focusPoint}
         onClearFocusPoint={onClearFocusPoint}
         highlightPoint={highlightPoint}
         overlayPosition="right"
         onHierarchyLevelChange={setCurrentLevel}
         onHierarchySelectionChange={handleHierarchySelectionChange}
-      interviewDistrictCodes={interviewDistrictCodes}
-      highlightPoints={shouldHighlightPoints}
-      clientGeojson={activeSectorGeojson ?? activeGeojson}
-      clientGeojsonMeta={activeMeta}
-      clientGeojsonLayers={resolvedClientLayers}
-      priorityGeojsonLayers={priorityLayers}
-      renderPointTooltip={(point) => (
+        interviewDistrictCodes={interviewDistrictCodes}
+        highlightPoints={shouldHighlightPoints}
+        clientGeojson={activeSectorGeojson ?? activeGeojson}
+        clientGeojsonMeta={activeMeta}
+        clientGeojsonLayers={resolvedClientLayers}
+        renderPointTooltip={(point) => (
           point.kind === "tracking" ? (
             <div className="space-y-2 rounded-xl bg-slate-950/90 px-3 py-2 text-xs text-slate-100 shadow-lg">
               <div className="space-y-1">

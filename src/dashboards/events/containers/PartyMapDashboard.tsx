@@ -15,50 +15,26 @@ import {
   generateInterviewerTimelineData,
   getLastUpdated,
 } from "@/dashboards/events/utils/dataUtils";
-import type { MapPoint } from "@/dashboards/events/utils/dataUtils";
 import { normalizeCandidateValue } from "@/dashboards/events/utils/partyUtils";
 import type { GeoFeatureCollection, MapHierarchySelection } from "@/maps/hierarchy/types";
 import { getGeoJson } from "@/maps/hierarchy/geoIndex";
 import { isPointInGeometry } from "@/maps/hierarchy/geoSpatial";
 import objectiveSp from "@/objetive-sp.json";
 import { EventMapDashboardView } from "@/ui/dashboards/events/EventMapDashboardView";
-import { useOperators } from "@/habilitaciones/hooks/useOperators";
-import { useEnabledFormClientIds } from "@/habilitaciones/hooks/useEnabledFormClientIds";
-import { enableFormAccess } from "@/habilitaciones/services/formsAccessApi";
-import { Badge } from "@/ui/primitives/badge";
-import { Button } from "@/ui/primitives/button";
-import { Checkbox } from "@/ui/primitives/checkbox";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/ui/primitives/dialog";
 
 const partyCampaignIds = ["cand-rocio", "cand-giovanna", "cand-guillermo"] as const;
 
-type PartyMapDashboardProps = {
-  mode?: "tierra" | "habilitaciones";
-};
-
-export const PartyMapDashboard = ({ mode = "tierra" }: PartyMapDashboardProps) => {
+export const PartyMapDashboard = () => {
   const campaigns = useCampaignsStore((state) => state.campaigns);
   const campaignProfiles = useCampaignsStore((state) => state.campaignProfiles);
   const [mapSelection, setMapSelection] = React.useState<MapHierarchySelection | null>(null);
   const [mapViewMode, setMapViewMode] = React.useState<"tracking" | "interview">(
-    mode === "habilitaciones" ? "interview" : "tracking",
+    "tracking",
   );
   const [activeCandidateId, setActiveCandidateId] = React.useState<string>("all");
   const [focusPoint, setFocusPoint] = React.useState<{ lat: number; lng: number } | null>(null);
   const [highlightPoint, setHighlightPoint] = React.useState<{ lat: number; lng: number } | null>(null);
   const [timelineScope, setTimelineScope] = React.useState<"day" | "week">("day");
-  const [selectedOperatorIds, setSelectedOperatorIds] = React.useState<string[]>([]);
-  const [selectedMapPoints, setSelectedMapPoints] = React.useState<MapPoint[]>([]);
-  const [enableMessage, setEnableMessage] = React.useState<string | null>(null);
-  const [savingAccess, setSavingAccess] = React.useState(false);
-  const [habilitacionOpen, setHabilitacionOpen] = React.useState(false);
-  const isHabilitaciones = mode === "habilitaciones";
 
   const {
     error,
@@ -68,14 +44,6 @@ export const PartyMapDashboard = ({ mode = "tierra" }: PartyMapDashboardProps) =
     resetMapView,
     setResetMapView,
   } = useEventData({ dataUrl: "/api/interviews" });
-
-  const { operators } = useOperators();
-  const {
-    clientIds: enabledClientIds,
-    isLoading: enabledLoading,
-    error: enabledError,
-    mutate: refreshEnabledClientIds,
-  } = useEnabledFormClientIds({ enabled: isHabilitaciones });
 
   const { departments: interviewDepartments } = useInterviewDepartmentSummary({
     refreshInterval: 15000,
@@ -88,10 +56,10 @@ export const PartyMapDashboard = ({ mode = "tierra" }: PartyMapDashboardProps) =
       setMapSelection(null);
       setFocusPoint(null);
       setHighlightPoint(null);
-      setMapViewMode(isHabilitaciones ? "interview" : "tracking");
+      setMapViewMode("tracking");
       resetMapView?.();
     },
-    [isHabilitaciones, resetMapView],
+    [resetMapView],
   );
 
   const realtimeStreamUrl =
@@ -133,26 +101,11 @@ export const PartyMapDashboard = ({ mode = "tierra" }: PartyMapDashboardProps) =
         ? [activeCandidate.name]
         : [];
 
-  const candidateFilteredRows = React.useMemo(() => {
+  const filteredRows = React.useMemo(() => {
     if (activeCandidateId === "all") return rows;
     const target = normalizeCandidateValue(activeCandidate?.name ?? "");
     return rows.filter((row) => normalizeCandidateValue(row.candidate) === target);
   }, [activeCandidate?.name, activeCandidateId, rows]);
-
-  const enabledClientIdSet = React.useMemo(
-    () => new Set(enabledClientIds ?? []),
-    [enabledClientIds],
-  );
-  const eligibilityReady = isHabilitaciones && !enabledLoading && !enabledError;
-
-  const filteredRows = React.useMemo(() => {
-    if (!isHabilitaciones) return candidateFilteredRows;
-    if (!eligibilityReady) return candidateFilteredRows;
-    return candidateFilteredRows.filter((row) => {
-      if (!row.id) return false;
-      return !enabledClientIdSet.has(row.id);
-    });
-  }, [candidateFilteredRows, eligibilityReady, enabledClientIdSet, isHabilitaciones]);
 
   const points = React.useMemo(() => convertRowsToPoints(filteredRows), [filteredRows]);
   const counts = React.useMemo(() => calculateCandidateCounts(filteredRows), [filteredRows]);
@@ -208,106 +161,6 @@ export const PartyMapDashboard = ({ mode = "tierra" }: PartyMapDashboardProps) =
     return interviewPoints;
   }, [interviewPoints, mapViewMode, trackingPoints]);
   const mapPointCount = interviewPoints.length;
-
-  const handleBoxSelect = React.useCallback(
-    (selected: MapPoint[]) => {
-      if (!isHabilitaciones) return;
-      setSelectedMapPoints(selected);
-      setEnableMessage(null);
-    },
-    [isHabilitaciones],
-  );
-
-  const handleToggleOperator = React.useCallback((id: string) => {
-    setSelectedOperatorIds((current) =>
-      current.includes(id) ? current.filter((item) => item !== id) : [...current, id],
-    );
-  }, []);
-
-  const handleEnableSelection = React.useCallback(async () => {
-    if (!selectedOperatorIds.length || !selectedMapPoints.length) return;
-    const clientIds = selectedMapPoints
-      .map((point) => point.id)
-      .filter((value): value is string => Boolean(value));
-    if (!clientIds.length) return;
-    setSavingAccess(true);
-    try {
-      await enableFormAccess({
-        operatorIds: selectedOperatorIds,
-        clientIds,
-        enabledBy: "tierra-habilitaciones",
-      });
-      setEnableMessage("Accesos habilitados correctamente.");
-      setSelectedMapPoints([]);
-      refreshEnabledClientIds();
-    } catch (err) {
-      setEnableMessage(err instanceof Error ? err.message : "No se pudo habilitar.");
-    } finally {
-      setSavingAccess(false);
-    }
-  }, [refreshEnabledClientIds, selectedMapPoints, selectedOperatorIds]);
-
-  const selectionPanel = (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-          Seleccion
-        </p>
-        <Badge variant="outline" className="border-border/60 text-foreground">
-          {selectedMapPoints.length}
-        </Badge>
-      </div>
-      <p className="text-xs text-muted-foreground">
-        Arrastra un recuadro en el mapa para seleccionar.
-      </p>
-      <div className="space-y-2">
-        {operators.map((operator) => (
-          <div key={operator.id} className="flex items-center gap-3">
-            <Checkbox
-              checked={selectedOperatorIds.includes(operator.id)}
-              onCheckedChange={() => handleToggleOperator(operator.id)}
-            />
-            <span className="text-sm text-foreground">{operator.name}</span>
-          </div>
-        ))}
-      </div>
-      {enabledLoading ? (
-        <p className="text-xs text-muted-foreground">Cargando elegibles...</p>
-      ) : enabledError ? (
-        <p className="text-xs text-red-500">No se pudo validar elegibles.</p>
-      ) : (
-        <p className="text-xs text-muted-foreground">
-          {filteredRows.length} contactos disponibles.
-        </p>
-      )}
-      {enableMessage ? (
-        <p className="text-xs text-muted-foreground">{enableMessage}</p>
-      ) : null}
-      <div className="flex flex-wrap gap-2">
-        <Button
-          size="sm"
-          onClick={handleEnableSelection}
-          disabled={
-            savingAccess ||
-            enabledLoading ||
-            enabledError ||
-            !selectedOperatorIds.length ||
-            !selectedMapPoints.length
-          }
-        >
-          {savingAccess ? "Habilitando..." : "Habilitar seleccion"}
-        </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => setSelectedMapPoints([])}
-          disabled={!selectedMapPoints.length}
-        >
-          Limpiar
-        </Button>
-      </div>
-    </div>
-  );
 
   React.useEffect(() => {
     let active = true;
@@ -481,12 +334,7 @@ export const PartyMapDashboard = ({ mode = "tierra" }: PartyMapDashboardProps) =
       : trackingPoints.length > 0
         ? undefined
         : "empty";
-  const mapStatus =
-    mapViewMode === "tracking"
-      ? trackingMapStatus
-      : enabledLoading && isHabilitaciones
-        ? "loading"
-        : baseMapStatus;
+  const mapStatus = mapViewMode === "tracking" ? trackingMapStatus : baseMapStatus;
 
   const nowHour = new Date().getHours();
   const nowLabel = `${nowHour.toString().padStart(2, "0")}:00`;
@@ -620,35 +468,6 @@ export const PartyMapDashboard = ({ mode = "tierra" }: PartyMapDashboardProps) =
       onUpdateFocus={handleUpdateFocus}
       timelineScope={timelineScope}
       onTimelineScopeChange={setTimelineScope}
-      enableBoxSelect={
-        mapViewMode === "interview" && habilitacionOpen && eligibilityReady
-      }
-      onBoxSelect={handleBoxSelect}
-      selectionPanel={null}
-      headerActions={
-        isHabilitaciones ? (
-          <Dialog
-            open={habilitacionOpen}
-            onOpenChange={(open) => {
-              setHabilitacionOpen(open);
-              if (!open) setSelectedMapPoints([]);
-            }}
-            modal={false}
-          >
-            <DialogTrigger asChild>
-              <Button size="sm" variant="outline" className="h-8 px-3 text-[11px]">
-                Habilitar
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-md" showOverlay={false}>
-              <DialogHeader>
-                <DialogTitle>Habilitar contactos</DialogTitle>
-              </DialogHeader>
-              {selectionPanel}
-            </DialogContent>
-          </Dialog>
-        ) : null
-      }
     />
   );
 };

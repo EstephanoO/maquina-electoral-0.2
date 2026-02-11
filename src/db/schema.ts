@@ -1,4 +1,4 @@
-import { boolean, integer, pgTable, text, timestamp, doublePrecision, jsonb, primaryKey, index, uuid, uniqueIndex } from "drizzle-orm/pg-core";
+import { boolean, integer, pgTable, text, timestamp, doublePrecision, jsonb, primaryKey, index, uuid } from "drizzle-orm/pg-core";
 
 export const territory = pgTable("territory", {
   id: text("id").primaryKey(),
@@ -176,71 +176,3 @@ export const infoFeb8GuillermoRegistros = pgTable("info_feb8_registros_guillermo
   recordedAt: timestamp("recorded_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 });
-
-export const infoFeb8GiovannaStatus = pgTable("info_feb8_status_giovanna", {
-  phone: text("phone").primaryKey(),
-  contacted: boolean("contacted").notNull().default(false),
-  replied: boolean("replied").notNull().default(false),
-  deleted: boolean("deleted").notNull().default(false),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
-
-export const infoFeb8GiovannaRegistros = pgTable("info_feb8_registros_giovanna", {
-  sourceId: text("source_id").primaryKey(),
-  interviewer: text("interviewer"),
-  candidate: text("candidate"),
-  name: text("name"),
-  phone: text("phone"),
-  signature: text("signature"),
-  east: doublePrecision("east"),
-  north: doublePrecision("north"),
-  latitude: doublePrecision("latitude"),
-  longitude: doublePrecision("longitude"),
-  recordedAt: timestamp("recorded_at", { withTimezone: true }),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
-});
-
-export const operators = pgTable("operators", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  name: text("name").notNull(),
-  slug: text("slug").notNull().unique(),
-  active: boolean("active").notNull().default(true),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
-
-export const formsOperatorAccess = pgTable(
-  "forms_operator_access",
-  {
-    id: uuid("id").primaryKey().defaultRandom(),
-    formId: uuid("form_id").notNull(),
-    operatorId: uuid("operator_id").notNull(),
-    enabledAt: timestamp("enabled_at", { withTimezone: true }).notNull().defaultNow(),
-    enabledBy: text("enabled_by"),
-  },
-  (table) => ({
-    uniquePair: uniqueIndex("forms_operator_access_unique").on(
-      table.formId,
-      table.operatorId,
-    ),
-    formIdIdx: index("forms_operator_access_form_idx").on(table.formId),
-    operatorIdIdx: index("forms_operator_access_operator_idx").on(table.operatorId),
-  }),
-);
-
-export const formsOperatorStatus = pgTable(
-  "forms_operator_status",
-  {
-    formId: uuid("form_id").notNull(),
-    operatorId: uuid("operator_id").notNull(),
-    contacted: boolean("contacted").notNull().default(false),
-    replied: boolean("replied").notNull().default(false),
-    deleted: boolean("deleted").notNull().default(false),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-  },
-  (table) => ({
-    pk: primaryKey({ columns: [table.formId, table.operatorId] }),
-    formIdIdx: index("forms_operator_status_form_idx").on(table.formId),
-    operatorIdIdx: index("forms_operator_status_operator_idx").on(table.operatorId),
-  }),
-);
