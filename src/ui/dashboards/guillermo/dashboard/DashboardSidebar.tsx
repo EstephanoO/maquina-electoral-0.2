@@ -57,7 +57,7 @@ export default function DashboardSidebar({ summaryCards }: DashboardSidebarProps
               <span>{formatNumber(DATOS.digital)}</span>
               <span className="text-right">{formatNumber(DATOS.territorial)}</span>
             </div>
-            <div className="mt-3 h-px w-full bg-slate-200/70 dark:bg-slate-800" />
+            <div className="mt-3 h-px w-full bg-slate-200/70" />
             <p
               className="mt-3 text-sm font-semibold uppercase tracking-[0.24em]"
               style={{ color: "var(--text-1)" }}
@@ -134,7 +134,7 @@ export default function DashboardSidebar({ summaryCards }: DashboardSidebarProps
                   {formatNumber(WHATSAPP_FOLLOWERS)}
                 </span>
               </div>
-              <div className="mt-3 h-px w-full bg-slate-200/70 dark:bg-slate-800" />
+              <div className="mt-3 h-px w-full bg-slate-200/70" />
               <p
                 className="mt-3 text-[10px] font-semibold uppercase tracking-[0.22em]"
                 style={{ color: "var(--text-2)" }}

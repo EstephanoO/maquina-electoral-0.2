@@ -318,7 +318,7 @@ export const MapSection: React.FC<MapSectionProps> = ({
       style={style}
     >
       <div className="pointer-events-none absolute inset-0 rounded-[28px] bg-[radial-gradient(circle_at_top,_rgba(96,165,250,0.16),_transparent_55%)]" />
-      <div className="pointer-events-none absolute inset-0 rounded-[28px] bg-[linear-gradient(180deg,_rgba(15,23,42,0.14),_transparent_35%)] dark:bg-[linear-gradient(180deg,_rgba(2,6,23,0.6),_transparent_35%)]" />
+      <div className="pointer-events-none absolute inset-0 rounded-[28px] bg-[linear-gradient(180deg,_rgba(15,23,42,0.14),_transparent_35%)]" />
       <div className="sr-only">{withLocation} puntos activos</div>
       {onSetViewMode ? (
         <div className="absolute left-6 top-6 z-10">

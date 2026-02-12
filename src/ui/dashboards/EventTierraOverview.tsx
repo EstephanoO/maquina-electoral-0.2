@@ -196,7 +196,7 @@ export const EventTierraOverview = () => {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Badge className="bg-sky-500/20 text-sky-700 dark:text-sky-300">En marcha</Badge>
+            <Badge className="bg-sky-500/20 text-sky-700">En marcha</Badge>
             <Badge className="bg-secondary text-secondary-foreground">{updatedText}</Badge>
             {isLoading ? (
               <Badge className="bg-muted text-muted-foreground">Cargando</Badge>
@@ -343,7 +343,7 @@ export const EventTierraOverview = () => {
                 </p>
                 <p className="text-base font-semibold text-foreground">Mayor rendimiento</p>
               </div>
-            <Badge className="bg-sky-500/20 text-sky-700 dark:text-sky-300">Destacados</Badge>
+            <Badge className="bg-sky-500/20 text-sky-700">Destacados</Badge>
           </div>
             <div className="mt-3 space-y-2">
               {(summary?.topInterviewers ?? []).length === 0 ? (
@@ -372,7 +372,7 @@ export const EventTierraOverview = () => {
                 </p>
                 <p className="text-base font-semibold text-foreground">Bajo rendimiento</p>
               </div>
-            <Badge className="bg-amber-500/20 text-amber-700 dark:text-amber-300">Atencion</Badge>
+            <Badge className="bg-amber-500/20 text-amber-700">Atencion</Badge>
           </div>
             <div className="mt-3 space-y-2">
               {(summary?.lowInterviewers ?? []).length === 0 ? (

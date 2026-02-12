@@ -2,9 +2,9 @@ export type ThemeMode = "light" | "dark";
 
 export const themeStorageKey = "maquina-electoral-theme";
 
-export const themeModes: ThemeMode[] = ["light", "dark"];
+export const themeModes: ThemeMode[] = ["light"];
 
-export const defaultTheme: ThemeMode = "dark";
+export const defaultTheme: ThemeMode = "light";
 
 export const getStoredTheme = (): ThemeMode | null => {
   if (typeof window === "undefined") {
@@ -12,8 +12,8 @@ export const getStoredTheme = (): ThemeMode | null => {
   }
 
   const stored = window.localStorage.getItem(themeStorageKey);
-  if (stored === "light" || stored === "dark") {
-    return stored;
+  if (stored === "light") {
+    return "light";
   }
 
   return null;
@@ -24,14 +24,14 @@ export const setStoredTheme = (mode: ThemeMode) => {
     return;
   }
 
-  window.localStorage.setItem(themeStorageKey, mode);
+  window.localStorage.setItem(themeStorageKey, "light");
 };
 
-export const applyTheme = (mode: ThemeMode) => {
+export const applyTheme = (_mode: ThemeMode) => {
   if (typeof document === "undefined") {
     return;
   }
 
-  document.documentElement.classList.toggle("dark", mode === "dark");
-  document.documentElement.dataset.theme = mode;
+  document.documentElement.classList.remove("dark");
+  document.documentElement.dataset.theme = "light";
 };

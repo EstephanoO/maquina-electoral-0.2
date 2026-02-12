@@ -290,7 +290,7 @@ export default function DashboardMain({
                       ) : null}
                     </div>
                   </div>
-                  <div className="mt-3 h-2 w-full rounded-full bg-slate-200/70 dark:bg-slate-800">
+                  <div className="mt-3 h-2 w-full rounded-full bg-slate-200/70">
                     <div
                       className="h-2 rounded-full"
                       style={{

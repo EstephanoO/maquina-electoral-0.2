@@ -285,7 +285,7 @@ export default function ResultsPie() {
                    </span>
                  </div>
                   <div className="mt-2 flex items-center gap-3">
-                    <div className="h-1.5 flex-1 rounded-full bg-slate-200/70 dark:bg-slate-800">
+                    <div className="h-1.5 flex-1 rounded-full bg-slate-200/70">
                       <div
                         className="h-1.5 rounded-full"
                         style={{

@@ -27,19 +27,28 @@ export const ThemeProvider = ({
   React.useEffect(() => {
     const stored = getStoredTheme();
     const nextMode = stored ?? defaultTheme;
-    setModeState(nextMode);
-    applyTheme(nextMode);
+    setModeState("light");
+    applyTheme("light");
+    if (nextMode !== "light") {
+      setStoredTheme("light");
+    }
   }, []);
 
   const setMode = React.useCallback((nextMode: ThemeMode) => {
-    setModeState(nextMode);
-    setStoredTheme(nextMode);
-    applyTheme(nextMode);
+    if (nextMode !== "light") {
+      setModeState("light");
+      setStoredTheme("light");
+      applyTheme("light");
+      return;
+    }
+    setModeState("light");
+    setStoredTheme("light");
+    applyTheme("light");
   }, []);
 
   const toggle = React.useCallback(() => {
-    setMode(mode === "dark" ? "light" : "dark");
-  }, [mode, setMode]);
+    setMode("light");
+  }, [setMode]);
 
   const value = React.useMemo(
     () => ({

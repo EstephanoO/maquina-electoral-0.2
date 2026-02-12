@@ -56,7 +56,7 @@ export const TierraSidebar = ({
             {formatNumber.format(summary?.total ?? 0)}
           </span>
           <div className="flex items-center gap-2">
-            <Badge className="bg-sky-500/20 text-sky-700 dark:text-sky-300">Live</Badge>
+            <Badge className="bg-sky-500/20 text-sky-700">Live</Badge>
             {isLoading ? (
               <Badge className="bg-muted text-muted-foreground">Cargando</Badge>
             ) : null}

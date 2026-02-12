@@ -1,11 +1,10 @@
 import Script from "next/script";
-import { defaultTheme, themeStorageKey } from "@/theme/theme";
+import { themeStorageKey } from "@/theme/theme";
 
 const themeScript = `(() => {
-  const stored = window.localStorage.getItem("${themeStorageKey}");
-  const mode = stored === "light" || stored === "dark" ? stored : "${defaultTheme}";
-  document.documentElement.classList.toggle("dark", mode === "dark");
-  document.documentElement.dataset.theme = mode;
+  window.localStorage.setItem("${themeStorageKey}", "light");
+  document.documentElement.classList.remove("dark");
+  document.documentElement.dataset.theme = "light";
 })();`;
 
 export const ThemeScript = () => (
