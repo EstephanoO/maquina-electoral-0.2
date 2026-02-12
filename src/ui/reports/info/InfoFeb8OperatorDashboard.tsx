@@ -313,6 +313,9 @@ export default function InfoFeb8OperatorDashboard({
 
   React.useEffect(() => {
     if (typeof window === "undefined") return undefined;
+    if (process.env.NODE_ENV !== "production") {
+      return undefined;
+    }
     const source = new EventSource("/api/info/8-febrero/stream");
 
     const handleStatus = (event: MessageEvent) => {
