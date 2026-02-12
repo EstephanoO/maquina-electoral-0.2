@@ -77,7 +77,7 @@ export const interviewerTracking = pgTable("interviewer_tracking", {
 export const authUsers = pgTable("auth_users", {
   id: text("id").primaryKey(),
   email: text("email").notNull().unique(),
-  passwordHash: text("password_hash").notNull(),
+  passwordHash: text("password_hash"),
   role: text("role").notNull(),
   name: text("name").notNull(),
   campaignId: text("campaign_id"),
@@ -206,6 +206,27 @@ export const infoFeb8GiovannaRegistros = pgTable("info_feb8_registros_giovanna",
   recordedAt: timestamp("recorded_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 });
+
+export const infoFeb8ActionEvents = pgTable(
+  "info_feb8_action_events",
+  {
+    id: text("id").primaryKey(),
+    operatorSlug: text("operator_slug").notNull(),
+    action: text("action").notNull(),
+    sourceId: text("source_id"),
+    phone: text("phone"),
+    personName: text("person_name"),
+    actorId: text("actor_id").notNull(),
+    actorName: text("actor_name").notNull(),
+    actorEmail: text("actor_email").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    operatorIdx: index("info_feb8_action_events_operator_idx").on(table.operatorSlug),
+    actionIdx: index("info_feb8_action_events_action_idx").on(table.action),
+    createdAtIdx: index("info_feb8_action_events_created_at_idx").on(table.createdAt),
+  }),
+);
 
 export const operators = pgTable("operators", {
   id: uuid("id").primaryKey().defaultRandom(),

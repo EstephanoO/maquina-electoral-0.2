@@ -61,6 +61,8 @@ type RecordStatus = {
   updatedAt?: number;
 };
 
+type InfoAction = "no_hablado" | "hablado" | "contestado" | "eliminado" | "whatsapp";
+
 type InfoFeb8ApiRecord = {
   sourceId: string;
   recordedAt: string | null;
@@ -341,6 +343,29 @@ export default function InfoFeb8OperatorDashboard({
   const pageStart = filteredRecords.length === 0 ? 0 : (safePageIndex - 1) * pageSize + 1;
   const pageEnd = Math.min(pageStart + pageSize - 1, filteredRecords.length);
 
+  const logAction = React.useCallback(
+    async (action: InfoAction, record: InterviewRecord) => {
+      if (!config.operatorSlug) return;
+      try {
+        await fetch("/api/info/8-febrero/actions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action,
+            operatorSlug: config.operatorSlug,
+            sourceId: record.sourceId,
+            phone: record.phone,
+            personName: record.name,
+          }),
+          keepalive: true,
+        });
+      } catch {
+        // noop
+      }
+    },
+    [config.operatorSlug],
+  );
+
 
   const setRecordStatus = React.useCallback(
     async (phone: string, next: Partial<RecordStatus>) => {
@@ -407,6 +432,7 @@ export default function InfoFeb8OperatorDashboard({
           { method: "DELETE" },
         );
         if (!response.ok) throw new Error("No se pudo eliminar el registro.");
+        void logAction("eliminado", record);
         setRecords((current) => current.filter((item) => item.sourceId !== record.sourceId));
         setStatusMap((current) => {
           const key = normalizePhone(record.phone);
@@ -421,7 +447,7 @@ export default function InfoFeb8OperatorDashboard({
         setDeletingId((current) => (current === record.sourceId ? null : current));
       }
     },
-    [config.apiBasePath],
+    [config.apiBasePath, logAction],
   );
 
   const openLinksModal = React.useCallback((record: InterviewRecord) => {
@@ -772,6 +798,7 @@ export default function InfoFeb8OperatorDashboard({
                                       record.name,
                                     );
                                     const url = buildWhatsappUrl(record.phone, personalizedMessage);
+                                    void logAction("whatsapp", record);
                                     window.open(url, "_blank", "noopener,noreferrer");
                                   }}
                                   title="Abrir WhatsApp"
@@ -804,9 +831,16 @@ export default function InfoFeb8OperatorDashboard({
                                         : "border-border/60 text-muted-foreground hover:border-[#FFC800]/60 hover:text-[#7a5b00]"
                                     }`}
                                     onClick={() =>
-                                      setRecordStatus(record.phone, {
-                                        contacted: !contacted,
-                                      })
+                                      (() => {
+                                        const nextContacted = !contacted;
+                                        void logAction(
+                                          nextContacted ? "hablado" : "no_hablado",
+                                          record,
+                                        );
+                                        void setRecordStatus(record.phone, {
+                                          contacted: nextContacted,
+                                        });
+                                      })()
                                     }
                                   >
                                     Hablado
@@ -819,10 +853,16 @@ export default function InfoFeb8OperatorDashboard({
                                         : "border-border/60 text-muted-foreground hover:border-[#25D366]/60 hover:text-[#1a8d44]"
                                     }`}
                                     onClick={() =>
-                                      setRecordStatus(record.phone, {
-                                        replied: !replied,
-                                        contacted: true,
-                                      })
+                                      (() => {
+                                        const nextReplied = !replied;
+                                        if (nextReplied) {
+                                          void logAction("contestado", record);
+                                        }
+                                        void setRecordStatus(record.phone, {
+                                          replied: nextReplied,
+                                          contacted: true,
+                                        });
+                                      })()
                                     }
                                   >
                                     Respondio

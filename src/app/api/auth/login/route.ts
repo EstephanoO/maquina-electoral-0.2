@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/db/connection";
 import { authUsers } from "@/db/schema";
-import { verifyPassword } from "@/lib/auth/password";
+import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { createSession, getSessionCookieName } from "@/lib/auth/session";
 
 type LoginPayload = {
@@ -32,9 +32,20 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
   }
 
-  const valid = await verifyPassword(password, user.passwordHash);
-  if (!valid) {
-    return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
+  if (!user.passwordHash) {
+    if (password.length < 6) {
+      return NextResponse.json({ error: "Password too short" }, { status: 400 });
+    }
+    const passwordHash = await hashPassword(password);
+    await db
+      .update(authUsers)
+      .set({ passwordHash, updatedAt: new Date() })
+      .where(eq(authUsers.id, user.id));
+  } else {
+    const valid = await verifyPassword(password, user.passwordHash);
+    if (!valid) {
+      return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
+    }
   }
 
   const { token, expiresAt } = await createSession(user.id);

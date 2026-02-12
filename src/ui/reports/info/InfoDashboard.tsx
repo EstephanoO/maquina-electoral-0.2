@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import useSWR from "swr";
 import { Badge } from "@/ui/primitives/badge";
 import {
   Card,
@@ -10,6 +11,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/ui/primitives/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/ui/primitives/table";
 import { useOperators } from "@/habilitaciones/hooks/useOperators";
 
 const REPORT_LINKS = [
@@ -27,13 +36,110 @@ const REPORT_LINKS = [
   },
 ];
 
+type InfoActionSummaryRow = {
+  operatorSlug: string;
+  action: string;
+  count: number;
+};
+
+type InfoActionRecentRow = {
+  id: string;
+  operatorSlug: string;
+  action: string;
+  sourceId?: string | null;
+  phone?: string | null;
+  personName?: string | null;
+  actorId?: string | null;
+  actorName?: string | null;
+  actorEmail?: string | null;
+  createdAt?: string | null;
+};
+
+type InfoActionResponse = {
+  summary: InfoActionSummaryRow[];
+  recent: InfoActionRecentRow[];
+};
+
+type SessionPayload = {
+  user: null | {
+    id: string;
+    email: string;
+    name: string;
+    role: "admin" | "candidato";
+  };
+};
+
+const actionLabels: Record<string, string> = {
+  whatsapp: "WhatsApp",
+  hablado: "Hablado",
+  no_hablado: "No hablado",
+  contestado: "Contestado",
+  eliminado: "Eliminado",
+};
+
+const operatorLabels: Record<string, string> = {
+  guillermo: "Guillermo",
+  rocio: "Rocio",
+  giovanna: "Giovanna",
+};
+
+const fetcher = async (url: string) => {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error("No se pudo cargar la actividad.");
+  }
+  return response.json();
+};
+
+const formatDateTime = (timestamp?: string | null) => {
+  if (!timestamp) return "";
+  const value = new Date(timestamp);
+  if (Number.isNaN(value.getTime())) return timestamp;
+  return new Intl.DateTimeFormat("es-PE", {
+    dateStyle: "short",
+    timeStyle: "short",
+  }).format(value);
+};
+
 export default function InfoDashboard() {
   const { operators, isLoading, error } = useOperators();
+  const { data: sessionData } = useSWR<SessionPayload>("/api/auth/me", fetcher);
+  const isAdmin = sessionData?.user?.role === "admin";
+  const {
+    data: actionData,
+    error: actionsError,
+    isLoading: actionsLoading,
+  } = useSWR<InfoActionResponse>("/api/info/8-febrero/actions", fetcher, {
+    refreshInterval: 5000,
+  });
+  const reportLinks = React.useMemo(() => {
+    if (!isAdmin) return REPORT_LINKS;
+    return [
+      ...REPORT_LINKS,
+      {
+        id: "admin",
+        title: "Operadoras",
+        description: "Crear usuarios y resetear contrasenas.",
+        href: "/info/admin",
+      },
+    ];
+  }, [isAdmin]);
   const activeOperators = operators.filter((item) => item.active);
   const orderedOperators = React.useMemo(
     () => [...operators].sort((a, b) => a.name.localeCompare(b.name, "es")),
     [operators],
   );
+  const summaryByOperator = React.useMemo(() => {
+    const summary = new Map<string, Record<string, number>>();
+    (actionData?.summary ?? []).forEach((row) => {
+      const operator = row.operatorSlug?.toLowerCase();
+      if (!operator) return;
+      const current = summary.get(operator) ?? {};
+      current[row.action] = row.count ?? 0;
+      summary.set(operator, current);
+    });
+    return summary;
+  }, [actionData]);
 
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(22,57,96,0.16),_transparent_55%),radial-gradient(circle_at_bottom,_rgba(255,200,0,0.12),_transparent_55%)] text-foreground">
@@ -81,7 +187,7 @@ export default function InfoDashboard() {
             </div>
           </div>
           <div className="mt-4 grid gap-4 md:grid-cols-2">
-            {REPORT_LINKS.map((report) => (
+            {reportLinks.map((report) => (
               <Card key={report.id} className="border-border/60 bg-card/70">
                 <CardHeader>
                   <CardTitle className="text-lg">{report.title}</CardTitle>
@@ -149,6 +255,107 @@ export default function InfoDashboard() {
                   </CardContent>
                 </Card>
               ))}
+            </div>
+          )}
+        </section>
+
+        <section className="panel fade-rise rounded-3xl border border-border/70 px-5 py-6 md:px-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="space-y-1">
+              <h2 className="heading-display text-xl font-semibold">Actividad de operadoras</h2>
+              <p className="text-sm text-muted-foreground">
+                Estados marcados y aperturas de WhatsApp.
+              </p>
+            </div>
+          </div>
+
+          {actionsLoading ? (
+            <div className="mt-4 text-sm text-muted-foreground">Cargando actividad...</div>
+          ) : actionsError ? (
+            <div className="mt-4 text-sm text-red-500">{String(actionsError)}</div>
+          ) : (
+            <div className="mt-4 space-y-6">
+              <div className="grid gap-4 md:grid-cols-3">
+                {Object.keys(operatorLabels).map((operator) => {
+                  const counts = summaryByOperator.get(operator) ?? {};
+                  const total = Object.values(counts).reduce(
+                    (acc, value) => acc + (Number(value) || 0),
+                    0,
+                  );
+                  return (
+                    <Card key={operator} className="border-border/60 bg-card/70">
+                      <CardHeader>
+                        <div className="flex items-center justify-between gap-3">
+                          <CardTitle className="text-lg">
+                            {operatorLabels[operator] ?? operator}
+                          </CardTitle>
+                          <Badge variant="secondary" className="bg-[#163960]/10 text-[#163960]">
+                            {total} acciones
+                          </Badge>
+                        </div>
+                        <CardDescription>Resumen de actividad</CardDescription>
+                      </CardHeader>
+                      <CardContent className="grid gap-2 text-sm">
+                        {Object.keys(actionLabels).map((action) => (
+                          <div key={action} className="flex items-center justify-between">
+                            <span className="text-muted-foreground">
+                              {actionLabels[action]}
+                            </span>
+                            <span className="font-semibold text-foreground">
+                              {counts[action] ?? 0}
+                            </span>
+                          </div>
+                        ))}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+
+              <div className="overflow-hidden rounded-2xl border border-border/60">
+                <Table>
+                  <TableHeader className="bg-card/80">
+                    <TableRow>
+                      <TableHead>Hora</TableHead>
+                      <TableHead>Operadora</TableHead>
+                      <TableHead>Accion</TableHead>
+                      <TableHead>Ciudadano</TableHead>
+                      <TableHead>Telefono</TableHead>
+                      <TableHead>Usuario</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(actionData?.recent ?? []).length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="py-6 text-center text-sm">
+                          Sin actividad registrada.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      (actionData?.recent ?? []).map((row) => (
+                        <TableRow key={row.id} className="border-border/60">
+                          <TableCell>{formatDateTime(row.createdAt)}</TableCell>
+                          <TableCell className="capitalize">
+                            {operatorLabels[row.operatorSlug] ?? row.operatorSlug}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="border-border/60 text-foreground">
+                              {actionLabels[row.action] ?? row.action}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="whitespace-normal">
+                            {row.personName || "-"}
+                          </TableCell>
+                          <TableCell>{row.phone || "-"}</TableCell>
+                          <TableCell className="whitespace-normal">
+                            {row.actorName || row.actorEmail || "-"}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
             </div>
           )}
         </section>

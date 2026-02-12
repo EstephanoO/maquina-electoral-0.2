@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, ilike } from "drizzle-orm";
 import { dbInfo } from "@/db/connection-info";
-import { infoFeb8Registros, infoFeb8Status } from "@/db/schema";
+import { forms, infoFeb8Status } from "@/db/schema";
 
 export const runtime = "nodejs";
 
@@ -10,23 +10,21 @@ export async function GET(request: Request) {
   const supervisor = url.searchParams.get("supervisor")?.trim();
   const baseQuery = dbInfo
     .select({
-      sourceId: infoFeb8Registros.sourceId,
-      recordedAt: infoFeb8Registros.recordedAt,
-      interviewer: infoFeb8Registros.interviewer,
-      supervisor: infoFeb8Registros.supervisor,
-      name: infoFeb8Registros.name,
-      phone: infoFeb8Registros.phone,
-      linksComment: infoFeb8Registros.linksComment,
-      east: infoFeb8Registros.east,
-      north: infoFeb8Registros.north,
-      latitude: infoFeb8Registros.latitude,
-      longitude: infoFeb8Registros.longitude,
+      sourceId: forms.id,
+      recordedAt: forms.fecha,
+      interviewer: forms.encuestador,
+      supervisor: forms.candidate,
+      name: forms.nombre,
+      phone: forms.telefono,
+      linksComment: forms.zona,
+      east: forms.x,
+      north: forms.y,
     })
-    .from(infoFeb8Registros);
+    .from(forms);
   const records = await (supervisor
-    ? baseQuery.where(eq(infoFeb8Registros.supervisor, supervisor))
+    ? baseQuery.where(ilike(forms.candidate, `%${supervisor}%`))
     : baseQuery
-  ).orderBy(desc(infoFeb8Registros.recordedAt));
+  ).orderBy(desc(forms.fecha));
 
   const statuses = await dbInfo
     .select({
@@ -37,7 +35,13 @@ export async function GET(request: Request) {
     })
     .from(infoFeb8Status);
 
-  return NextResponse.json({ records, statuses });
+  const mapped = records.map((record) => ({
+    ...record,
+    latitude: null,
+    longitude: null,
+  }));
+
+  return NextResponse.json({ records: mapped, statuses });
 }
 
 export async function DELETE(request: Request) {
@@ -47,6 +51,6 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: "Missing id" }, { status: 400 });
   }
 
-  await dbInfo.delete(infoFeb8Registros).where(eq(infoFeb8Registros.sourceId, id));
+  await dbInfo.delete(forms).where(eq(forms.id, id));
   return NextResponse.json({ ok: true });
 }
