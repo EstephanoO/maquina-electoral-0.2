@@ -233,7 +233,7 @@ export default function InfoFeb8OperatorDashboard({
         setError(null);
       }
       try {
-        const recordsUrl = !isAdmin && config.supervisor
+        const recordsUrl = config.supervisor
           ? `${config.apiBasePath}?supervisor=${encodeURIComponent(config.supervisor)}`
           : config.apiBasePath;
         const response = await fetch(recordsUrl, {
@@ -262,13 +262,9 @@ export default function InfoFeb8OperatorDashboard({
             lng: record.longitude !== null ? String(record.longitude) : "",
           }))
           .filter((record) => record.timestamp && record.interviewer && record.phone)
-          .filter((record) =>
-            matchesExcludedCandidate(
-              record.candidate,
-              isAdmin ? [] : (config.excludeCandidates ?? []),
-            )
-              ? false
-              : true,
+          .filter(
+            (record) =>
+              !matchesExcludedCandidate(record.candidate, config.excludeCandidates ?? []),
           );
         const nextStatusMap = (payload.statuses ?? []).reduce(
           (acc, status) => {
@@ -297,7 +293,7 @@ export default function InfoFeb8OperatorDashboard({
         if (!silent && isMountedRef.current) setLoading(false);
       }
     },
-    [config.apiBasePath, config.supervisor, config.excludeCandidates, isAdmin],
+    [config.apiBasePath, config.supervisor, config.excludeCandidates],
   );
 
   const handleRetry = React.useCallback(() => {
@@ -313,9 +309,6 @@ export default function InfoFeb8OperatorDashboard({
 
   React.useEffect(() => {
     if (typeof window === "undefined") return undefined;
-    if (process.env.NODE_ENV !== "production") {
-      return undefined;
-    }
     const source = new EventSource("/api/info/8-febrero/stream");
 
     const handleStatus = (event: MessageEvent) => {

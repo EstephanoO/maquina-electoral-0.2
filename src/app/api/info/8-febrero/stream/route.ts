@@ -35,11 +35,8 @@ export async function GET(request: Request) {
     async start(controller) {
       const client = await getRealtimeInfoClient();
       let pingTimer: NodeJS.Timeout | null = null;
-      let closed = false;
 
       const cleanup = async () => {
-        if (closed) return;
-        closed = true;
         if (pingTimer) clearInterval(pingTimer);
         client.removeAllListeners("notification");
         try {
@@ -48,11 +45,7 @@ export async function GET(request: Request) {
           // noop
         }
         client.release();
-        try {
-          controller.close();
-        } catch {
-          // noop
-        }
+        controller.close();
       };
 
       const abortHandler = () => {
