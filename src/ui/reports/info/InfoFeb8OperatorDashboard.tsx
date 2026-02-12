@@ -221,6 +221,7 @@ export default function InfoFeb8OperatorDashboard({
   const [deletingId, setDeletingId] = React.useState<string | null>(null);
   const [assigningId, setAssigningId] = React.useState<string | null>(null);
   const [linksOpen, setLinksOpen] = React.useState(false);
+  const [linksMode, setLinksMode] = React.useState<"home" | "polling" | "all">("all");
   const [linksDraft, setLinksDraft] = React.useState<LinkDraft>({
     homeMapsUrl: "",
     pollingPlaceUrl: "",
@@ -714,8 +715,10 @@ export default function InfoFeb8OperatorDashboard({
     [logAction, setRecordStatus],
   );
 
-  const openLinksModal = React.useCallback((record: InterviewRecord) => {
+  const openLinksModal = React.useCallback(
+    (record: InterviewRecord, mode: "home" | "polling" | "all" = "all") => {
     setActiveRecord(record);
+    setLinksMode(mode);
     setLinksDraft({
       homeMapsUrl: record.homeMapsUrl ?? "",
       pollingPlaceUrl: record.pollingPlaceUrl ?? "",
@@ -729,6 +732,7 @@ export default function InfoFeb8OperatorDashboard({
     setLinksOpen(false);
     setActiveRecord(null);
     setLinksErrors({});
+    setLinksMode("all");
   }, []);
 
   const saveLinks = React.useCallback(async () => {
@@ -737,10 +741,14 @@ export default function InfoFeb8OperatorDashboard({
     const nextPolling = linksDraft.pollingPlaceUrl.trim();
     const nextComment = linksDraft.linksComment.trim();
     const errors: Partial<LinkDraft> = {};
-    if (nextHome && !getValidUrl(nextHome)) {
+    if ((linksMode === "home" || linksMode === "all") && nextHome && !getValidUrl(nextHome)) {
       errors.homeMapsUrl = "URL invalida";
     }
-    if (nextPolling && !getValidUrl(nextPolling)) {
+    if (
+      (linksMode === "polling" || linksMode === "all") &&
+      nextPolling &&
+      !getValidUrl(nextPolling)
+    ) {
       errors.pollingPlaceUrl = "URL invalida";
     }
     if (Object.keys(errors).length > 0) {
@@ -751,9 +759,11 @@ export default function InfoFeb8OperatorDashboard({
     const previous = activeRecord;
     const updated = {
       ...activeRecord,
-      homeMapsUrl: nextHome || null,
-      pollingPlaceUrl: nextPolling || null,
-      linksComment: nextComment || null,
+      homeMapsUrl:
+        linksMode === "polling" ? activeRecord.homeMapsUrl ?? null : nextHome || null,
+      pollingPlaceUrl:
+        linksMode === "home" ? activeRecord.pollingPlaceUrl ?? null : nextPolling || null,
+      linksComment: linksMode === "all" ? nextComment || null : activeRecord.linksComment ?? null,
     };
     setRecords((current) =>
       current.map((item) => (item.sourceId === activeRecord.sourceId ? updated : item)),
@@ -796,7 +806,7 @@ export default function InfoFeb8OperatorDashboard({
         current.map((item) => (item.sourceId === activeRecord.sourceId ? previous : item)),
       );
     }
-  }, [activeRecord, config.apiBasePath, linksDraft, triggerSavePulse, closeLinksModal]);
+  }, [activeRecord, config.apiBasePath, linksDraft, linksMode, triggerSavePulse, closeLinksModal]);
 
   const openCreateModal = React.useCallback(() => {
     setCreateDraft({
@@ -1171,10 +1181,12 @@ export default function InfoFeb8OperatorDashboard({
                             : "Disponible";
                           const hasHomeLink = Boolean(record.homeMapsUrl);
                           const hasPollingLink = Boolean(record.pollingPlaceUrl);
-                          const linkBadgeClass =
-                            hasHomeLink || hasPollingLink
-                              ? "border-[#163960]/20 bg-[#163960]/5 text-[#163960]"
-                              : "border-border/60 bg-white text-muted-foreground";
+                          const homeBadgeClass = hasHomeLink
+                            ? "border-[#163960]/20 bg-[#163960]/5 text-[#163960]"
+                            : "border-border/60 bg-white text-muted-foreground";
+                          const pollingBadgeClass = hasPollingLink
+                            ? "border-[#163960]/20 bg-[#163960]/5 text-[#163960]"
+                            : "border-border/60 bg-white text-muted-foreground";
                           return (
                             <>
                               <TableCell>{formatDateTime(record.timestamp)}</TableCell>
@@ -1217,14 +1229,35 @@ export default function InfoFeb8OperatorDashboard({
                               </TableCell>
                               <TableCell className="text-right">
                                   <div className="flex flex-wrap justify-end gap-2">
-                                    <span
-                                      className={`inline-flex min-h-[38px] items-center gap-2 rounded-full border px-3 text-[11px] font-semibold uppercase tracking-[0.2em] ${linkBadgeClass}`}
+                                    <button
+                                      type="button"
+                                      disabled={!canEditLinks}
+                                      onClick={() => openLinksModal(record, "home")}
+                                      className={`inline-flex min-h-[38px] items-center gap-2 rounded-full border px-3 text-[11px] font-semibold uppercase tracking-[0.2em] transition ${homeBadgeClass} ${
+                                        canEditLinks
+                                          ? "hover:border-[#163960]/50"
+                                          : "cursor-not-allowed opacity-70"
+                                      }`}
+                                      title="Casa"
                                     >
                                       <Home
                                         className={`h-4 w-4 ${
                                           hasHomeLink ? "text-[#25D366]" : "text-muted-foreground/70"
                                         }`}
                                       />
+                                      <span className="sr-only">Casa</span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      disabled={!canEditLinks}
+                                      onClick={() => openLinksModal(record, "polling")}
+                                      className={`inline-flex min-h-[38px] items-center gap-2 rounded-full border px-3 text-[11px] font-semibold uppercase tracking-[0.2em] transition ${pollingBadgeClass} ${
+                                        canEditLinks
+                                          ? "hover:border-[#163960]/50"
+                                          : "cursor-not-allowed opacity-70"
+                                      }`}
+                                      title="Local de votacion"
+                                    >
                                       <Landmark
                                         className={`h-4 w-4 ${
                                           hasPollingLink
@@ -1232,7 +1265,8 @@ export default function InfoFeb8OperatorDashboard({
                                             : "text-muted-foreground/70"
                                         }`}
                                       />
-                                    </span>
+                                      <span className="sr-only">Local de votacion</span>
+                                    </button>
                                     {assignedToId ? (
                                       <span className="inline-flex min-h-[38px] items-center justify-center rounded-full border border-[#0f2f4f]/15 bg-gradient-to-r from-[#fff1c2] via-white to-[#d6f5e3] px-4 text-center text-[10px] font-semibold uppercase tracking-[0.18em] text-[#0f2f4f] shadow-[0_8px_18px_rgba(15,47,79,0.12)]">
                                         {assignedLabel}
@@ -1421,78 +1455,94 @@ export default function InfoFeb8OperatorDashboard({
       <Dialog open={linksOpen} onOpenChange={(open) => (open ? null : closeLinksModal())}>
         <DialogContent className="rounded-3xl border-border/70 bg-white/95">
           <DialogHeader>
-            <DialogTitle>Links de ubicacion</DialogTitle>
+            <DialogTitle>
+              {linksMode === "home"
+                ? "Link de casa"
+                : linksMode === "polling"
+                  ? "Link de local de votacion"
+                  : "Links de ubicacion"}
+            </DialogTitle>
             <DialogDescription>
-              Guarda los links de Maps para casa y local de votacion.
+              {linksMode === "home"
+                ? "Guarda el link de Maps para la casa."
+                : linksMode === "polling"
+                  ? "Guarda el link de Maps para el local de votacion."
+                  : "Guarda los links de Maps para casa y local de votacion."}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4">
-            <div>
-              <label
-                htmlFor="home-maps-url"
-                className="text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground"
-              >
-                Casa
-              </label>
-              <Input
-                id="home-maps-url"
-                value={linksDraft.homeMapsUrl}
-                onChange={(event) =>
-                  setLinksDraft((current) => ({
-                    ...current,
-                    homeMapsUrl: event.target.value,
-                  }))
-                }
-                placeholder="https://..."
-                className="mt-2 h-11 rounded-2xl border-border/60 bg-white"
-              />
-              {linksErrors.homeMapsUrl ? (
-                <p className="mt-2 text-xs text-red-500">{linksErrors.homeMapsUrl}</p>
-              ) : null}
-            </div>
-            <div>
-              <label
-                htmlFor="polling-place-url"
-                className="text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground"
-              >
-                Local de votacion
-              </label>
-              <Input
-                id="polling-place-url"
-                value={linksDraft.pollingPlaceUrl}
-                onChange={(event) =>
-                  setLinksDraft((current) => ({
-                    ...current,
-                    pollingPlaceUrl: event.target.value,
-                  }))
-                }
-                placeholder="https://..."
-                className="mt-2 h-11 rounded-2xl border-border/60 bg-white"
-              />
-              {linksErrors.pollingPlaceUrl ? (
-                <p className="mt-2 text-xs text-red-500">{linksErrors.pollingPlaceUrl}</p>
-              ) : null}
-            </div>
-            <div>
-              <label
-                htmlFor="links-comment"
-                className="text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground"
-              >
-                Comentario
-              </label>
-              <Textarea
-                id="links-comment"
-                value={linksDraft.linksComment}
-                onChange={(event) =>
-                  setLinksDraft((current) => ({
-                    ...current,
-                    linksComment: event.target.value,
-                  }))
-                }
-                placeholder="Notas adicionales"
-                className="mt-2 min-h-[100px] rounded-2xl border-border/60 bg-white"
-              />
-            </div>
+            {linksMode !== "polling" ? (
+              <div>
+                <label
+                  htmlFor="home-maps-url"
+                  className="text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground"
+                >
+                  Casa
+                </label>
+                <Input
+                  id="home-maps-url"
+                  value={linksDraft.homeMapsUrl}
+                  onChange={(event) =>
+                    setLinksDraft((current) => ({
+                      ...current,
+                      homeMapsUrl: event.target.value,
+                    }))
+                  }
+                  placeholder="https://..."
+                  className="mt-2 h-11 rounded-2xl border-border/60 bg-white"
+                />
+                {linksErrors.homeMapsUrl ? (
+                  <p className="mt-2 text-xs text-red-500">{linksErrors.homeMapsUrl}</p>
+                ) : null}
+              </div>
+            ) : null}
+            {linksMode !== "home" ? (
+              <div>
+                <label
+                  htmlFor="polling-place-url"
+                  className="text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground"
+                >
+                  Local de votacion
+                </label>
+                <Input
+                  id="polling-place-url"
+                  value={linksDraft.pollingPlaceUrl}
+                  onChange={(event) =>
+                    setLinksDraft((current) => ({
+                      ...current,
+                      pollingPlaceUrl: event.target.value,
+                    }))
+                  }
+                  placeholder="https://..."
+                  className="mt-2 h-11 rounded-2xl border-border/60 bg-white"
+                />
+                {linksErrors.pollingPlaceUrl ? (
+                  <p className="mt-2 text-xs text-red-500">{linksErrors.pollingPlaceUrl}</p>
+                ) : null}
+              </div>
+            ) : null}
+            {linksMode === "all" ? (
+              <div>
+                <label
+                  htmlFor="links-comment"
+                  className="text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground"
+                >
+                  Comentario
+                </label>
+                <Textarea
+                  id="links-comment"
+                  value={linksDraft.linksComment}
+                  onChange={(event) =>
+                    setLinksDraft((current) => ({
+                      ...current,
+                      linksComment: event.target.value,
+                    }))
+                  }
+                  placeholder="Notas adicionales"
+                  className="mt-2 min-h-[100px] rounded-2xl border-border/60 bg-white"
+                />
+              </div>
+            ) : null}
           </div>
           <DialogFooter className="sm:justify-between">
             <button
