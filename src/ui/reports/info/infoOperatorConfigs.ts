@@ -9,6 +9,7 @@ export type InfoFeb8OperatorConfig = {
   apiBasePath: string;
   supervisor?: string;
   excludeCandidates?: string[];
+  allowedInterviewers?: string[];
   allowRecordsWithoutLinks?: boolean;
 };
 
@@ -31,6 +32,7 @@ export const infoOperatorConfigs = {
     tableTitle: "Tabla consolidada",
     tableDescription: "Registros cargados desde el CSV compartido.",
     apiBasePath: "/api/info/8-febrero",
+    allowedInterviewers: ["agenda", "VCF Import"],
     allowRecordsWithoutLinks: true,
   },
   giovanna: {

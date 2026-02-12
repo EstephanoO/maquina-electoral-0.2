@@ -159,10 +159,10 @@ const getValidUrl = (value: string) => {
 const getLinkCount = (record: InterviewRecord) =>
   [record.homeMapsUrl, record.pollingPlaceUrl].filter(Boolean).length;
 
-const matchesExcludedCandidate = (
-  candidate: string | null | undefined,
-  exclusions: string[],
-) => {
+  const matchesExcludedCandidate = (
+    candidate: string | null | undefined,
+    exclusions: string[],
+  ) => {
   if (!candidate || exclusions.length === 0) return false;
   const normalized = candidate.toLowerCase();
   return exclusions.some((value) => normalized.includes(value.toLowerCase().trim()));
@@ -268,6 +268,22 @@ export default function InfoFeb8OperatorDashboard({
             (record) =>
               !matchesExcludedCandidate(record.candidate, config.excludeCandidates ?? []),
           );
+        const allowedInterviewers = (config.allowedInterviewers ?? []).map((value) =>
+          value.trim().toLowerCase(),
+        );
+        const filteredByInterviewer =
+          allowedInterviewers.length === 0
+            ? parsed
+            : parsed.filter((record) =>
+                allowedInterviewers.includes(record.interviewer.trim().toLowerCase()),
+              );
+        const uniqueByPhone = new Map<string, InterviewRecord>();
+        filteredByInterviewer.forEach((record) => {
+          const key = normalizePhone(record.phone);
+          if (!key || uniqueByPhone.has(key)) return;
+          uniqueByPhone.set(key, record);
+        });
+        const uniqueRecords = Array.from(uniqueByPhone.values());
         const nextStatusMap = (payload.statuses ?? []).reduce(
           (acc, status) => {
             if (!status.sourceId) return acc;
@@ -286,7 +302,7 @@ export default function InfoFeb8OperatorDashboard({
           {} as Record<string, RecordStatus>,
         );
         if (!isMountedRef.current) return;
-        setRecords(parsed);
+        setRecords(uniqueRecords);
         setStatusMap(nextStatusMap);
       } catch (err) {
         if (!isMountedRef.current) return;
@@ -295,7 +311,7 @@ export default function InfoFeb8OperatorDashboard({
         if (!silent && isMountedRef.current) setLoading(false);
       }
     },
-    [config.apiBasePath, config.supervisor, config.excludeCandidates],
+    [config.apiBasePath, config.supervisor, config.excludeCandidates, config.allowedInterviewers],
   );
 
   const handleRetry = React.useCallback(() => {
