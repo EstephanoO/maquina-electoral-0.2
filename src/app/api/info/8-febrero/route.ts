@@ -29,6 +29,16 @@ type WhatsappActionRow = {
 const normalizeDate = (value: Date | string | null) =>
   value ? new Date(value) : null;
 
+type CreateContactPayload = {
+  name?: string;
+  phone?: string;
+  candidate?: string;
+  interviewer?: string;
+  homeMapsUrl?: string | null;
+  pollingPlaceUrl?: string | null;
+  comments?: string | null;
+};
+
 export async function GET(request: Request) {
   const user = await getSessionUser();
   if (!user || !isInfoUserEmail(user.email)) {
@@ -45,7 +55,10 @@ export async function GET(request: Request) {
       supervisor: forms.candidate,
       name: forms.nombre,
       phone: forms.telefono,
-      linksComment: forms.zona,
+      linksComment: forms.comentarios,
+      legacyLinksComment: forms.zona,
+      homeMapsUrl: forms.homeMapsUrl,
+      pollingPlaceUrl: forms.pollingPlaceUrl,
       east: forms.x,
       north: forms.y,
     })
@@ -158,6 +171,7 @@ export async function GET(request: Request) {
 
   const mapped = records.map((record) => ({
     ...record,
+    linksComment: record.linksComment ?? record.legacyLinksComment,
     latitude: null,
     longitude: null,
   }));
@@ -176,6 +190,53 @@ export async function GET(request: Request) {
   );
 
   return NextResponse.json({ records: filteredRecords, statuses: filteredStatuses });
+}
+
+export async function POST(request: Request) {
+  const user = await getSessionUser();
+  if (!user || !isInfoUserEmail(user.email)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  const payload = (await request.json()) as CreateContactPayload;
+  const name = payload.name?.trim();
+  const phone = payload.phone?.trim();
+  const candidate = payload.candidate?.trim();
+  const interviewer = payload.interviewer?.trim() || user.name;
+  const homeMapsUrl = payload.homeMapsUrl?.trim() || null;
+  const pollingPlaceUrl = payload.pollingPlaceUrl?.trim() || null;
+  const comments = payload.comments?.trim() || null;
+
+  if (!name || !phone) {
+    return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+  }
+
+  if (!candidate) {
+    return NextResponse.json({ error: "Missing candidate" }, { status: 400 });
+  }
+
+  const now = new Date();
+  const zona = comments ?? "0";
+
+  const rows = await dbInfo
+    .insert(forms)
+    .values({
+      nombre: name,
+      telefono: phone,
+      fecha: now,
+      x: 0,
+      y: 0,
+      zona,
+      candidate,
+      encuestador: interviewer,
+      encuestadorId: user.id,
+      candidatoPreferido: candidate,
+      homeMapsUrl,
+      pollingPlaceUrl,
+      comentarios: comments,
+    })
+    .returning({ id: forms.id });
+
+  return NextResponse.json({ ok: true, id: rows[0]?.id ?? null });
 }
 
 export async function DELETE(request: Request) {

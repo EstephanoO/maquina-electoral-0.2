@@ -34,6 +34,9 @@ export const forms = pgTable(
     encuestador: text("encuestador").notNull(),
     encuestadorId: text("encuestador_id").notNull(),
     candidatoPreferido: text("candidato_preferido").notNull(),
+    homeMapsUrl: text("home_maps_url"),
+    pollingPlaceUrl: text("polling_place_url"),
+    comentarios: text("comentarios"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => ({

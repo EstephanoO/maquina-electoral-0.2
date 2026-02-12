@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { dbInfo } from "@/db/connection-info";
-import { infoFeb8Registros, infoFeb8Status } from "@/db/schema";
+import { forms, infoFeb8Registros, infoFeb8Status } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { notifyInfoFeb8StatusInfo } from "@/db/realtime-info";
 import { getSessionUser } from "@/lib/auth/session";
@@ -76,6 +76,10 @@ export async function PATCH(request: Request) {
       .update(infoFeb8Registros)
       .set({ homeMapsUrl, pollingPlaceUrl, linksComment })
       .where(eq(infoFeb8Registros.sourceId, sourceId));
+    await dbInfo
+      .update(forms)
+      .set({ homeMapsUrl, pollingPlaceUrl, comentarios: linksComment })
+      .where(eq(forms.id, sourceId));
     return NextResponse.json({ sourceId, homeMapsUrl, pollingPlaceUrl, linksComment });
   }
 

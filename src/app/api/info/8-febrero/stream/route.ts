@@ -29,14 +29,26 @@ export async function GET(request: Request) {
   if (!user || !isInfoUserEmail(user.email)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const isAdmin = isInfoAdminEmail(user.email);
+  const isAdmin = user.role === "admin" || isInfoAdminEmail(user.email);
 
   const stream = new ReadableStream({
     async start(controller) {
       const client = await getRealtimeInfoClient();
       let pingTimer: NodeJS.Timeout | null = null;
+      let closed = false;
+
+      const safeEnqueue = (data: Uint8Array) => {
+        if (closed) return;
+        try {
+          controller.enqueue(data);
+        } catch {
+          // ignore if stream already closed
+        }
+      };
 
       const cleanup = async () => {
+        if (closed) return;
+        closed = true;
         if (pingTimer) clearInterval(pingTimer);
         client.removeAllListeners("notification");
         try {
@@ -45,7 +57,11 @@ export async function GET(request: Request) {
           // noop
         }
         client.release();
-        controller.close();
+        try {
+          controller.close();
+        } catch {
+          // ignore if already closed
+        }
       };
 
       const abortHandler = () => {
@@ -56,7 +72,7 @@ export async function GET(request: Request) {
 
       try {
         await client.query("LISTEN info_feb8_status");
-        controller.enqueue(formatEvent("ready", { ok: true }));
+        safeEnqueue(formatEvent("ready", { ok: true }));
 
         client.on("notification", (msg) => {
           if (!msg.payload) return;
@@ -66,7 +82,7 @@ export async function GET(request: Request) {
 
             if (payload.type === "assignment") {
               if (!isAdmin && payload.assignedToId && payload.assignedToId !== user.id) {
-                controller.enqueue(
+                safeEnqueue(
                   formatEvent("assignment", {
                     type: "assignment",
                     sourceId: payload.sourceId,
@@ -76,7 +92,7 @@ export async function GET(request: Request) {
                 );
                 return;
               }
-              controller.enqueue(
+              safeEnqueue(
                 formatEvent("assignment", {
                   type: "assignment",
                   sourceId: payload.sourceId,
@@ -93,7 +109,7 @@ export async function GET(request: Request) {
               return;
             }
 
-            controller.enqueue(
+            safeEnqueue(
               formatEvent("status", {
                 type: "status",
                 sourceId: payload.sourceId,
@@ -113,10 +129,12 @@ export async function GET(request: Request) {
         });
 
         pingTimer = setInterval(() => {
-          controller.enqueue(formatEvent("ping", { ts: Date.now() }));
+          safeEnqueue(formatEvent("ping", { ts: Date.now() }));
         }, 25000);
       } catch {
         await cleanup();
+      } finally {
+        request.signal.removeEventListener("abort", abortHandler);
       }
     },
   });

@@ -3,7 +3,7 @@
 import * as React from "react";
 import useSWR from "swr";
 import Image from "next/image";
-import { ChevronsLeft, ChevronsRight } from "lucide-react";
+import { ChevronsLeft, ChevronsRight, Home, Landmark, Pencil, Plus } from "lucide-react";
 import { Badge } from "@/ui/primitives/badge";
 import { Input } from "@/ui/primitives/input";
 import { Textarea } from "@/ui/primitives/textarea";
@@ -176,6 +176,14 @@ const formatDateTime = (timestamp: string) => {
   }).format(value);
 };
 
+const getAssignedLabel = (name: string | null | undefined, email: string | null | undefined) => {
+  const raw = (name || email || "").trim();
+  if (!raw) return "Asignado";
+  const sanitized = raw.split("@")[0] ?? raw;
+  const first = sanitized.split(/\s+/).filter(Boolean)[0] ?? sanitized;
+  return first.toLowerCase();
+};
+
 type InfoFeb8OperatorDashboardProps = {
   config: InfoFeb8OperatorConfig;
 };
@@ -184,6 +192,14 @@ type LinkDraft = {
   homeMapsUrl: string;
   pollingPlaceUrl: string;
   linksComment: string;
+};
+
+type CreateContactDraft = {
+  name: string;
+  phone: string;
+  homeMapsUrl: string;
+  pollingPlaceUrl: string;
+  comments: string;
 };
 
 export default function InfoFeb8OperatorDashboard({
@@ -212,11 +228,22 @@ export default function InfoFeb8OperatorDashboard({
   });
   const [linksErrors, setLinksErrors] = React.useState<Partial<LinkDraft>>({});
   const [activeRecord, setActiveRecord] = React.useState<InterviewRecord | null>(null);
+  const [createOpen, setCreateOpen] = React.useState(false);
+  const [createDraft, setCreateDraft] = React.useState<CreateContactDraft>({
+    name: "",
+    phone: "",
+    homeMapsUrl: "",
+    pollingPlaceUrl: "",
+    comments: "",
+  });
+  const [createErrors, setCreateErrors] = React.useState<Partial<CreateContactDraft>>({});
+  const [creating, setCreating] = React.useState(false);
   const saveTimerRef = React.useRef<number | null>(null);
   const isMountedRef = React.useRef(true);
   const [statusFilter, setStatusFilter] = React.useState<
     "all" | "uncontacted" | "contacted" | "replied" | "archived"
   >("uncontacted");
+  const [linkFilter, setLinkFilter] = React.useState<"all" | "home" | "polling">("all");
   const [pageSize, setPageSize] = React.useState(20);
   const [pageIndex, setPageIndex] = React.useState(1);
 
@@ -268,9 +295,13 @@ export default function InfoFeb8OperatorDashboard({
             (record) =>
               !matchesExcludedCandidate(record.candidate, config.excludeCandidates ?? []),
           );
-        const allowedInterviewers = (config.allowedInterviewers ?? []).map((value) =>
-          value.trim().toLowerCase(),
-        );
+        const baseInterviewers = config.allowedInterviewers ?? [];
+        const allowedInterviewers = (baseInterviewers.length > 0
+          ? baseInterviewers.concat(sessionData?.user?.name ? [sessionData.user.name] : [])
+          : baseInterviewers
+        )
+          .map((value) => value.trim().toLowerCase())
+          .filter(Boolean);
         const filteredByInterviewer =
           allowedInterviewers.length === 0
             ? parsed
@@ -311,7 +342,13 @@ export default function InfoFeb8OperatorDashboard({
         if (!silent && isMountedRef.current) setLoading(false);
       }
     },
-    [config.apiBasePath, config.supervisor, config.excludeCandidates, config.allowedInterviewers],
+    [
+      config.apiBasePath,
+      config.supervisor,
+      config.excludeCandidates,
+      config.allowedInterviewers,
+      sessionData?.user?.name,
+    ],
   );
 
   const handleRetry = React.useCallback(() => {
@@ -319,6 +356,7 @@ export default function InfoFeb8OperatorDashboard({
   }, [fetchRecords]);
 
   React.useEffect(() => {
+    isMountedRef.current = true;
     fetchRecords();
     return () => {
       isMountedRef.current = false;
@@ -490,14 +528,34 @@ export default function InfoFeb8OperatorDashboard({
     });
   }, [accessibleRecords, search, statusFilter, statusMap]);
 
-  const totalPages = Math.max(Math.ceil(filteredRecords.length / pageSize), 1);
+  const linkFilteredRecords = React.useMemo(() => {
+    if (linkFilter === "all") return filteredRecords;
+    if (linkFilter === "home") {
+      return filteredRecords.filter((record) => Boolean(record.homeMapsUrl));
+    }
+    return filteredRecords.filter((record) => Boolean(record.pollingPlaceUrl));
+  }, [filteredRecords, linkFilter]);
+
+  const totalPages = Math.max(Math.ceil(linkFilteredRecords.length / pageSize), 1);
   const safePageIndex = Math.min(pageIndex, totalPages);
   const pagedRecords = React.useMemo(() => {
     const start = (safePageIndex - 1) * pageSize;
-    return filteredRecords.slice(start, start + pageSize);
-  }, [filteredRecords, pageSize, safePageIndex]);
-  const pageStart = filteredRecords.length === 0 ? 0 : (safePageIndex - 1) * pageSize + 1;
-  const pageEnd = Math.min(pageStart + pageSize - 1, filteredRecords.length);
+    return linkFilteredRecords.slice(start, start + pageSize);
+  }, [linkFilteredRecords, pageSize, safePageIndex]);
+  const pageStart = linkFilteredRecords.length === 0 ? 0 : (safePageIndex - 1) * pageSize + 1;
+  const pageEnd = Math.min(pageStart + pageSize - 1, linkFilteredRecords.length);
+  const showContactAction = statusFilter === "uncontacted";
+  const showReplyAction = statusFilter === "contacted";
+  const showArchiveAction = statusFilter === "uncontacted";
+
+  const linkCounts = React.useMemo(() => {
+    const counts = { home: 0, polling: 0 };
+    filteredRecords.forEach((record) => {
+      if (record.homeMapsUrl) counts.home += 1;
+      if (record.pollingPlaceUrl) counts.polling += 1;
+    });
+    return counts;
+  }, [filteredRecords]);
 
   const logAction = React.useCallback(
     async (action: InfoAction, record: InterviewRecord) => {
@@ -740,6 +798,75 @@ export default function InfoFeb8OperatorDashboard({
     }
   }, [activeRecord, config.apiBasePath, linksDraft, triggerSavePulse, closeLinksModal]);
 
+  const openCreateModal = React.useCallback(() => {
+    setCreateDraft({
+      name: "",
+      phone: "",
+      homeMapsUrl: "",
+      pollingPlaceUrl: "",
+      comments: "",
+    });
+    setCreateErrors({});
+    setCreateOpen(true);
+  }, []);
+
+  const closeCreateModal = React.useCallback(() => {
+    setCreateOpen(false);
+    setCreateErrors({});
+  }, []);
+
+  const createContact = React.useCallback(async () => {
+    const nextName = createDraft.name.trim();
+    const nextPhone = createDraft.phone.trim();
+    const nextHome = createDraft.homeMapsUrl.trim();
+    const nextPolling = createDraft.pollingPlaceUrl.trim();
+    const nextComments = createDraft.comments.trim();
+    const errors: Partial<CreateContactDraft> = {};
+    if (!nextName) errors.name = "Requerido";
+    if (!nextPhone) errors.phone = "Requerido";
+    if (nextHome && !getValidUrl(nextHome)) errors.homeMapsUrl = "URL invalida";
+    if (nextPolling && !getValidUrl(nextPolling)) errors.pollingPlaceUrl = "URL invalida";
+    if (Object.keys(errors).length > 0) {
+      setCreateErrors(errors);
+      return;
+    }
+
+    const candidateName =
+      config.candidateName?.trim() ||
+      config.supervisor?.trim() ||
+      config.operatorSlug ||
+      "";
+    const interviewerName = sessionData?.user?.name?.trim() || "";
+    if (!candidateName || !interviewerName) {
+      setCreateErrors({ name: "Falta candidato o entrevistador" });
+      return;
+    }
+
+    setCreating(true);
+    try {
+      const response = await fetch(config.apiBasePath, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: nextName,
+          phone: nextPhone,
+          candidate: candidateName,
+          interviewer: interviewerName,
+          homeMapsUrl: nextHome || null,
+          pollingPlaceUrl: nextPolling || null,
+          comments: nextComments || null,
+        }),
+      });
+      if (!response.ok) throw new Error("No se pudo crear el contacto.");
+      closeCreateModal();
+      void fetchRecords({ silent: true });
+    } catch (error) {
+      setCreateErrors({ name: error instanceof Error ? error.message : "Error inesperado." });
+    } finally {
+      setCreating(false);
+    }
+  }, [createDraft, config, sessionData?.user?.name, fetchRecords, closeCreateModal]);
+
   return (
     <main className="min-h-screen bg-[#f5f2ea] text-foreground">
       <header
@@ -801,13 +928,22 @@ export default function InfoFeb8OperatorDashboard({
         <section className="panel fade-rise flex min-h-0 flex-1 flex-col rounded-3xl border border-border/70 bg-white/92 px-6 py-5 shadow-[0_20px_50px_rgba(15,34,61,0.12)]">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="space-y-1">
-              <h2 className="heading-display text-2xl font-semibold">{config.tableTitle}</h2>
-              <p className="text-sm text-muted-foreground">{config.tableDescription}</p>
+              <h2 className="heading-display text-2xl font-semibold uppercase tracking-[0.16em]">
+                Registro
+              </h2>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="outline" className="border-border/60 text-foreground">
-                {filteredRecords.length} registros activos
+                {linkFilteredRecords.length} registros activos
               </Badge>
+              <button
+                type="button"
+                onClick={openCreateModal}
+                className="inline-flex min-h-[36px] items-center gap-2 rounded-full border border-[#163960]/30 bg-[#163960]/10 px-4 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#163960] transition hover:border-[#163960]/70 hover:bg-[#163960]/15"
+              >
+                <Plus className="h-4 w-4" />
+                Nuevo contacto
+              </button>
               {search && (
                 <button
                   type="button"
@@ -819,14 +955,8 @@ export default function InfoFeb8OperatorDashboard({
               )}
             </div>
           </div>
-          <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
-            <div>
-              <label
-                htmlFor="record-search"
-                className="text-[11px] font-semibold uppercase tracking-[0.28em] text-muted-foreground"
-              >
-                Buscar registro
-              </label>
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <div className="min-w-[240px] flex-1">
               <Input
                 id="record-search"
                 value={search}
@@ -834,11 +964,11 @@ export default function InfoFeb8OperatorDashboard({
                   setSearch(event.target.value);
                   setPageIndex(1);
                 }}
-                placeholder="Entrevistador, candidato, nombre o telefono"
-                className="mt-2 h-12 rounded-2xl border-border/60 bg-white/80"
+                placeholder="Buscar por entrevistador, candidato, nombre o telefono"
+                className="h-11 rounded-2xl border-border/60 bg-white/80"
               />
             </div>
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-1 flex-wrap items-center gap-2">
               {([
                 { id: "uncontacted", label: "No hablados", count: statusCounts.uncontacted },
                 { id: "contacted", label: "Hablados", count: statusCounts.contacted },
@@ -849,17 +979,51 @@ export default function InfoFeb8OperatorDashboard({
                 <button
                   key={item.id}
                   type="button"
-                    onClick={() => {
-                      setStatusFilter(item.id);
-                      setPageIndex(1);
-                    }}
-                  className={`min-h-[40px] rounded-full border px-4 text-[11px] font-semibold uppercase tracking-[0.2em] transition ${
+                  onClick={() => {
+                    setStatusFilter(item.id);
+                    setPageIndex(1);
+                  }}
+                  className={`min-h-[36px] rounded-full border px-3 text-[10px] font-semibold uppercase tracking-[0.2em] transition ${
                     statusFilter === item.id
                       ? "border-[#163960] bg-[#163960]/10 text-[#163960]"
                       : "border-border/60 text-muted-foreground hover:border-[#163960]/50 hover:text-[#163960]"
                   }`}
                 >
                   {item.label} · {item.count}
+                </button>
+              ))}
+              <div className="hidden h-6 w-px bg-border/60 sm:block" />
+              {([
+                {
+                  id: "home",
+                  label: "Ubicacion",
+                  count: linkCounts.home,
+                  icon: <Home className="h-4 w-4" />,
+                },
+                {
+                  id: "polling",
+                  label: "Local",
+                  count: linkCounts.polling,
+                  icon: <Landmark className="h-4 w-4" />,
+                },
+              ] as const).map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => {
+                    setLinkFilter((current) => (current === item.id ? "all" : item.id));
+                    setPageIndex(1);
+                  }}
+                  className={`min-h-[36px] rounded-full border px-3 text-[10px] font-semibold uppercase tracking-[0.18em] transition ${
+                    linkFilter === item.id
+                      ? "border-[#163960] bg-[#163960]/10 text-[#163960]"
+                      : "border-border/60 text-muted-foreground hover:border-[#163960]/50 hover:text-[#163960]"
+                  }`}
+                >
+                  <span className="inline-flex items-center gap-2">
+                    {item.icon}
+                    {item.label} · {item.count}
+                  </span>
                 </button>
               ))}
             </div>
@@ -945,25 +1109,26 @@ export default function InfoFeb8OperatorDashboard({
                         </div>
                       </TableCell>
                     </TableRow>
-                  ) : filteredRecords.length === 0 ? (
+                  ) : linkFilteredRecords.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={TABLE_COLUMN_COUNT} className="py-10 text-center text-sm">
                         <div className="space-y-3">
                           <p>No hay registros para mostrar.</p>
-                          {(search || statusFilter !== "uncontacted") && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setSearch("");
-                                setStatusFilter("uncontacted");
-                                setPageIndex(1);
-                              }}
-                              className="min-h-[36px] rounded-full border border-border/60 px-4 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground transition hover:border-[#163960]/50 hover:text-[#163960]"
-                            >
+                           {(search || statusFilter !== "uncontacted" || linkFilter !== "all") && (
+                             <button
+                               type="button"
+                               onClick={() => {
+                                 setSearch("");
+                                 setStatusFilter("uncontacted");
+                                 setLinkFilter("all");
+                                 setPageIndex(1);
+                               }}
+                               className="min-h-[36px] rounded-full border border-border/60 px-4 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground transition hover:border-[#163960]/50 hover:text-[#163960]"
+                             >
                               Limpiar busqueda
                             </button>
                           )}
-                          {statusFilter === "uncontacted" && !search && (
+                          {statusFilter === "uncontacted" && !search && linkFilter === "all" && (
                             <button
                               type="button"
                               onClick={() => {
@@ -1002,21 +1167,14 @@ export default function InfoFeb8OperatorDashboard({
                           const canContact = canEdit && !deleted;
                           const canDelete = deletingId === record.sourceId;
                           const assignedLabel = assignedToId
-                            ? assignedToId === userId
-                              ? "Asignado"
-                              : `Bloqueado por ${
-                                  status.assignedToName ||
-                                  status.assignedToEmail ||
-                                  "Operadora"
-                                }`
+                            ? getAssignedLabel(status.assignedToName, status.assignedToEmail)
                             : "Disponible";
-                          const linkCount = getLinkCount(record);
+                          const hasHomeLink = Boolean(record.homeMapsUrl);
+                          const hasPollingLink = Boolean(record.pollingPlaceUrl);
                           const linkBadgeClass =
-                            linkCount === 2
-                              ? "border-[#25D366]/60 bg-[#25D366]/15 text-[#1a8d44]"
-                              : linkCount === 1
-                                ? "border-[#FFC800]/60 bg-[#FFC800]/20 text-[#7a5b00]"
-                                : "border-border/60 bg-white text-muted-foreground";
+                            hasHomeLink || hasPollingLink
+                              ? "border-[#163960]/20 bg-[#163960]/5 text-[#163960]"
+                              : "border-border/60 bg-white text-muted-foreground";
                           return (
                             <>
                               <TableCell>{formatDateTime(record.timestamp)}</TableCell>
@@ -1058,92 +1216,113 @@ export default function InfoFeb8OperatorDashboard({
                                 </button>
                               </TableCell>
                               <TableCell className="text-right">
-                                <div className="flex flex-wrap justify-end gap-2">
-                                  <span
-                                    className={`min-h-[38px] min-w-[38px] rounded-full border px-4 text-[11px] font-semibold uppercase tracking-[0.2em] ${linkBadgeClass}`}
-                                  >
-                                    {linkCount}
-                                  </span>
-                                  {assignedToId ? (
-                                    <span className="min-h-[38px] rounded-full border border-[#163960]/30 bg-[#163960]/10 px-4 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#163960]">
-                                      {assignedLabel}
+                                  <div className="flex flex-wrap justify-end gap-2">
+                                    <span
+                                      className={`inline-flex min-h-[38px] items-center gap-2 rounded-full border px-3 text-[11px] font-semibold uppercase tracking-[0.2em] ${linkBadgeClass}`}
+                                    >
+                                      <Home
+                                        className={`h-4 w-4 ${
+                                          hasHomeLink ? "text-[#25D366]" : "text-muted-foreground/70"
+                                        }`}
+                                      />
+                                      <Landmark
+                                        className={`h-4 w-4 ${
+                                          hasPollingLink
+                                            ? "text-[#25D366]"
+                                            : "text-muted-foreground/70"
+                                        }`}
+                                      />
                                     </span>
+                                    {assignedToId ? (
+                                      <span className="inline-flex min-h-[38px] items-center justify-center rounded-full border border-[#0f2f4f]/15 bg-gradient-to-r from-[#fff1c2] via-white to-[#d6f5e3] px-4 text-center text-[10px] font-semibold uppercase tracking-[0.18em] text-[#0f2f4f] shadow-[0_8px_18px_rgba(15,47,79,0.12)]">
+                                        {assignedLabel}
+                                      </span>
+                                    ) : null}
+                                    {showContactAction ? (
+                                    <button
+                                      type="button"
+                                      disabled={!canContact}
+                                      className={`min-h-[38px] rounded-full border px-4 text-[11px] font-semibold uppercase tracking-[0.2em] transition ${
+                                        !canContact
+                                          ? "border-border/60 text-muted-foreground cursor-not-allowed"
+                                          : contacted
+                                            ? "border-[#FFC800] bg-[#FFC800]/20 text-[#7a5b00]"
+                                            : "border-border/60 text-muted-foreground hover:border-[#FFC800]/60 hover:text-[#7a5b00]"
+                                      }`}
+                                      onClick={() =>
+                                        (() => {
+                                          const nextContacted = !contacted;
+                                          void logAction(
+                                            nextContacted ? "hablado" : "no_hablado",
+                                            record,
+                                          );
+                                          void setRecordStatus(record, {
+                                            contacted: nextContacted,
+                                          });
+                                        })()
+                                      }
+                                    >
+                                      Hablado
+                                    </button>
+                                  ) : null}
+                                  {showReplyAction ? (
+                                    <button
+                                      type="button"
+                                      disabled={!canReply}
+                                      className={`min-h-[38px] rounded-full border px-4 text-[11px] font-semibold uppercase tracking-[0.2em] transition ${
+                                        !canReply
+                                          ? "border-border/60 text-muted-foreground cursor-not-allowed"
+                                          : replied
+                                            ? "border-[#25D366] bg-[#25D366]/15 text-[#1a8d44]"
+                                            : "border-border/60 text-muted-foreground hover:border-[#25D366]/60 hover:text-[#1a8d44]"
+                                      }`}
+                                      onClick={() =>
+                                        (() => {
+                                          const nextReplied = !replied;
+                                          if (nextReplied) {
+                                            void logAction("contestado", record);
+                                          }
+                                          void setRecordStatus(record, {
+                                            replied: nextReplied,
+                                          });
+                                        })()
+                                      }
+                                    >
+                                      Respondio
+                                    </button>
                                   ) : null}
                                   <button
                                     type="button"
                                     disabled={!canEditLinks}
                                     onClick={() => openLinksModal(record)}
-                                    className={`min-h-[38px] rounded-full border px-4 text-[11px] font-semibold uppercase tracking-[0.2em] transition ${
+                                    className={`min-h-[38px] rounded-full border px-3 text-[11px] font-semibold uppercase tracking-[0.2em] transition ${
                                       canEditLinks
                                         ? "border-[#163960]/30 bg-white text-[#163960] hover:border-[#163960]/70"
                                         : "border-border/60 text-muted-foreground cursor-not-allowed"
                                     }`}
+                                    title="Editar links"
                                   >
-                                    Links
+                                    <span className="inline-flex items-center gap-2">
+                                      <Pencil className="h-4 w-4" />
+                                      Editar
+                                    </span>
                                   </button>
-                                  <button
-                                    type="button"
-                                    disabled={!canContact}
-                                    className={`min-h-[38px] rounded-full border px-4 text-[11px] font-semibold uppercase tracking-[0.2em] transition ${
-                                      !canContact
-                                        ? "border-border/60 text-muted-foreground cursor-not-allowed"
-                                        : contacted
-                                          ? "border-[#FFC800] bg-[#FFC800]/20 text-[#7a5b00]"
-                                          : "border-border/60 text-muted-foreground hover:border-[#FFC800]/60 hover:text-[#7a5b00]"
-                                    }`}
-                                    onClick={() =>
-                                      (() => {
-                                        const nextContacted = !contacted;
-                                        void logAction(
-                                          nextContacted ? "hablado" : "no_hablado",
-                                          record,
-                                        );
-                                        void setRecordStatus(record, {
-                                          contacted: nextContacted,
-                                        });
-                                      })()
-                                    }
-                                  >
-                                    Hablado
-                                  </button>
-                                  <button
-                                    type="button"
-                                    disabled={!canReply}
-                                    className={`min-h-[38px] rounded-full border px-4 text-[11px] font-semibold uppercase tracking-[0.2em] transition ${
-                                      !canReply
-                                        ? "border-border/60 text-muted-foreground cursor-not-allowed"
-                                        : replied
-                                          ? "border-[#25D366] bg-[#25D366]/15 text-[#1a8d44]"
-                                          : "border-border/60 text-muted-foreground hover:border-[#25D366]/60 hover:text-[#1a8d44]"
-                                    }`}
-                                    onClick={() =>
-                                      (() => {
-                                        const nextReplied = !replied;
-                                        if (nextReplied) {
-                                          void logAction("contestado", record);
-                                        }
-                                        void setRecordStatus(record, {
-                                          replied: nextReplied,
-                                        });
-                                      })()
-                                    }
-                                  >
-                                    Respondio
-                                  </button>
-                                  <button
-                                    type="button"
-                                    disabled={canDelete || !canEdit || deleted}
-                                    onClick={() => handleArchive(record)}
-                                    className={`min-h-[38px] rounded-full border px-4 text-[11px] font-semibold uppercase tracking-[0.2em] transition ${
-                                      canDelete
-                                        ? "cursor-wait border-red-500/40 text-red-500"
-                                        : !canEdit || deleted
-                                          ? "border-border/60 text-muted-foreground cursor-not-allowed"
-                                          : "border-border/60 text-muted-foreground hover:border-red-500/60 hover:text-red-500"
-                                    }`}
-                                  >
-                                    {canDelete ? "Archivando" : "Archivar"}
-                                  </button>
+                                  {showArchiveAction ? (
+                                    <button
+                                      type="button"
+                                      disabled={canDelete || !canEdit || deleted}
+                                      onClick={() => handleArchive(record)}
+                                      className={`min-h-[38px] rounded-full border px-4 text-[11px] font-semibold uppercase tracking-[0.2em] transition ${
+                                        canDelete
+                                          ? "cursor-wait border-red-500/40 text-red-500"
+                                          : !canEdit || deleted
+                                            ? "border-border/60 text-muted-foreground cursor-not-allowed"
+                                            : "border-border/60 text-muted-foreground hover:border-red-500/60 hover:text-red-500"
+                                      }`}
+                                    >
+                                      {canDelete ? "Archivando" : "Archivar"}
+                                    </button>
+                                  ) : null}
                                 </div>
                               </TableCell>
                             </>
@@ -1159,7 +1338,7 @@ export default function InfoFeb8OperatorDashboard({
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
             <div className="flex flex-wrap items-center gap-3">
               <span>
-                {pageStart}-{pageEnd} de {filteredRecords.length}
+                {pageStart}-{pageEnd} de {linkFilteredRecords.length}
               </span>
               <div className="flex items-center gap-2">
                 {[20, 50, 100].map((size) => (
@@ -1329,6 +1508,112 @@ export default function InfoFeb8OperatorDashboard({
               className="min-h-[40px] rounded-full border border-[#163960]/40 bg-[#163960]/10 px-4 text-xs font-semibold uppercase tracking-[0.2em] text-[#163960] transition hover:border-[#163960]"
             >
               Guardar
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={createOpen} onOpenChange={(open) => (open ? null : closeCreateModal())}>
+        <DialogContent className="sm:max-w-[520px] rounded-3xl border-border/70 bg-white/95">
+          <DialogHeader>
+            <DialogTitle>Nuevo contacto</DialogTitle>
+            <DialogDescription>
+              Completa ciudadano y telefono. Domicilio, local y comentarios son opcionales.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4">
+            <div className="grid gap-2">
+              <label htmlFor="create-name" className="text-xs font-semibold uppercase tracking-[0.2em]">
+                Ciudadano
+              </label>
+              <Input
+                id="create-name"
+                value={createDraft.name}
+                onChange={(event) =>
+                  setCreateDraft((current) => ({ ...current, name: event.target.value }))
+                }
+                className="h-11 rounded-2xl border-border/60 bg-white"
+              />
+              {createErrors.name ? (
+                <span className="text-xs text-red-500">{createErrors.name}</span>
+              ) : null}
+            </div>
+            <div className="grid gap-2">
+              <label htmlFor="create-phone" className="text-xs font-semibold uppercase tracking-[0.2em]">
+                Telefono
+              </label>
+              <Input
+                id="create-phone"
+                value={createDraft.phone}
+                onChange={(event) =>
+                  setCreateDraft((current) => ({ ...current, phone: event.target.value }))
+                }
+                className="h-11 rounded-2xl border-border/60 bg-white"
+              />
+              {createErrors.phone ? (
+                <span className="text-xs text-red-500">{createErrors.phone}</span>
+              ) : null}
+            </div>
+            <div className="grid gap-2">
+              <label htmlFor="create-home" className="text-xs font-semibold uppercase tracking-[0.2em]">
+                Domicilio (link)
+              </label>
+              <Input
+                id="create-home"
+                value={createDraft.homeMapsUrl}
+                onChange={(event) =>
+                  setCreateDraft((current) => ({ ...current, homeMapsUrl: event.target.value }))
+                }
+                className="h-11 rounded-2xl border-border/60 bg-white"
+              />
+              {createErrors.homeMapsUrl ? (
+                <span className="text-xs text-red-500">{createErrors.homeMapsUrl}</span>
+              ) : null}
+            </div>
+            <div className="grid gap-2">
+              <label htmlFor="create-polling" className="text-xs font-semibold uppercase tracking-[0.2em]">
+                Local de votacion (link)
+              </label>
+              <Input
+                id="create-polling"
+                value={createDraft.pollingPlaceUrl}
+                onChange={(event) =>
+                  setCreateDraft((current) => ({ ...current, pollingPlaceUrl: event.target.value }))
+                }
+                className="h-11 rounded-2xl border-border/60 bg-white"
+              />
+              {createErrors.pollingPlaceUrl ? (
+                <span className="text-xs text-red-500">{createErrors.pollingPlaceUrl}</span>
+              ) : null}
+            </div>
+            <div className="grid gap-2">
+              <label htmlFor="create-comments" className="text-xs font-semibold uppercase tracking-[0.2em]">
+                Comentarios
+              </label>
+              <Textarea
+                id="create-comments"
+                value={createDraft.comments}
+                onChange={(event) =>
+                  setCreateDraft((current) => ({ ...current, comments: event.target.value }))
+                }
+                className="min-h-[100px] rounded-2xl border-border/60 bg-white"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <button
+              type="button"
+              onClick={closeCreateModal}
+              className="min-h-[40px] rounded-full border border-border/60 px-4 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={() => void createContact()}
+              disabled={creating}
+              className="min-h-[40px] rounded-full border border-[#163960]/30 bg-[#163960]/10 px-4 text-xs font-semibold uppercase tracking-[0.16em] text-[#163960] transition hover:border-[#163960]/70 hover:bg-[#163960]/15 disabled:cursor-not-allowed disabled:opacity-70"
+            >
+              {creating ? "Guardando" : "Crear"}
             </button>
           </DialogFooter>
         </DialogContent>
