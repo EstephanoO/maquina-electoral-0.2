@@ -9,6 +9,8 @@ import { isInfoUserEmail } from "@/info/auth";
 export const runtime = "nodejs";
 
 const ACTIONS = ["no_hablado", "hablado", "contestado", "eliminado", "whatsapp"] as const;
+const RANGE_OPTIONS = ["today", "7d", "30d"] as const;
+type RangeOption = (typeof RANGE_OPTIONS)[number];
 type InfoAction = (typeof ACTIONS)[number];
 
 type ActionPayload = {
@@ -19,9 +21,23 @@ type ActionPayload = {
   personName?: string;
 };
 
-const getOperatorFilter = (operatorSlug?: string | null) => {
-  if (!operatorSlug) return sql``;
-  return sql`WHERE operator_slug = ${operatorSlug}`;
+const buildWhereClause = (conditions: Array<ReturnType<typeof sql> | null>) => {
+  const entries = conditions.filter(Boolean) as Array<ReturnType<typeof sql>>;
+  if (entries.length === 0) return sql``;
+  return sql`WHERE ${sql.join(entries, sql` AND `)}`;
+};
+
+const getRangeStart = (range: RangeOption) => {
+  const now = new Date();
+  if (range === "today") {
+    const start = new Date(now);
+    start.setHours(0, 0, 0, 0);
+    return start;
+  }
+  if (range === "7d") {
+    return new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  }
+  return new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 };
 
 export async function GET(request: Request) {
@@ -32,14 +48,116 @@ export async function GET(request: Request) {
 
   const url = new URL(request.url);
   const operatorSlug = url.searchParams.get("operator")?.trim().toLowerCase() ?? null;
-  const operatorFilter = getOperatorFilter(operatorSlug);
+  const rangeParam = url.searchParams.get("range")?.trim().toLowerCase() ?? "7d";
+  const range = RANGE_OPTIONS.includes(rangeParam as RangeOption)
+    ? (rangeParam as RangeOption)
+    : "7d";
+  const rangeStart = getRangeStart(range);
+  const whereClause = buildWhereClause([
+    sql`created_at >= ${rangeStart}`,
+    operatorSlug ? sql`operator_slug = ${operatorSlug}` : null,
+  ]);
 
   const summaryQuery = sql`
-    SELECT operator_slug AS "operatorSlug", action, count(*)::int AS "count"
+    SELECT
+      actor_id AS "operatorId",
+      max(actor_name) AS "operatorName",
+      max(actor_email) AS "operatorEmail",
+      action,
+      count(*)::int AS "count"
     FROM info_feb8_action_events
-    ${operatorFilter}
-    GROUP BY operator_slug, action
-    ORDER BY operator_slug, action
+    ${whereClause}
+    GROUP BY actor_id, action
+    ORDER BY actor_id, action
+  `;
+
+  const uniqueQuery = sql`
+    SELECT
+      actor_id AS "operatorId",
+      max(actor_name) AS "operatorName",
+      max(actor_email) AS "operatorEmail",
+      action,
+      count(DISTINCT COALESCE(source_id, phone, id))::int AS "count"
+    FROM info_feb8_action_events
+    ${whereClause}
+    GROUP BY actor_id, action
+    ORDER BY actor_id, action
+  `;
+
+  const timersQuery = sql`
+    WITH filtered AS (
+      SELECT
+        actor_id,
+        actor_name,
+        actor_email,
+        action,
+        source_id,
+        phone,
+        id,
+        created_at,
+        COALESCE(source_id, phone, id) AS event_key
+      FROM info_feb8_action_events
+      ${whereClause}
+    ),
+    first_whatsapp AS (
+      SELECT actor_id, max(actor_name) AS actor_name, max(actor_email) AS actor_email, event_key, min(created_at) AS first_whatsapp
+      FROM filtered
+      WHERE action = 'whatsapp'
+      GROUP BY actor_id, event_key
+    ),
+    first_hablado AS (
+      SELECT actor_id, max(actor_name) AS actor_name, max(actor_email) AS actor_email, event_key, min(created_at) AS first_hablado
+      FROM filtered
+      WHERE action = 'hablado'
+      GROUP BY actor_id, event_key
+    ),
+    first_contestado AS (
+      SELECT actor_id, max(actor_name) AS actor_name, max(actor_email) AS actor_email, event_key, min(created_at) AS first_contestado
+      FROM filtered
+      WHERE action = 'contestado'
+      GROUP BY actor_id, event_key
+    ),
+    paired_hablado AS (
+      SELECT
+        w.actor_id,
+        w.actor_name,
+        w.actor_email,
+        EXTRACT(EPOCH FROM (h.first_hablado - w.first_whatsapp)) AS seconds
+      FROM first_whatsapp w
+      JOIN first_hablado h
+        ON w.actor_id = h.actor_id
+        AND w.event_key = h.event_key
+      WHERE h.first_hablado >= w.first_whatsapp
+    ),
+    paired_contestado AS (
+      SELECT
+        w.actor_id,
+        w.actor_name,
+        w.actor_email,
+        EXTRACT(EPOCH FROM (c.first_contestado - w.first_whatsapp)) AS seconds
+      FROM first_whatsapp w
+      JOIN first_contestado c
+        ON w.actor_id = c.actor_id
+        AND w.event_key = c.event_key
+      WHERE c.first_contestado >= w.first_whatsapp
+    ),
+    metrics AS (
+      SELECT actor_id, actor_name, actor_email, 'hablado' AS metric, seconds FROM paired_hablado
+      UNION ALL
+      SELECT actor_id, actor_name, actor_email, 'contestado' AS metric, seconds FROM paired_contestado
+    )
+    SELECT
+      actor_id AS "operatorId",
+      max(actor_name) AS "operatorName",
+      max(actor_email) AS "operatorEmail",
+      metric,
+      count(*)::int AS "count",
+      avg(seconds)::double precision AS "avgSeconds",
+      percentile_cont(0.5) WITHIN GROUP (ORDER BY seconds)::double precision AS "medianSeconds",
+      percentile_cont(0.9) WITHIN GROUP (ORDER BY seconds)::double precision AS "p90Seconds"
+    FROM metrics
+    GROUP BY actor_id, metric
+    ORDER BY actor_id, metric
   `;
 
   const recentQuery = sql`
@@ -55,15 +173,22 @@ export async function GET(request: Request) {
       actor_email AS "actorEmail",
       created_at AS "createdAt"
     FROM info_feb8_action_events
-    ${operatorFilter}
+    ${whereClause}
     ORDER BY created_at DESC
     LIMIT 200
   `;
 
   const summary = await dbInfo.execute(summaryQuery);
+  const unique = await dbInfo.execute(uniqueQuery);
+  const timers = await dbInfo.execute(timersQuery);
   const recent = await dbInfo.execute(recentQuery);
 
-  return NextResponse.json({ summary: summary.rows, recent: recent.rows });
+  return NextResponse.json({
+    summary: summary.rows,
+    unique: unique.rows,
+    timers: timers.rows,
+    recent: recent.rows,
+  });
 }
 
 export async function POST(request: Request) {

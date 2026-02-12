@@ -3,6 +3,15 @@
 import * as React from "react";
 import Link from "next/link";
 import useSWR from "swr";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { Badge } from "@/ui/primitives/badge";
 import {
   Card,
@@ -26,20 +35,26 @@ const REPORT_LINKS = [
     id: "habilitar",
     title: "Habilitar contactos",
     description: "Gestiona el acceso a registros y operadores.",
-    href: "/info/habilitar",
-  },
-  {
-    id: "febrero",
-    title: "Reporte 8 febrero",
-    description: "Resumen especial de entrevistas de campo.",
-    href: "/info/8-febrero",
   },
 ];
 
 type InfoActionSummaryRow = {
-  operatorSlug: string;
+  operatorId: string;
+  operatorName?: string | null;
+  operatorEmail?: string | null;
   action: string;
   count: number;
+};
+
+type InfoActionTimerRow = {
+  operatorId: string;
+  operatorName?: string | null;
+  operatorEmail?: string | null;
+  metric: "hablado" | "contestado";
+  count: number;
+  avgSeconds: number | null;
+  medianSeconds: number | null;
+  p90Seconds: number | null;
 };
 
 type InfoActionRecentRow = {
@@ -57,7 +72,21 @@ type InfoActionRecentRow = {
 
 type InfoActionResponse = {
   summary: InfoActionSummaryRow[];
+  unique: InfoActionSummaryRow[];
+  timers: InfoActionTimerRow[];
   recent: InfoActionRecentRow[];
+};
+
+type InfoUser = {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+  hasPassword: boolean;
+};
+
+type UsersResponse = {
+  users: InfoUser[];
 };
 
 type SessionPayload = {
@@ -75,12 +104,6 @@ const actionLabels: Record<string, string> = {
   no_hablado: "No hablado",
   contestado: "Contestado",
   eliminado: "Eliminado",
-};
-
-const operatorLabels: Record<string, string> = {
-  guillermo: "Guillermo",
-  rocio: "Rocio",
-  giovanna: "Giovanna",
 };
 
 const fetcher = async (url: string) => {
@@ -101,45 +124,136 @@ const formatDateTime = (timestamp?: string | null) => {
   }).format(value);
 };
 
+const formatPercent = (value: number) => `${Math.round(value * 100)}%`;
+
+const formatSeconds = (value?: number | null) => {
+  if (value === null || value === undefined || Number.isNaN(value)) return "-";
+  const rounded = Math.max(0, Math.round(value));
+  if (rounded < 60) return `${rounded}s`;
+  const minutes = Math.floor(rounded / 60);
+  const seconds = rounded % 60;
+  return `${minutes}m ${seconds}s`;
+};
+
 export default function InfoDashboard() {
-  const { operators, isLoading, error } = useOperators();
+  const { operators: candidates, isLoading, error } = useOperators();
   const { data: sessionData } = useSWR<SessionPayload>("/api/auth/me", fetcher);
   const isAdmin = sessionData?.user?.role === "admin";
+  const [range, setRange] = React.useState<"today" | "7d" | "30d">("7d");
+  const { data: usersData } = useSWR<UsersResponse>(
+    isAdmin ? "/api/info/users" : null,
+    fetcher,
+  );
   const {
     data: actionData,
     error: actionsError,
     isLoading: actionsLoading,
-  } = useSWR<InfoActionResponse>("/api/info/8-febrero/actions", fetcher, {
-    refreshInterval: 5000,
-  });
-  const reportLinks = React.useMemo(() => {
-    if (!isAdmin) return REPORT_LINKS;
-    return [
-      ...REPORT_LINKS,
-      {
-        id: "admin",
-        title: "Operadoras",
-        description: "Crear usuarios y resetear contrasenas.",
-        href: "/info/admin",
-      },
-    ];
-  }, [isAdmin]);
-  const activeOperators = operators.filter((item) => item.active);
-  const orderedOperators = React.useMemo(
-    () => [...operators].sort((a, b) => a.name.localeCompare(b.name, "es")),
-    [operators],
+  } = useSWR<InfoActionResponse>(
+    `/api/info/8-febrero/actions?range=${range}`,
+    fetcher,
+    {
+      refreshInterval: 5000,
+    },
   );
-  const summaryByOperator = React.useMemo(() => {
+  const reportLinks = React.useMemo(() => REPORT_LINKS, []);
+  const activeCandidates = candidates.filter((item) => item.active);
+  const orderedCandidates = React.useMemo(
+    () => [...candidates].sort((a, b) => a.name.localeCompare(b.name, "es")),
+    [candidates],
+  );
+  const operatorNameById = React.useMemo(() => {
+    const map = new Map<string, string>();
+    (usersData?.users ?? []).forEach((user) => {
+      map.set(user.id, user.name);
+    });
+    (actionData?.unique ?? []).forEach((row) => {
+      if (!row.operatorId) return;
+      if (!map.has(row.operatorId)) {
+        map.set(row.operatorId, row.operatorName || row.operatorEmail || "Operadora");
+      }
+    });
+    (actionData?.timers ?? []).forEach((row) => {
+      if (!row.operatorId) return;
+      if (!map.has(row.operatorId)) {
+        map.set(row.operatorId, row.operatorName || row.operatorEmail || "Operadora");
+      }
+    });
+    return map;
+  }, [usersData, actionData]);
+  const operatorIds = React.useMemo(() => {
+    if ((usersData?.users ?? []).length > 0) {
+      return usersData?.users.map((user) => user.id) ?? [];
+    }
+    return Array.from(
+      new Set((actionData?.unique ?? []).map((row) => row.operatorId).filter(Boolean)),
+    );
+  }, [usersData, actionData]);
+  const uniqueByOperator = React.useMemo(() => {
     const summary = new Map<string, Record<string, number>>();
-    (actionData?.summary ?? []).forEach((row) => {
-      const operator = row.operatorSlug?.toLowerCase();
-      if (!operator) return;
-      const current = summary.get(operator) ?? {};
+    (actionData?.unique ?? []).forEach((row) => {
+      const operatorId = row.operatorId?.trim();
+      if (!operatorId) return;
+      const current = summary.get(operatorId) ?? {};
       current[row.action] = row.count ?? 0;
-      summary.set(operator, current);
+      summary.set(operatorId, current);
     });
     return summary;
   }, [actionData]);
+  const timersByOperator = React.useMemo(() => {
+    const summary = new Map<
+      string,
+      Partial<Record<"hablado" | "contestado", InfoActionTimerRow>>
+    >();
+    (actionData?.timers ?? []).forEach((row) => {
+      const operatorId = row.operatorId?.trim();
+      if (!operatorId) return;
+      const current = summary.get(operatorId) ?? {};
+      current[row.metric] = row;
+      summary.set(operatorId, current);
+    });
+    return summary;
+  }, [actionData]);
+  const operatorMetrics = React.useMemo(
+    () =>
+      operatorIds.map((operatorId) => {
+        const uniqueCounts = uniqueByOperator.get(operatorId) ?? {};
+        const whatsapp = uniqueCounts.whatsapp ?? 0;
+        const hablado = uniqueCounts.hablado ?? 0;
+        const contestado = uniqueCounts.contestado ?? 0;
+        const eliminado = uniqueCounts.eliminado ?? 0;
+        const contactRate = whatsapp > 0 ? hablado / whatsapp : 0;
+        const responseRate = hablado > 0 ? contestado / hablado : 0;
+        const discardRate = whatsapp > 0 ? eliminado / whatsapp : 0;
+        const timers = timersByOperator.get(operatorId) ?? {};
+        return {
+          operatorId,
+          name: operatorNameById.get(operatorId) ?? "Operadora",
+          counts: { whatsapp, hablado, contestado, eliminado },
+          rates: { contactRate, responseRate, discardRate },
+          timers,
+        };
+      }),
+    [operatorIds, uniqueByOperator, timersByOperator, operatorNameById],
+  );
+  const ratesChartData = React.useMemo(
+    () =>
+      operatorMetrics.map((operator) => ({
+        name: operator.name,
+        contacto: Math.round(operator.rates.contactRate * 100),
+        respuesta: Math.round(operator.rates.responseRate * 100),
+        descarte: Math.round(operator.rates.discardRate * 100),
+      })),
+    [operatorMetrics],
+  );
+  const timeChartData = React.useMemo(
+    () =>
+      operatorMetrics.map((operator) => ({
+        name: operator.name,
+        promedio: Math.round(operator.timers.hablado?.avgSeconds ?? 0),
+        mediana: Math.round(operator.timers.hablado?.medianSeconds ?? 0),
+      })),
+    [operatorMetrics],
+  );
 
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(22,57,96,0.16),_transparent_55%),radial-gradient(circle_at_bottom,_rgba(255,200,0,0.12),_transparent_55%)] text-foreground">
@@ -166,11 +280,19 @@ export default function InfoDashboard() {
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-3">
+            {isAdmin ? (
+              <Link
+                href="/info/admin"
+                className="inline-flex min-h-[40px] items-center rounded-full border border-[#163960]/40 px-4 text-[11px] font-semibold uppercase tracking-[0.24em] text-[#163960] transition hover:border-[#163960] hover:bg-[#163960]/10"
+              >
+                Configuracion operadoras
+              </Link>
+            ) : null}
             <Badge variant="secondary" className="bg-[#163960]/10 text-[#163960]">
-              {activeOperators.length} operadoras activas
+              {activeCandidates.length} candidatos activos
             </Badge>
             <Badge variant="secondary" className="bg-[#FFC800]/20 text-[#7a5b00]">
-              {operators.length} en total
+              {candidates.length} en total
             </Badge>
           </div>
         </div>
@@ -193,14 +315,7 @@ export default function InfoDashboard() {
                   <CardTitle className="text-lg">{report.title}</CardTitle>
                   <CardDescription>{report.description}</CardDescription>
                 </CardHeader>
-                <CardContent>
-                  <Link
-                    href={report.href}
-                    className="inline-flex min-h-[40px] items-center rounded-full border border-[#163960]/40 px-4 text-xs font-semibold uppercase tracking-[0.18em] text-[#163960] transition hover:border-[#163960] hover:bg-[#163960]/10"
-                  >
-                    Abrir reporte
-                  </Link>
-                </CardContent>
+                <CardContent className="pt-0" />
               </Card>
             ))}
           </div>
@@ -209,9 +324,9 @@ export default function InfoDashboard() {
         <section className="panel fade-rise rounded-3xl border border-border/70 px-5 py-6 md:px-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="space-y-1">
-              <h2 className="heading-display text-xl font-semibold">Operadoras</h2>
+              <h2 className="heading-display text-xl font-semibold">Candidatos</h2>
               <p className="text-sm text-muted-foreground">
-                Acceso directo a los registros habilitados por operadora.
+                Acceso directo a los registros habilitados por candidato.
               </p>
             </div>
           </div>
@@ -222,7 +337,7 @@ export default function InfoDashboard() {
             <div className="mt-4 text-sm text-red-500">{String(error)}</div>
           ) : (
             <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {orderedOperators.map((operator) => (
+              {orderedCandidates.map((operator) => (
                 <Card key={operator.id} className="border-border/60 bg-card/70">
                   <CardHeader>
                     <div className="flex items-start justify-between gap-3">
@@ -267,6 +382,26 @@ export default function InfoDashboard() {
                 Estados marcados y aperturas de WhatsApp.
               </p>
             </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {([
+                { id: "today", label: "Hoy" },
+                { id: "7d", label: "7 dias" },
+                { id: "30d", label: "30 dias" },
+              ] as const).map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setRange(item.id)}
+                  className={`min-h-[36px] rounded-full border px-3 text-[11px] font-semibold uppercase tracking-[0.2em] transition ${
+                    range === item.id
+                      ? "border-[#163960] bg-[#163960]/10 text-[#163960]"
+                      : "border-border/60 text-muted-foreground hover:border-[#163960]/50 hover:text-[#163960]"
+                  }`}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           {actionsLoading ? (
@@ -275,41 +410,157 @@ export default function InfoDashboard() {
             <div className="mt-4 text-sm text-red-500">{String(actionsError)}</div>
           ) : (
             <div className="mt-4 space-y-6">
-              <div className="grid gap-4 md:grid-cols-3">
-                {Object.keys(operatorLabels).map((operator) => {
-                  const counts = summaryByOperator.get(operator) ?? {};
-                  const total = Object.values(counts).reduce(
-                    (acc, value) => acc + (Number(value) || 0),
-                    0,
-                  );
-                  return (
-                    <Card key={operator} className="border-border/60 bg-card/70">
-                      <CardHeader>
-                        <div className="flex items-center justify-between gap-3">
-                          <CardTitle className="text-lg">
-                            {operatorLabels[operator] ?? operator}
-                          </CardTitle>
-                          <Badge variant="secondary" className="bg-[#163960]/10 text-[#163960]">
-                            {total} acciones
-                          </Badge>
-                        </div>
-                        <CardDescription>Resumen de actividad</CardDescription>
-                      </CardHeader>
-                      <CardContent className="grid gap-2 text-sm">
-                        {Object.keys(actionLabels).map((action) => (
-                          <div key={action} className="flex items-center justify-between">
-                            <span className="text-muted-foreground">
-                              {actionLabels[action]}
-                            </span>
-                            <span className="font-semibold text-foreground">
-                              {counts[action] ?? 0}
-                            </span>
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {operatorMetrics.map((operator) => (
+                  <Card key={operator.operatorId} className="border-border/60 bg-card/70">
+                    <CardHeader>
+                      <div className="flex items-center justify-between gap-3">
+                        <CardTitle className="text-lg">{operator.name}</CardTitle>
+                        <Badge variant="secondary" className="bg-[#163960]/10 text-[#163960]">
+                          {operator.counts.whatsapp} registros
+                        </Badge>
+                      </div>
+                      <CardDescription>Volumen, tasas y tiempos</CardDescription>
+                    </CardHeader>
+                    <CardContent className="grid gap-4 text-sm">
+                      <div className="grid gap-2">
+                        {[
+                          { label: "WhatsApp", value: operator.counts.whatsapp },
+                          { label: "Hablados", value: operator.counts.hablado },
+                          { label: "Respondieron", value: operator.counts.contestado },
+                          { label: "Eliminados", value: operator.counts.eliminado },
+                        ].map((item) => (
+                          <div key={item.label} className="flex items-center justify-between">
+                            <span className="text-muted-foreground">{item.label}</span>
+                            <span className="font-semibold text-foreground">{item.value}</span>
                           </div>
                         ))}
-                      </CardContent>
-                    </Card>
-                  );
-                })}
+                      </div>
+                      <div className="grid gap-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-muted-foreground">Tasa de contacto</span>
+                          <span className="font-semibold text-foreground">
+                            {formatPercent(operator.rates.contactRate)}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-muted-foreground">Tasa de respuesta</span>
+                          <span className="font-semibold text-foreground">
+                            {formatPercent(operator.rates.responseRate)}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-muted-foreground">Tasa de descarte</span>
+                          <span className="font-semibold text-foreground">
+                            {formatPercent(operator.rates.discardRate)}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="grid gap-1 text-xs">
+                        <div className="flex items-center justify-between">
+                          <span className="text-muted-foreground">Promedio a hablado</span>
+                          <span className="font-semibold text-foreground">
+                            {formatSeconds(operator.timers.hablado?.avgSeconds ?? null)}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-muted-foreground">Mediana a hablado</span>
+                          <span className="font-semibold text-foreground">
+                            {formatSeconds(operator.timers.hablado?.medianSeconds ?? null)}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-muted-foreground">P90 a hablado</span>
+                          <span className="font-semibold text-foreground">
+                            {formatSeconds(operator.timers.hablado?.p90Seconds ?? null)}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-muted-foreground">Promedio a respuesta</span>
+                          <span className="font-semibold text-foreground">
+                            {formatSeconds(operator.timers.contestado?.avgSeconds ?? null)}
+                          </span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+
+              <div className="grid gap-4 lg:grid-cols-2">
+                <Card className="border-border/60 bg-card/70">
+                  <CardHeader>
+                    <CardTitle className="text-base">Tasas por operadora</CardTitle>
+                    <CardDescription>Contacto, respuesta y descarte</CardDescription>
+                  </CardHeader>
+                  <CardContent className="h-56">
+                    <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+                      <BarChart data={ratesChartData} margin={{ left: 0, right: 12, top: 10 }}>
+                        <CartesianGrid stroke="rgba(22,57,96,0.12)" vertical={false} />
+                        <XAxis
+                          dataKey="name"
+                          tick={{ fontSize: 11, fill: "#5b6472" }}
+                          axisLine={false}
+                          tickLine={false}
+                        />
+                        <YAxis
+                          tick={{ fontSize: 10, fill: "#5b6472" }}
+                          axisLine={false}
+                          tickLine={false}
+                          tickFormatter={(value) => `${value}%`}
+                        />
+                        <Tooltip
+                          cursor={{ fill: "rgba(22,57,96,0.08)" }}
+                          contentStyle={{
+                            borderRadius: 12,
+                            borderColor: "#d0d4dc",
+                            background: "#ffffff",
+                          }}
+                          formatter={(value, name) => [`${value}%`, name]}
+                        />
+                        <Bar dataKey="contacto" name="Contacto" fill="#163960" radius={[6, 6, 0, 0]} />
+                        <Bar dataKey="respuesta" name="Respuesta" fill="#25D366" radius={[6, 6, 0, 0]} />
+                        <Bar dataKey="descarte" name="Descarte" fill="#f97316" radius={[6, 6, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
+                <Card className="border-border/60 bg-card/70">
+                  <CardHeader>
+                    <CardTitle className="text-base">Tiempo a hablado</CardTitle>
+                    <CardDescription>Promedio y mediana por operadora</CardDescription>
+                  </CardHeader>
+                  <CardContent className="h-56">
+                    <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+                      <BarChart data={timeChartData} margin={{ left: 0, right: 12, top: 10 }}>
+                        <CartesianGrid stroke="rgba(22,57,96,0.12)" vertical={false} />
+                        <XAxis
+                          dataKey="name"
+                          tick={{ fontSize: 11, fill: "#5b6472" }}
+                          axisLine={false}
+                          tickLine={false}
+                        />
+                        <YAxis
+                          tick={{ fontSize: 10, fill: "#5b6472" }}
+                          axisLine={false}
+                          tickLine={false}
+                          tickFormatter={(value) => `${value}s`}
+                        />
+                        <Tooltip
+                          cursor={{ fill: "rgba(22,57,96,0.08)" }}
+                          contentStyle={{
+                            borderRadius: 12,
+                            borderColor: "#d0d4dc",
+                            background: "#ffffff",
+                          }}
+                          formatter={(value, name) => [`${value}s`, name]}
+                        />
+                        <Bar dataKey="promedio" name="Promedio" fill="#FFC800" radius={[6, 6, 0, 0]} />
+                        <Bar dataKey="mediana" name="Mediana" fill="#163960" radius={[6, 6, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
               </div>
 
               <div className="overflow-hidden rounded-2xl border border-border/60">
@@ -336,7 +587,7 @@ export default function InfoDashboard() {
                         <TableRow key={row.id} className="border-border/60">
                           <TableCell>{formatDateTime(row.createdAt)}</TableCell>
                           <TableCell className="capitalize">
-                            {operatorLabels[row.operatorSlug] ?? row.operatorSlug}
+                              {row.actorName || row.actorEmail || "Operadora"}
                           </TableCell>
                           <TableCell>
                             <Badge variant="outline" className="border-border/60 text-foreground">

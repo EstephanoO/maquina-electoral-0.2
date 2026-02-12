@@ -17,7 +17,8 @@ import {
   generateInterviewerTimelineData,
   getLastUpdated,
 } from "@/dashboards/events/utils/dataUtils";
-import type { MapHierarchySelection } from "@/maps/hierarchy/types";
+import type { GeoIndex, MapHierarchySelection } from "@/maps/hierarchy/types";
+import { getGeoIndex } from "@/maps/hierarchy/geoIndex";
 import objectiveSp from "@/objetive-sp.json";
 import votosRocio from "@/lib/votos_rocio.json";
 import datosGiovanna from "@/db/constants/datos-giovanna.json";
@@ -72,6 +73,7 @@ export const EventMapDashboard = ({
 }: EventMapDashboardProps) => {
   const isRocio = clientKey === "rocio";
   const isGiovanna = clientKey === "giovanna";
+  const isGuillermo = clientKey === "guillermo";
   const dataGoalOverride = isRocio ? 80000 : null;
   const [mapSelection, setMapSelection] = React.useState<MapHierarchySelection | null>(null);
   const [mapViewMode, setMapViewMode] = React.useState<"tracking" | "interview">(
@@ -213,6 +215,35 @@ export const EventMapDashboard = ({
     return digits.padStart(2, "0");
   }, []);
 
+  const normalizeHierarchyCode = React.useCallback(
+    (value: string | undefined | null, length: number) => {
+      if (!value) return "";
+      const digits = String(value).replace(/\D/g, "");
+      if (!digits) return "";
+      return digits.padStart(length, "0");
+    },
+    [],
+  );
+
+  const [geoIndex, setGeoIndex] = React.useState<GeoIndex | null>(null);
+
+  React.useEffect(() => {
+    if (!isGuillermo) return;
+    let active = true;
+    getGeoIndex()
+      .then((index) => {
+        if (!active) return;
+        setGeoIndex(index);
+      })
+      .catch(() => {
+        if (!active) return;
+        setGeoIndex(null);
+      });
+    return () => {
+      active = false;
+    };
+  }, [isGuillermo]);
+
   const rocioMetaGoal = React.useMemo(() => {
     if (!isRocio) return null;
     const records = (votosRocio as { registros?: RocioRecord[] }).registros ?? [];
@@ -331,6 +362,33 @@ export const EventMapDashboard = ({
     return map;
   }, []);
 
+  const guillermoDepartmentGoals = React.useMemo(() => {
+    if (!isGuillermo) return null;
+    const totalGoal = 200000;
+    const limaGoal = 100000;
+    const loretoGoal = totalGoal - limaGoal;
+    const normalizedLima = "LIMA";
+    const normalizedLoreto = "LORETO";
+
+    const goalByCode = new Map<string, number>();
+    const goalByName = new Map<string, number>();
+
+    for (const item of objectiveSp.departamentos ?? []) {
+      const nameKey = normalizeDepartmentName(item.departamento);
+      const code = String(item.id ?? "").padStart(2, "0");
+      if (!code || !nameKey) continue;
+      let value = 0;
+      if (nameKey === normalizedLima) value = limaGoal;
+      if (nameKey === normalizedLoreto) value = loretoGoal;
+      if (value > 0) {
+        goalByCode.set(code, value);
+        goalByName.set(nameKey, value);
+      }
+    }
+
+    return { byCode: goalByCode, byName: goalByName, total: totalGoal };
+  }, [isGuillermo, normalizeDepartmentName]);
+
   const totalObjectiveGoal = React.useMemo(() => {
     if (dataGoalOverride) return dataGoalOverride;
     return (objectiveSp.departamentos ?? []).reduce(
@@ -380,6 +438,42 @@ export const EventMapDashboard = ({
   }, [mapSelection?.depCode, normalizeDepartmentCode]);
 
   const resolvedDataGoal = React.useMemo(() => {
+    if (isGuillermo && guillermoDepartmentGoals) {
+      const depCode = selectedDepartmentCode || normalizeDepartmentCode(mapSelection?.depCode ?? null);
+      const depName = selectedDepartmentKey;
+      const provCode = normalizeHierarchyCode(mapSelection?.provCode ?? null, 2);
+      const distCode = normalizeHierarchyCode(mapSelection?.distCode ?? null, 6);
+      const deptGoal = depCode
+        ? guillermoDepartmentGoals.byCode.get(depCode) ?? 0
+        : depName
+          ? guillermoDepartmentGoals.byName.get(depName) ?? 0
+          : guillermoDepartmentGoals.total;
+
+      if (distCode && depCode && provCode && geoIndex) {
+        const provinceId = geoIndex.byCode.provincia[`${depCode}${provCode}`];
+        const provinceNode = provinceId ? geoIndex.nodes[provinceId] : null;
+        const departmentId = geoIndex.byCode.departamento[depCode];
+        const departmentNode = departmentId ? geoIndex.nodes[departmentId] : null;
+        const provinceCount = departmentNode?.children.length ?? 0;
+        const districtCount = provinceNode?.children.length ?? 0;
+        if (provinceCount > 0 && districtCount > 0) {
+          const provinceGoal = deptGoal / provinceCount;
+          return Math.round(provinceGoal / districtCount);
+        }
+      }
+
+      if (provCode && depCode && geoIndex) {
+        const departmentId = geoIndex.byCode.departamento[depCode];
+        const departmentNode = departmentId ? geoIndex.nodes[departmentId] : null;
+        const provinceCount = departmentNode?.children.length ?? 0;
+        if (provinceCount > 0) {
+          return Math.round(deptGoal / provinceCount);
+        }
+      }
+
+      if (depCode) return deptGoal;
+      return guillermoDepartmentGoals.total;
+    }
     if (isRocio) {
       if (typeof rocioMetaGoal === "number") return rocioMetaGoal;
       return dataGoalOverride ?? (Number(dataGoal) || 0);
@@ -416,6 +510,14 @@ export const EventMapDashboard = ({
     selectedDepartmentCode,
     selectedDepartmentKey,
     totalObjectiveGoal,
+    guillermoDepartmentGoals,
+    isGuillermo,
+    mapSelection?.depCode,
+    mapSelection?.distCode,
+    mapSelection?.provCode,
+    geoIndex,
+    normalizeDepartmentCode,
+    normalizeHierarchyCode,
   ]);
 
   const selectionTotal = React.useMemo(() => {
