@@ -233,7 +233,7 @@ export default function InfoFeb8OperatorDashboard({
         setError(null);
       }
       try {
-        const recordsUrl = config.supervisor
+        const recordsUrl = !isAdmin && config.supervisor
           ? `${config.apiBasePath}?supervisor=${encodeURIComponent(config.supervisor)}`
           : config.apiBasePath;
         const response = await fetch(recordsUrl, {
@@ -262,9 +262,13 @@ export default function InfoFeb8OperatorDashboard({
             lng: record.longitude !== null ? String(record.longitude) : "",
           }))
           .filter((record) => record.timestamp && record.interviewer && record.phone)
-          .filter(
-            (record) =>
-              !matchesExcludedCandidate(record.candidate, config.excludeCandidates ?? []),
+          .filter((record) =>
+            matchesExcludedCandidate(
+              record.candidate,
+              isAdmin ? [] : (config.excludeCandidates ?? []),
+            )
+              ? false
+              : true,
           );
         const nextStatusMap = (payload.statuses ?? []).reduce(
           (acc, status) => {
@@ -293,7 +297,7 @@ export default function InfoFeb8OperatorDashboard({
         if (!silent && isMountedRef.current) setLoading(false);
       }
     },
-    [config.apiBasePath, config.supervisor, config.excludeCandidates],
+    [config.apiBasePath, config.supervisor, config.excludeCandidates, isAdmin],
   );
 
   const handleRetry = React.useCallback(() => {
