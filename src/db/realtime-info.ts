@@ -9,11 +9,18 @@ if (!databaseUrl) {
   throw new Error("DATABASE_URL2 is not set");
 }
 
-type StatusPayload = {
-  phone: string;
-  contacted: boolean;
-  replied: boolean;
-  updatedAt: number;
+type RealtimeInfoPayload = {
+  type: "status" | "assignment";
+  sourceId: string;
+  phone?: string | null;
+  contacted?: boolean;
+  replied?: boolean;
+  deleted?: boolean;
+  assignedToId?: string | null;
+  assignedToName?: string | null;
+  assignedToEmail?: string | null;
+  assignedAt?: number | null;
+  updatedAt?: number;
 };
 
 type RealtimeInfoPool = {
@@ -31,7 +38,7 @@ const getPool = () => {
 
 export const getRealtimeInfoClient = () => getPool().connect();
 
-export const notifyInfoFeb8StatusInfo = async (payload: StatusPayload) => {
+export const notifyInfoFeb8StatusInfo = async (payload: RealtimeInfoPayload) => {
   const client = await getPool().connect();
   try {
     await client.query("SELECT pg_notify('info_feb8_status', $1)", [

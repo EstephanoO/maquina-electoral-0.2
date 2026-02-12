@@ -8,6 +8,7 @@ export type InfoFeb8OperatorConfig = {
   tableDescription: string;
   apiBasePath: string;
   supervisor?: string;
+  excludeCandidates?: string[];
   allowRecordsWithoutLinks?: boolean;
 };
 
@@ -30,7 +31,6 @@ export const infoOperatorConfigs = {
     tableTitle: "Tabla consolidada",
     tableDescription: "Registros cargados desde el CSV compartido.",
     apiBasePath: "/api/info/8-febrero",
-    supervisor: "Guillermo",
     allowRecordsWithoutLinks: true,
   },
   giovanna: {
@@ -42,7 +42,6 @@ export const infoOperatorConfigs = {
     tableTitle: "Tabla consolidada",
     tableDescription: "Registros cargados desde el CSV compartido.",
     apiBasePath: "/api/info/8-febrero",
-    supervisor: "Giovanna Castagnino",
     allowRecordsWithoutLinks: true,
   },
   rocio: {
@@ -54,7 +53,6 @@ export const infoOperatorConfigs = {
     tableTitle: "Tabla consolidada",
     tableDescription: "Registros cargados desde el CSV compartido.",
     apiBasePath: "/api/info/8-febrero",
-    supervisor: "Rocio Porras",
     allowRecordsWithoutLinks: true,
   },
 } as const satisfies Record<string, InfoOperatorConfig>;

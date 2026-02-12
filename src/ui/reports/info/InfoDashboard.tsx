@@ -164,25 +164,28 @@ export default function InfoDashboard() {
   const operatorNameById = React.useMemo(() => {
     const map = new Map<string, string>();
     (usersData?.users ?? []).forEach((user) => {
+      if (user.role === "admin") return;
       map.set(user.id, user.name);
     });
-    (actionData?.unique ?? []).forEach((row) => {
-      if (!row.operatorId) return;
-      if (!map.has(row.operatorId)) {
-        map.set(row.operatorId, row.operatorName || row.operatorEmail || "Operadora");
-      }
-    });
-    (actionData?.timers ?? []).forEach((row) => {
-      if (!row.operatorId) return;
-      if (!map.has(row.operatorId)) {
-        map.set(row.operatorId, row.operatorName || row.operatorEmail || "Operadora");
-      }
-    });
+    if (map.size === 0) {
+      (actionData?.unique ?? []).forEach((row) => {
+        if (!row.operatorId) return;
+        if (!map.has(row.operatorId)) {
+          map.set(row.operatorId, row.operatorName || row.operatorEmail || "Operadora");
+        }
+      });
+      (actionData?.timers ?? []).forEach((row) => {
+        if (!row.operatorId) return;
+        if (!map.has(row.operatorId)) {
+          map.set(row.operatorId, row.operatorName || row.operatorEmail || "Operadora");
+        }
+      });
+    }
     return map;
   }, [usersData, actionData]);
   const operatorIds = React.useMemo(() => {
     if ((usersData?.users ?? []).length > 0) {
-      return usersData?.users.map((user) => user.id) ?? [];
+      return usersData?.users.filter((user) => user.role !== "admin").map((user) => user.id) ?? [];
     }
     return Array.from(
       new Set((actionData?.unique ?? []).map((row) => row.operatorId).filter(Boolean)),

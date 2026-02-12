@@ -151,9 +151,15 @@ export const infoFeb8Registros = pgTable("info_feb8_registros", {
 });
 
 export const infoFeb8Status = pgTable("info_feb8_status", {
-  phone: text("phone").primaryKey(),
+  sourceId: text("source_id").primaryKey(),
+  phone: text("phone"),
   contacted: boolean("contacted").notNull().default(false),
   replied: boolean("replied").notNull().default(false),
+  deleted: boolean("deleted").notNull().default(false),
+  assignedToId: text("assigned_to_id"),
+  assignedToName: text("assigned_to_name"),
+  assignedToEmail: text("assigned_to_email"),
+  assignedAt: timestamp("assigned_at", { withTimezone: true }),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

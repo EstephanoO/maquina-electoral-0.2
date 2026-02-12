@@ -1,58 +1,123 @@
+import { NextResponse } from "next/server";
+import { getSessionUser } from "@/lib/auth/session";
+import { isInfoAdminEmail, isInfoUserEmail } from "@/info/auth";
 import { getRealtimeInfoClient } from "@/db/realtime-info";
 
 export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
-export const fetchCache = "force-no-store";
 
-export async function GET() {
-  const encoder = new TextEncoder();
-  let pingTimer: ReturnType<typeof setInterval> | null = null;
-  let client: Awaited<ReturnType<typeof getRealtimeInfoClient>> | null = null;
-  let notificationHandler: ((message: { channel: string; payload?: string }) => void) | null = null;
+type RealtimePayload = {
+  type?: "status" | "assignment";
+  sourceId?: string | null;
+  phone?: string | null;
+  contacted?: boolean;
+  replied?: boolean;
+  deleted?: boolean;
+  assignedToId?: string | null;
+  assignedToName?: string | null;
+  assignedToEmail?: string | null;
+  assignedAt?: number | null;
+  updatedAt?: number;
+};
+
+const encoder = new TextEncoder();
+
+const formatEvent = (event: string, data: unknown) =>
+  encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+
+export async function GET(request: Request) {
+  const user = await getSessionUser();
+  if (!user || !isInfoUserEmail(user.email)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  const isAdmin = isInfoAdminEmail(user.email);
 
   const stream = new ReadableStream({
     async start(controller) {
-      const send = (event: { type: string; payload: unknown }) => {
-        const data = `event: ${event.type}\n` + `data: ${JSON.stringify(event.payload)}\n\n`;
-        controller.enqueue(encoder.encode(data));
-      };
-      controller.enqueue(encoder.encode("retry: 2000\n\n"));
-      try {
-        client = await getRealtimeInfoClient();
-        await client.query("LISTEN info_feb8_status");
-        notificationHandler = (message) => {
-          if (message.channel !== "info_feb8_status" || !message.payload) return;
-          try {
-            const payload = JSON.parse(message.payload) as unknown;
-            send({ type: "status:update", payload });
-          } catch {
-            // ignore malformed payloads
-          }
-        };
-        client.on("notification", notificationHandler);
-      } catch (error) {
-        send({
-          type: "error",
-          payload: {
-            message: error instanceof Error ? error.message : "Realtime error",
-          },
-        });
+      const client = await getRealtimeInfoClient();
+      let pingTimer: NodeJS.Timeout | null = null;
+
+      const cleanup = async () => {
+        if (pingTimer) clearInterval(pingTimer);
+        client.removeAllListeners("notification");
+        try {
+          await client.query("UNLISTEN info_feb8_status");
+        } catch {
+          // noop
+        }
+        client.release();
         controller.close();
-        return;
+      };
+
+      const abortHandler = () => {
+        void cleanup();
+      };
+
+      request.signal.addEventListener("abort", abortHandler);
+
+      try {
+        await client.query("LISTEN info_feb8_status");
+        controller.enqueue(formatEvent("ready", { ok: true }));
+
+        client.on("notification", (msg) => {
+          if (!msg.payload) return;
+          try {
+            const payload = JSON.parse(msg.payload) as RealtimePayload;
+            if (!payload.type || !payload.sourceId) return;
+
+            if (payload.type === "assignment") {
+              if (!isAdmin && payload.assignedToId && payload.assignedToId !== user.id) {
+                controller.enqueue(
+                  formatEvent("assignment", {
+                    type: "assignment",
+                    sourceId: payload.sourceId,
+                    assignedToId: payload.assignedToId,
+                    assignedAt: payload.assignedAt ?? Date.now(),
+                  }),
+                );
+                return;
+              }
+              controller.enqueue(
+                formatEvent("assignment", {
+                  type: "assignment",
+                  sourceId: payload.sourceId,
+                  assignedToId: payload.assignedToId ?? null,
+                  assignedToName: payload.assignedToName ?? null,
+                  assignedToEmail: payload.assignedToEmail ?? null,
+                  assignedAt: payload.assignedAt ?? Date.now(),
+                }),
+              );
+              return;
+            }
+
+            if (!isAdmin && payload.assignedToId && payload.assignedToId !== user.id) {
+              return;
+            }
+
+            controller.enqueue(
+              formatEvent("status", {
+                type: "status",
+                sourceId: payload.sourceId,
+                phone: payload.phone ?? null,
+                contacted: Boolean(payload.contacted),
+                replied: Boolean(payload.replied),
+                deleted: Boolean(payload.deleted),
+                assignedToId: payload.assignedToId ?? null,
+                assignedToName: payload.assignedToName ?? null,
+                assignedToEmail: payload.assignedToEmail ?? null,
+                updatedAt: payload.updatedAt ?? Date.now(),
+              }),
+            );
+          } catch {
+            // ignore invalid payload
+          }
+        });
+
+        pingTimer = setInterval(() => {
+          controller.enqueue(formatEvent("ping", { ts: Date.now() }));
+        }, 25000);
+      } catch {
+        await cleanup();
       }
-      pingTimer = setInterval(() => {
-        controller.enqueue(encoder.encode(": ping\n\n"));
-      }, 20000);
-      controller.enqueue(encoder.encode("event: ready\ndata: {}\n\n"));
-    },
-    async cancel() {
-      if (pingTimer) clearInterval(pingTimer);
-      if (client && notificationHandler) {
-        client.removeListener("notification", notificationHandler);
-        await client.query("UNLISTEN info_feb8_status");
-      }
-      if (client) client.release();
     },
   });
 
@@ -61,7 +126,6 @@ export async function GET() {
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache, no-transform",
       Connection: "keep-alive",
-      "X-Accel-Buffering": "no",
     },
   });
 }
