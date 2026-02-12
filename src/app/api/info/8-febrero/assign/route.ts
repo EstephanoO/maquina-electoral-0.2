@@ -18,7 +18,7 @@ export async function POST(request: Request) {
   if (!user || !isInfoUserEmail(user.email)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const isAdmin = isInfoAdminEmail(user.email);
+  const isAdmin = user.role === "admin" || isInfoAdminEmail(user.email);
   const payload = (await request.json()) as AssignPayload;
   const sourceId = payload.sourceId?.trim();
   if (!sourceId) {

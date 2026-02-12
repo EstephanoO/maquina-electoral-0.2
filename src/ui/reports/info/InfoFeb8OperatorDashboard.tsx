@@ -24,6 +24,7 @@ import {
   TableRow,
   TableCell,
 } from "@/ui/primitives/table";
+import { isInfoAdminEmail } from "@/info/auth";
 import type { InfoFeb8OperatorConfig } from "@/ui/reports/info/infoOperatorConfigs";
 
 const DEFAULT_MESSAGE =
@@ -191,7 +192,8 @@ export default function InfoFeb8OperatorDashboard({
   const headerRef = React.useRef<HTMLElement | null>(null);
   const { data: sessionData } = useSWR<SessionPayload>("/api/auth/me", fetcher);
   const userId = sessionData?.user?.id ?? null;
-  const isAdmin = sessionData?.user?.role === "admin";
+  const isAdmin =
+    sessionData?.user?.role === "admin" || isInfoAdminEmail(sessionData?.user?.email);
   const [records, setRecords] = React.useState<InterviewRecord[]>([]);
   const [message, setMessage] = React.useState(DEFAULT_MESSAGE);
   const [loading, setLoading] = React.useState(true);
