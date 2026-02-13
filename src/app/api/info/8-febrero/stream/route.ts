@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth/session";
 import { isInfoAdminEmail, isInfoUserEmail } from "@/info/auth";
-import { getRealtimeInfoClient } from "@/db/realtime-info";
+import { getRealtimeInfoClientWithTimeout } from "@/db/realtime-info";
 
 export const runtime = "nodejs";
 
 type RealtimePayload = {
-  type?: "status" | "assignment";
+  type?: "status" | "assignment" | "new_record";
   sourceId?: string | null;
   phone?: string | null;
   contacted?: boolean;
@@ -17,6 +17,17 @@ type RealtimePayload = {
   assignedToEmail?: string | null;
   assignedAt?: number | null;
   updatedAt?: number;
+  recordedAt?: string | null;
+  interviewer?: string | null;
+  candidate?: string | null;
+  name?: string | null;
+  homeMapsUrl?: string | null;
+  pollingPlaceUrl?: string | null;
+  linksComment?: string | null;
+  east?: string | number | null;
+  north?: string | number | null;
+  latitude?: string | number | null;
+  longitude?: string | number | null;
 };
 
 const encoder = new TextEncoder();
@@ -31,9 +42,15 @@ export async function GET(request: Request) {
   }
   const isAdmin = user.role === "admin" || isInfoAdminEmail(user.email);
 
+  let client: Awaited<ReturnType<typeof getRealtimeInfoClientWithTimeout>> | null = null;
+  try {
+    client = await getRealtimeInfoClientWithTimeout(1500);
+  } catch {
+    return NextResponse.json({ error: "Realtime unavailable" }, { status: 503 });
+  }
+
   const stream = new ReadableStream({
     async start(controller) {
-      const client = await getRealtimeInfoClient();
       let pingTimer: NodeJS.Timeout | null = null;
       let closed = false;
 
@@ -72,13 +89,46 @@ export async function GET(request: Request) {
 
       try {
         await client.query("LISTEN info_feb8_status");
-        safeEnqueue(formatEvent("ready", { ok: true }));
+        const debug = await client.query(
+          "SELECT current_database() AS db, inet_server_addr()::text AS host, pg_backend_pid() AS pid",
+        );
+        const debugRow = debug.rows?.[0] ?? {};
+        safeEnqueue(
+          formatEvent("ready", {
+            ok: true,
+            db: debugRow.db ?? null,
+            host: debugRow.host ?? null,
+            pid: debugRow.pid ?? null,
+          }),
+        );
 
         client.on("notification", (msg) => {
           if (!msg.payload) return;
           try {
             const payload = JSON.parse(msg.payload) as RealtimePayload;
             if (!payload.type || !payload.sourceId) return;
+
+            if (payload.type === "new_record") {
+              safeEnqueue(
+                formatEvent("new_record", {
+                  type: "new_record",
+                  sourceId: payload.sourceId,
+                  recordedAt: payload.recordedAt ?? null,
+                  interviewer: payload.interviewer ?? null,
+                  candidate: payload.candidate ?? null,
+                  name: payload.name ?? null,
+                  phone: payload.phone ?? null,
+                  homeMapsUrl: payload.homeMapsUrl ?? null,
+                  pollingPlaceUrl: payload.pollingPlaceUrl ?? null,
+                  linksComment: payload.linksComment ?? null,
+                  east: payload.east ?? null,
+                  north: payload.north ?? null,
+                  latitude: payload.latitude ?? null,
+                  longitude: payload.longitude ?? null,
+                }),
+              );
+              return;
+            }
 
             if (payload.type === "assignment") {
               if (!isAdmin && payload.assignedToId && payload.assignedToId !== user.id) {

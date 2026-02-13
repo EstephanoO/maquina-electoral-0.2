@@ -89,6 +89,9 @@ type PeruMapPanelProps = {
     provincia?: GeoFeatureCollection | null;
     distrito?: GeoFeatureCollection | null;
   } | null;
+  clientLayerPlacement?: "underlay" | "overlay";
+  clientGeojsonDetail?: GeoFeatureCollection | null;
+  clientDetailLayerPlacement?: "underlay" | "overlay";
   clientFillColor?: string;
   clientLineColor?: string;
   clientLineHoverColor?: string;
@@ -133,6 +136,9 @@ export const PeruMapPanel = ({
   clientGeojson = null,
   clientGeojsonMeta = null,
   clientGeojsonLayers = null,
+  clientLayerPlacement = "overlay",
+  clientGeojsonDetail = null,
+  clientDetailLayerPlacement = "underlay",
   clientFillColor,
   clientLineColor,
   clientLineHoverColor,
@@ -149,6 +155,7 @@ export const PeruMapPanel = ({
   const resolvedRef = mapRef ?? localMapRef;
   const appliedClientBoundsKeyRef = React.useRef<string | null>(null);
   const [selectedSector, setSelectedSector] = React.useState<string | null>(null);
+  const [selectedSubsector, setSelectedSubsector] = React.useState<string | null>(null);
   const bounds = React.useMemo<[number, number, number, number] | null>(() => {
     if (!index) return null;
     const nodes = Object.values(index.nodes).filter(
@@ -189,6 +196,7 @@ export const PeruMapPanel = ({
   const boxSelectActiveRef = React.useRef(false);
   const dragPanEnabledRef = React.useRef<boolean | null>(null);
   const clientHoverIdRef = React.useRef<number | string | null>(null);
+  const clientDetailHoverIdRef = React.useRef<number | string | null>(null);
   const pendingPrefetchRef = React.useRef(0);
 
   const highlightPointsSource = React.useMemo(() => {
@@ -252,14 +260,14 @@ export const PeruMapPanel = ({
 
   const fillColor =
     mode === "dark" ? "rgba(148,163,184,0.22)" : "rgba(15,23,42,0.12)";
-  const lineColor = "rgba(24,24,27,0.68)";
+  const lineColor = "#000000";
   const fillOpacity = useStreetBase ? 0 : mode === "dark" ? 0.24 : 0.2;
   const highlightFillColor =
     level === "distrito" ? "rgba(239,68,68,0.35)" : "rgba(59,130,246,0.22)";
   const highlightFillOpacity = 0.35;
   const resolvedClientFillColor = clientFillColor ?? "rgba(59,130,246,0.18)";
-  const resolvedClientLineColor = clientLineColor ?? "rgba(0,0,0,0.9)";
-  const resolvedClientLineHoverColor = clientLineHoverColor ?? "rgba(239,68,68,0.95)";
+  const resolvedClientLineColor = clientLineColor ?? "#000000";
+  const resolvedClientLineHoverColor = clientLineHoverColor ?? "#000000";
   const resolvedMapStyle = useStreetBase
     ? mode === "dark"
       ? mapStyleDark
@@ -515,6 +523,15 @@ export const PeruMapPanel = ({
     [clientGeojson, level, selectedCodes.dist],
   );
 
+  const isSubsectorLayerActive = React.useMemo(
+    () =>
+      level === "distrito" &&
+      Boolean(selectedCodes.dist) &&
+      Boolean(clientGeojsonDetail) &&
+      Boolean(selectedSector),
+    [clientGeojsonDetail, level, selectedCodes.dist, selectedSector],
+  );
+
   const activeClientLayer = React.useMemo(() => {
     if (level === "distrito" && isSectorLayerActive) {
       return clientGeojson ?? null;
@@ -525,6 +542,11 @@ export const PeruMapPanel = ({
     if (level === "provincia") return clientGeojsonLayers.provincia ?? null;
     return clientGeojsonLayers.distrito ?? null;
   }, [clientGeojson, clientGeojsonLayers, isSectorLayerActive, level]);
+
+  const activeClientDetailLayer = React.useMemo(() => {
+    if (!isSubsectorLayerActive) return null;
+    return clientGeojsonDetail ?? null;
+  }, [clientGeojsonDetail, isSubsectorLayerActive]);
 
   const activePriorityLayer = React.useMemo(() => {
     if (!priorityGeojsonLayers) return null;
@@ -674,6 +696,24 @@ export const PeruMapPanel = ({
     selectedSector,
   ]);
 
+  const clientDetailLayerFilter = React.useMemo(() => {
+    if (level !== "distrito") return null as any;
+    if (!selectedCodes.dist || !selectedSector) return null as any;
+    const baseFilter: any[] = [
+      "all",
+      ["==", ["get", "UBIGEO"], selectedCodes.dist],
+      ["==", ["to-string", ["get", "SECTOR"]], selectedSector],
+    ];
+    if (selectedSubsector) {
+      return [
+        "all",
+        baseFilter,
+        ["==", ["to-string", ["get", "SUBSECTOR"]], selectedSubsector],
+      ] as any;
+    }
+    return baseFilter as any;
+  }, [level, selectedCodes.dist, selectedSector, selectedSubsector]);
+
   const priorityLayerFilter = React.useMemo(() => clientLayerFilter, [clientLayerFilter]);
 
   const clientFillFilter = React.useMemo(() => {
@@ -684,9 +724,24 @@ export const PeruMapPanel = ({
       true,
       false,
     ] as any;
+    if (isSubsectorLayerActive) {
+      return ["==", ["get", "__no_fill"], "__no_fill"] as any;
+    }
     if (!clientLayerFilter) return geometryFilter;
     return ["all", clientLayerFilter, geometryFilter] as any;
-  }, [clientLayerFilter]);
+  }, [clientLayerFilter, isSubsectorLayerActive]);
+
+  const clientDetailFillFilter = React.useMemo(() => {
+    const geometryFilter = [
+      "match",
+      ["geometry-type"],
+      ["Polygon", "MultiPolygon"],
+      true,
+      false,
+    ] as any;
+    if (!clientDetailLayerFilter) return geometryFilter;
+    return ["all", clientDetailLayerFilter, geometryFilter] as any;
+  }, [clientDetailLayerFilter]);
 
   const priorityFillFilter = React.useMemo(() => {
     const geometryFilter = [
@@ -711,6 +766,18 @@ export const PeruMapPanel = ({
     if (!clientLayerFilter) return geometryFilter;
     return ["all", clientLayerFilter, geometryFilter] as any;
   }, [clientLayerFilter]);
+
+  const clientDetailLineFilter = React.useMemo(() => {
+    const geometryFilter = [
+      "match",
+      ["geometry-type"],
+      ["LineString", "MultiLineString", "Polygon", "MultiPolygon"],
+      true,
+      false,
+    ] as any;
+    if (!clientDetailLayerFilter) return geometryFilter;
+    return ["all", clientDetailLayerFilter, geometryFilter] as any;
+  }, [clientDetailLayerFilter]);
 
   const priorityLineFilter = React.useMemo(() => {
     const geometryFilter = [
@@ -790,6 +857,8 @@ export const PeruMapPanel = ({
         depCode,
         provCode,
         distCode,
+        sector: selectedSector ?? undefined,
+        subsector: selectedSubsector ?? undefined,
       };
 
       const depId = depCode
@@ -827,6 +896,7 @@ export const PeruMapPanel = ({
     }
 
     if (!selectionNode) return;
+    if (selectedSector || selectedSubsector) return;
     resolvedRef.current?.fitBounds(
       [
         [selectionNode.bbox[0], selectionNode.bbox[1]],
@@ -841,11 +911,13 @@ export const PeruMapPanel = ({
     onHierarchySelectionChange,
     resolvedRef,
     selectedCodes.dep,
-    selectedCodes.dist,
-    selectedCodes.prov,
-    selectionNode,
-    selectionPointCount,
-  ]);
+      selectedCodes.dist,
+      selectedCodes.prov,
+      selectionNode,
+      selectionPointCount,
+      selectedSector,
+      selectedSubsector,
+    ]);
 
   React.useEffect(() => {
     if (!onResetViewReady) return;
@@ -875,7 +947,16 @@ export const PeruMapPanel = ({
     if (level !== "distrito" && selectedSector) {
       setSelectedSector(null);
     }
-  }, [level, selectedSector]);
+    if (level !== "distrito" && selectedSubsector) {
+      setSelectedSubsector(null);
+    }
+  }, [level, selectedSector, selectedSubsector]);
+
+  React.useEffect(() => {
+    if (!selectedSector && selectedSubsector) {
+      setSelectedSubsector(null);
+    }
+  }, [selectedSector, selectedSubsector]);
 
   const fitSelectionBounds = React.useCallback(() => {
     if (!selectionNode || !resolvedRef.current) return;
@@ -891,7 +972,7 @@ export const PeruMapPanel = ({
   const handleMapClick = React.useCallback(
     (event: MapLayerMouseEvent) => {
       if (pendingLevel) return;
-      if (!enableHierarchy && !activeClientLayer) return;
+      if (!enableHierarchy && !activeClientLayer && !activeClientDetailLayer) return;
       if (focusPoint) {
         onClearFocusPoint?.();
       }
@@ -911,13 +992,17 @@ export const PeruMapPanel = ({
         );
         if (!enableHierarchy) return;
       }
-      if (!enableHierarchy && activeClientLayer) {
+      if (!enableHierarchy && (activeClientLayer || activeClientDetailLayer)) {
         const clientFeature = event.features?.find(
           (item) => item.layer?.id === "client-geojson-fill",
         );
-        if (clientFeature?.geometry) {
+        const clientDetailFeature = event.features?.find(
+          (item) => item.layer?.id === "client-geojson-detail-fill",
+        );
+        const targetFeature = clientDetailFeature ?? clientFeature;
+        if (targetFeature?.geometry) {
           const bounds = getGeoJsonBounds({
-            features: [clientFeature as { geometry: { coordinates: unknown } }],
+            features: [targetFeature as { geometry: { coordinates: unknown } }],
           });
           resolvedRef.current?.fitBounds(
             [
@@ -941,9 +1026,22 @@ export const PeruMapPanel = ({
               return props?.SECTOR !== undefined && props?.SECTOR !== null;
             })
           : undefined;
+      const subsectorFeature =
+        level === "distrito" && activeClientDetailLayer
+          ? event.features?.find((item) => {
+              if (item.layer?.id !== "client-geojson-detail-fill") return false;
+              const props = item?.properties as Record<string, unknown> | undefined;
+              return props?.SUBSECTOR !== undefined && props?.SUBSECTOR !== null;
+            })
+          : undefined;
       if (!feature?.properties) {
         if (level === "distrito" && selectedSector) {
           setSelectedSector(null);
+          fitSelectionBounds();
+          return;
+        }
+        if (level === "distrito" && selectedSubsector) {
+          setSelectedSubsector(null);
           fitSelectionBounds();
           return;
         }
@@ -1013,6 +1111,30 @@ export const PeruMapPanel = ({
         return;
       }
       if (level === "distrito") {
+        const subsectorValue =
+          (subsectorFeature?.properties as Record<string, unknown> | undefined)?.SUBSECTOR;
+        if (subsectorValue !== null && subsectorValue !== undefined) {
+          const subsector = String(subsectorValue);
+          if (selectedSubsector === subsector) {
+            setSelectedSubsector(null);
+            fitSelectionBounds();
+          } else {
+            setSelectedSubsector(subsector);
+            if (subsectorFeature?.geometry) {
+              const bounds = getGeoJsonBounds({
+                features: [subsectorFeature as { geometry: { coordinates: unknown } }],
+              });
+              resolvedRef.current?.fitBounds(
+                [
+                  [bounds[0], bounds[1]],
+                  [bounds[2], bounds[3]],
+                ],
+                { padding: 24, duration: 650 },
+              );
+            }
+          }
+          return;
+        }
         const sectorValue = (sectorFeature?.properties as Record<string, unknown> | undefined)?.SECTOR;
         if (sectorValue !== null && sectorValue !== undefined) {
           const sector = String(sectorValue);
@@ -1021,6 +1143,7 @@ export const PeruMapPanel = ({
             fitSelectionBounds();
           } else {
             setSelectedSector(sector);
+            if (selectedSubsector) setSelectedSubsector(null);
             if (sectorFeature?.geometry) {
               const bounds = getGeoJsonBounds({
                 features: [sectorFeature as { geometry: { coordinates: unknown } }],
@@ -1050,6 +1173,7 @@ export const PeruMapPanel = ({
     },
     [
       activeClientLayer,
+      activeClientDetailLayer,
       activePriorityLayer,
       actions,
       clickableCodes,
@@ -1062,6 +1186,7 @@ export const PeruMapPanel = ({
       resolvedRef,
       resetView,
       selectedSector,
+      selectedSubsector,
     ],
   );
 
@@ -1168,6 +1293,14 @@ export const PeruMapPanel = ({
       );
       clientHoverIdRef.current = null;
     }
+    const hasClientDetailSource = map?.getSource?.("client-geojson-detail");
+    if (map && hasClientDetailSource && clientDetailHoverIdRef.current !== null) {
+      map.setFeatureState(
+        { source: "client-geojson-detail", id: clientDetailHoverIdRef.current },
+        { hover: false },
+      );
+      clientDetailHoverIdRef.current = null;
+    }
     const canvas = resolvedRef.current?.getCanvas();
     if (canvas) canvas.style.cursor = "";
   }, [resolvedRef]);
@@ -1182,14 +1315,21 @@ export const PeruMapPanel = ({
         return;
       }
       if (pendingLevel) return;
-      if (!enableHierarchy && !activeClientLayer) return;
+      if (!enableHierarchy && !activeClientLayer && !activeClientDetailLayer) return;
       const map = resolvedRef.current?.getMap?.();
       const clientFeature = activeClientLayer
         ? event.features?.find((item) => item.layer?.id === "client-geojson-fill")
         : null;
+      const clientDetailFeature = activeClientDetailLayer
+        ? event.features?.find((item) => item.layer?.id === "client-geojson-detail-fill")
+        : null;
       const clientId =
         typeof clientFeature?.id === "number" || typeof clientFeature?.id === "string"
           ? clientFeature.id
+          : null;
+      const clientDetailId =
+        typeof clientDetailFeature?.id === "number" || typeof clientDetailFeature?.id === "string"
+          ? clientDetailFeature.id
           : null;
       const hasClientSource = map?.getSource?.("client-geojson");
       if (map && hasClientSource && activeClientLayer) {
@@ -1207,6 +1347,37 @@ export const PeruMapPanel = ({
         }
         clientHoverIdRef.current = clientId;
       }
+      const hasClientDetailSource = map?.getSource?.("client-geojson-detail");
+      if (map && hasClientDetailSource && activeClientDetailLayer) {
+        if (
+          clientDetailHoverIdRef.current !== null &&
+          clientDetailHoverIdRef.current !== clientDetailId
+        ) {
+          map.setFeatureState(
+            { source: "client-geojson-detail", id: clientDetailHoverIdRef.current },
+            { hover: false },
+          );
+        }
+        if (clientDetailId !== null && clientDetailHoverIdRef.current !== clientDetailId) {
+          map.setFeatureState(
+            { source: "client-geojson-detail", id: clientDetailId },
+            { hover: true },
+          );
+        }
+        clientDetailHoverIdRef.current = clientDetailId;
+      }
+      if (isSubsectorLayerActive) {
+        if (
+          !clientDetailFeature?.properties ||
+          (clientDetailFeature.properties as Record<string, unknown>).SUBSECTOR == null
+        ) {
+          clearHover();
+          return;
+        }
+        const canvas = resolvedRef.current?.getCanvas();
+        if (canvas) canvas.style.cursor = "pointer";
+        return;
+      }
       if (isSectorLayerActive) {
         if (!clientFeature?.properties || (clientFeature.properties as Record<string, unknown>).SECTOR == null) {
           clearHover();
@@ -1221,8 +1392,8 @@ export const PeruMapPanel = ({
         if (canvas) canvas.style.cursor = "pointer";
         if (!enableHierarchy) return;
       }
-      if (!enableHierarchy && activeClientLayer) {
-        if (!clientFeature?.properties) {
+      if (!enableHierarchy && (activeClientLayer || activeClientDetailLayer)) {
+        if (!clientFeature?.properties && !clientDetailFeature?.properties) {
           clearHover();
           return;
         }
@@ -1272,11 +1443,13 @@ export const PeruMapPanel = ({
     },
     [
       activeClientLayer,
+      activeClientDetailLayer,
       clearHover,
       clickableCodes,
       enableBoxSelect,
       enableHierarchy,
       isSectorLayerActive,
+      isSubsectorLayerActive,
       pendingLevel,
       renderedLevel,
       resolvedRef,
@@ -1292,9 +1465,121 @@ export const PeruMapPanel = ({
       else ids.push("peru-distritos-fill");
     }
     if (activeClientLayer) ids.push("client-geojson-fill");
+    if (activeClientDetailLayer) ids.push("client-geojson-detail-fill");
     if (activePriorityLayer) ids.push("priority-geojson-fill");
     return ids.length > 0 ? ids : undefined;
-  }, [activeClientLayer, activePriorityLayer, enableHierarchy, renderedLevel]);
+  }, [activeClientDetailLayer, activeClientLayer, activePriorityLayer, enableHierarchy, renderedLevel]);
+
+  const clientLayerNode = activeClientLayer ? (
+    <Source
+      id="client-geojson"
+      type="geojson"
+      data={activeClientLayer as unknown as any}
+      generateId
+    >
+      <Layer
+        id="client-geojson-fill"
+        type="fill"
+        filter={clientFillFilter}
+        paint={{
+          "fill-color": resolvedClientFillColor,
+          "fill-opacity": highlightFillOpacity,
+          "fill-antialias": true,
+          "fill-opacity-transition": { duration: 220, delay: 0 },
+        }}
+      />
+      <Layer
+        id="client-geojson-line"
+        type="line"
+        filter={clientLineFilter}
+        paint={{
+          "line-color": [
+            "case",
+            ["boolean", ["feature-state", "hover"], false],
+            resolvedClientLineHoverColor,
+            resolvedClientLineColor,
+          ],
+          "line-width": 1.5,
+        }}
+        layout={{
+          "line-join": "round",
+          "line-cap": "round",
+        }}
+      />
+    </Source>
+  ) : null;
+
+  const clientDetailLayerNode = activeClientDetailLayer ? (
+    <Source
+      id="client-geojson-detail"
+      type="geojson"
+      data={activeClientDetailLayer as unknown as any}
+      generateId
+    >
+      <Layer
+        id="client-geojson-detail-fill"
+        type="fill"
+        filter={clientDetailFillFilter}
+        paint={{
+          "fill-color": resolvedClientFillColor,
+          "fill-opacity": highlightFillOpacity,
+          "fill-antialias": true,
+          "fill-opacity-transition": { duration: 220, delay: 0 },
+        }}
+      />
+      <Layer
+        id="client-geojson-detail-line"
+        type="line"
+        filter={clientDetailLineFilter}
+        paint={{
+          "line-color": [
+            "case",
+            ["boolean", ["feature-state", "hover"], false],
+            resolvedClientLineHoverColor,
+            resolvedClientLineColor,
+          ],
+          "line-width": 1.5,
+        }}
+        layout={{
+          "line-join": "round",
+          "line-cap": "round",
+        }}
+      />
+    </Source>
+  ) : null;
+
+  const priorityLayerNode = activePriorityLayer ? (
+    <Source
+      id="priority-geojson"
+      type="geojson"
+      data={activePriorityLayer as unknown as any}
+      generateId
+    >
+      <Layer
+        id="priority-geojson-fill"
+        type="fill"
+        filter={priorityFillFilter}
+        paint={{
+          "fill-color": "rgba(239,68,68,0.3)",
+          "fill-opacity": 0.35,
+          "fill-antialias": true,
+        }}
+      />
+      <Layer
+        id="priority-geojson-line"
+        type="line"
+        filter={priorityLineFilter}
+        paint={{
+          "line-color": "#000000",
+          "line-width": 1.5,
+        }}
+        layout={{
+          "line-join": "round",
+          "line-cap": "round",
+        }}
+      />
+    </Source>
+  ) : null;
 
   return (
     <MapPanel
@@ -1363,6 +1648,8 @@ export const PeruMapPanel = ({
          ) : null
        }
     >
+      {clientDetailLayerPlacement === "underlay" ? clientDetailLayerNode : null}
+      {clientLayerPlacement === "underlay" ? clientLayerNode : null}
       {enableHierarchy ? (
         <MapHierarchyTileLayers
           level={renderedLevel}
@@ -1380,76 +1667,9 @@ export const PeruMapPanel = ({
           enableHighlight={!pendingLevel}
         />
       ) : null}
-      {activeClientLayer ? (
-        <Source
-          id="client-geojson"
-          type="geojson"
-          data={activeClientLayer as unknown as any}
-          generateId
-        >
-          <Layer
-            id="client-geojson-fill"
-            type="fill"
-            filter={clientFillFilter}
-            paint={{
-              "fill-color": resolvedClientFillColor,
-              "fill-opacity": highlightFillOpacity,
-              "fill-antialias": true,
-              "fill-opacity-transition": { duration: 220, delay: 0 },
-            }}
-          />
-          <Layer
-            id="client-geojson-line"
-            type="line"
-            filter={clientLineFilter}
-            paint={{
-              "line-color": [
-                "case",
-                ["boolean", ["feature-state", "hover"], false],
-                resolvedClientLineHoverColor,
-                resolvedClientLineColor,
-              ],
-              "line-width": 2,
-            }}
-            layout={{
-              "line-join": "round",
-              "line-cap": "round",
-            }}
-          />
-        </Source>
-      ) : null}
-      {activePriorityLayer ? (
-        <Source
-          id="priority-geojson"
-          type="geojson"
-          data={activePriorityLayer as unknown as any}
-          generateId
-        >
-          <Layer
-            id="priority-geojson-fill"
-            type="fill"
-            filter={priorityFillFilter}
-            paint={{
-              "fill-color": "rgba(239,68,68,0.3)",
-              "fill-opacity": 0.35,
-              "fill-antialias": true,
-            }}
-          />
-          <Layer
-            id="priority-geojson-line"
-            type="line"
-            filter={priorityLineFilter}
-            paint={{
-              "line-color": "rgba(239,68,68,0.9)",
-              "line-width": 2,
-            }}
-            layout={{
-              "line-join": "round",
-              "line-cap": "round",
-            }}
-          />
-        </Source>
-      ) : null}
+      {clientLayerPlacement === "underlay" ? null : clientLayerNode}
+      {clientDetailLayerPlacement === "underlay" ? null : clientDetailLayerNode}
+      {priorityLayerNode}
     </MapPanel>
   );
 };

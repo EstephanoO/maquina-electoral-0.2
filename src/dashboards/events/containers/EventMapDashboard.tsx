@@ -22,6 +22,7 @@ import { getGeoIndex } from "@/maps/hierarchy/geoIndex";
 import objectiveSp from "@/objetive-sp.json";
 import votosRocio from "@/lib/votos_rocio.json";
 import datosGiovanna from "@/db/constants/datos-giovanna.json";
+import datosGiovannaSubsectores from "../../../../datos-giovanna.json";
 import { EventMapDashboardView } from "@/ui/dashboards/events/EventMapDashboardView";
 
 type RocioRecord = {
@@ -36,6 +37,11 @@ type GiovannaRecord = {
   provincia?: string;
   distrito?: string;
   datos_a_recopilar?: number;
+};
+
+type GiovannaSubsectorRecord = {
+  SUBSECTOR?: number | string;
+  META?: number;
 };
 
 type EventMapDashboardProps = {
@@ -293,6 +299,27 @@ export const EventMapDashboard = ({
 
   const giovannaMetaGoal = React.useMemo(() => {
     if (!isGiovanna) return null;
+    const subsectorMap = new Map<string, number>();
+    const subsectorRows = datosGiovannaSubsectores as GiovannaSubsectorRecord[];
+    for (const row of subsectorRows ?? []) {
+      const key = row.SUBSECTOR !== undefined && row.SUBSECTOR !== null
+        ? String(row.SUBSECTOR)
+        : null;
+      if (!key) continue;
+      const value = Number(row.META) || 0;
+      subsectorMap.set(key, value);
+    }
+    const selectedSubsector = mapSelection?.subsector ? String(mapSelection.subsector) : null;
+    if (selectedSubsector && subsectorMap.has(selectedSubsector)) {
+      return subsectorMap.get(selectedSubsector) ?? 0;
+    }
+    if (mapSelection?.sector) {
+      let total = 0;
+      for (const value of subsectorMap.values()) {
+        total += value;
+      }
+      return total;
+    }
     const payload = datosGiovanna as {
       registros?: GiovannaRecord[];
       resumen?: { total_datos_a_recopilar?: number };
@@ -339,6 +366,8 @@ export const EventMapDashboard = ({
     mapSelection?.depName,
     mapSelection?.distName,
     mapSelection?.provName,
+    mapSelection?.sector,
+    mapSelection?.subsector,
     normalizeDepartmentName,
   ]);
 

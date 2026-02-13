@@ -44,8 +44,8 @@ export const MapHierarchyTileLayers = ({
   fillOpacity,
   highlightFillColor,
   highlightFillOpacity,
-  hoverLineColor = "rgba(239,68,68,0.95)",
-  hoverLineWidth = 3.2,
+  hoverLineColor = "#000000",
+  hoverLineWidth = 2.4,
   enableHighlight = true,
 }: MapHierarchyTileLayersProps) => {
   const resolvedTilesUrl = React.useMemo(() => {
@@ -197,7 +197,7 @@ export const MapHierarchyTileLayers = ({
         filter={departamentoFilter}
         paint={{
           "line-color": lineColor,
-          "line-width": 2,
+          "line-width": 1.5,
           "line-opacity": 1,
         }}
       />
@@ -294,7 +294,7 @@ export const MapHierarchyTileLayers = ({
             }
             paint={{
               "line-color": lineColor,
-              "line-width": 1.4,
+              "line-width": 1.05,
               "line-opacity": 1,
             }}
           />
@@ -382,7 +382,7 @@ export const MapHierarchyTileLayers = ({
             }
             paint={{
               "line-color": lineColor,
-              "line-width": 1.2,
+              "line-width": 0.9,
               "line-opacity": 1,
             }}
           />

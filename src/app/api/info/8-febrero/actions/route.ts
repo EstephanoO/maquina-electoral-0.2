@@ -8,7 +8,16 @@ import { isInfoUserEmail } from "@/info/auth";
 
 export const runtime = "nodejs";
 
-const ACTIONS = ["no_hablado", "hablado", "contestado", "eliminado", "whatsapp"] as const;
+const ACTIONS = [
+  "no_hablado",
+  "hablado",
+  "contestado",
+  "eliminado",
+  "whatsapp",
+  "nuevo_contacto",
+  "domicilio_agregado",
+  "local_agregado",
+] as const;
 const RANGE_OPTIONS = ["today", "7d", "30d"] as const;
 type RangeOption = (typeof RANGE_OPTIONS)[number];
 type InfoAction = (typeof ACTIONS)[number];

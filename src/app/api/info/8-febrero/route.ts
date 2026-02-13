@@ -3,6 +3,7 @@ import { desc, eq, ilike, sql } from "drizzle-orm";
 import { dbInfo } from "@/db/connection-info";
 import { forms, infoFeb8Status } from "@/db/schema";
 import { getSessionUser } from "@/lib/auth/session";
+import { notifyInfoFeb8StatusInfo } from "@/db/realtime-info";
 import { isInfoAdminEmail, isInfoUserEmail } from "@/info/auth";
 
 export const runtime = "nodejs";
@@ -236,7 +237,27 @@ export async function POST(request: Request) {
     })
     .returning({ id: forms.id });
 
-  return NextResponse.json({ ok: true, id: rows[0]?.id ?? null });
+  const id = rows[0]?.id ?? null;
+  if (id) {
+    await notifyInfoFeb8StatusInfo({
+      type: "new_record",
+      sourceId: id,
+      recordedAt: now.toISOString(),
+      interviewer,
+      candidate,
+      name,
+      phone,
+      homeMapsUrl,
+      pollingPlaceUrl,
+      linksComment: comments,
+      east: 0,
+      north: 0,
+      latitude: null,
+      longitude: null,
+    });
+  }
+
+  return NextResponse.json({ ok: true, id });
 }
 
 export async function DELETE(request: Request) {

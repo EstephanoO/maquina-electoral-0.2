@@ -67,7 +67,15 @@ type RecordStatus = {
   updatedAt?: number;
 };
 
-type InfoAction = "no_hablado" | "hablado" | "contestado" | "eliminado" | "whatsapp";
+type InfoAction =
+  | "no_hablado"
+  | "hablado"
+  | "contestado"
+  | "eliminado"
+  | "whatsapp"
+  | "nuevo_contacto"
+  | "domicilio_agregado"
+  | "local_agregado";
 
 type InfoFeb8ApiRecord = {
   sourceId: string;
@@ -433,13 +441,84 @@ export default function InfoFeb8OperatorDashboard({
       }
     };
 
+    const handleNewRecord = (event: MessageEvent) => {
+      try {
+        const payload = JSON.parse(event.data) as {
+          sourceId?: string;
+          recordedAt?: string | null;
+          interviewer?: string | null;
+          candidate?: string | null;
+          name?: string | null;
+          phone?: string | null;
+          homeMapsUrl?: string | null;
+          pollingPlaceUrl?: string | null;
+          linksComment?: string | null;
+          east?: string | number | null;
+          north?: string | number | null;
+          latitude?: string | number | null;
+          longitude?: string | number | null;
+        };
+        if (!payload.sourceId || !payload.phone) return;
+        const timestamp = payload.recordedAt ?? "";
+        const interviewer = payload.interviewer ?? "";
+        if (!timestamp || !interviewer) return;
+        const candidate = payload.candidate ?? "";
+        if (matchesExcludedCandidate(candidate, config.excludeCandidates ?? [])) return;
+        if (config.supervisor) {
+          const supervisor = config.supervisor.toLowerCase();
+          if (!candidate.toLowerCase().includes(supervisor)) return;
+        }
+        const baseInterviewers = config.allowedInterviewers ?? [];
+        const allowedInterviewers = (baseInterviewers.length > 0
+          ? baseInterviewers.concat(sessionData?.user?.name ? [sessionData.user.name] : [])
+          : baseInterviewers
+        )
+          .map((value) => value.trim().toLowerCase())
+          .filter(Boolean);
+        if (allowedInterviewers.length > 0) {
+          const normalized = interviewer.trim().toLowerCase();
+          if (!allowedInterviewers.includes(normalized)) return;
+        }
+        const record: InterviewRecord = {
+          sourceId: payload.sourceId,
+          timestamp,
+          interviewer,
+          candidate,
+          name: payload.name ?? "",
+          phone: payload.phone,
+          homeMapsUrl: payload.homeMapsUrl ?? null,
+          pollingPlaceUrl: payload.pollingPlaceUrl ?? null,
+          linksComment: payload.linksComment ?? null,
+          east: payload.east !== null && payload.east !== undefined ? String(payload.east) : "",
+          north: payload.north !== null && payload.north !== undefined ? String(payload.north) : "",
+          lat: payload.latitude !== null && payload.latitude !== undefined
+            ? String(payload.latitude)
+            : "",
+          lng: payload.longitude !== null && payload.longitude !== undefined
+            ? String(payload.longitude)
+            : "",
+        };
+        const phoneKey = normalizePhone(record.phone);
+        setRecords((current) => {
+          if (current.some((item) => item.sourceId === record.sourceId)) return current;
+          if (phoneKey && current.some((item) => normalizePhone(item.phone) === phoneKey)) {
+            return current;
+          }
+          return [record, ...current];
+        });
+      } catch {
+        // noop
+      }
+    };
+
     source.addEventListener("status", handleStatus as EventListener);
     source.addEventListener("assignment", handleAssignment as EventListener);
+    source.addEventListener("new_record", handleNewRecord as EventListener);
 
     return () => {
       source.close();
     };
-  }, []);
+  }, [config.allowedInterviewers, config.excludeCandidates, config.supervisor, sessionData?.user?.name]);
 
   React.useEffect(() => {
     return () => {
@@ -596,10 +675,26 @@ export default function InfoFeb8OperatorDashboard({
         });
         if (response.status === 409) {
           const payload = (await response.json()) as {
+            assignedToId?: string | null;
             assignedToName?: string | null;
             assignedToEmail?: string | null;
           };
           const displayName = payload.assignedToName || payload.assignedToEmail || "otra operadora";
+          if (payload.assignedToId) {
+            setStatusMap((current) => {
+              const previous = current[record.sourceId] ?? {};
+              return {
+                ...current,
+                [record.sourceId]: {
+                  ...previous,
+                  assignedToId: payload.assignedToId,
+                  assignedToName: payload.assignedToName ?? previous.assignedToName,
+                  assignedToEmail: payload.assignedToEmail ?? previous.assignedToEmail,
+                  updatedAt: Date.now(),
+                },
+              };
+            });
+          }
           setActionError(`Registro bloqueado por ${displayName}.`);
           return null;
         }
@@ -636,6 +731,51 @@ export default function InfoFeb8OperatorDashboard({
     },
     [],
   );
+
+  const releaseRecord = React.useCallback(async (record: InterviewRecord) => {
+    if (!record.sourceId) return;
+    setAssigningId(record.sourceId);
+    try {
+      const response = await fetch("/api/info/8-febrero/assign", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sourceId: record.sourceId,
+          phone: record.phone,
+          release: true,
+        }),
+      });
+      if (response.status === 409) {
+        const payload = (await response.json()) as {
+          assignedToName?: string | null;
+          assignedToEmail?: string | null;
+        };
+        const displayName = payload.assignedToName || payload.assignedToEmail || "otra operadora";
+        setActionError(`Registro bloqueado por ${displayName}.`);
+        return;
+      }
+      if (!response.ok) throw new Error("No se pudo liberar el registro.");
+      setStatusMap((current) => {
+        const previous = current[record.sourceId] ?? {};
+        return {
+          ...current,
+          [record.sourceId]: {
+            ...previous,
+            assignedToId: null,
+            assignedToName: null,
+            assignedToEmail: null,
+            assignedAt: null,
+            updatedAt: Date.now(),
+          },
+        };
+      });
+      setActionError(null);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Error inesperado.");
+    } finally {
+      setAssigningId((current) => (current === record.sourceId ? null : current));
+    }
+  }, []);
 
   const setRecordStatus = React.useCallback(
     async (record: InterviewRecord, next: Partial<RecordStatus>) => {
@@ -765,10 +905,20 @@ export default function InfoFeb8OperatorDashboard({
         linksMode === "home" ? activeRecord.pollingPlaceUrl ?? null : nextPolling || null,
       linksComment: linksMode === "all" ? nextComment || null : activeRecord.linksComment ?? null,
     };
+    const hadHome = Boolean(previous.homeMapsUrl);
+    const hasHome = Boolean(updated.homeMapsUrl);
+    const hadPolling = Boolean(previous.pollingPlaceUrl);
+    const hasPolling = Boolean(updated.pollingPlaceUrl);
     setRecords((current) =>
       current.map((item) => (item.sourceId === activeRecord.sourceId ? updated : item)),
     );
     triggerSavePulse();
+    if (!hadHome && hasHome) {
+      void logAction("domicilio_agregado", updated);
+    }
+    if (!hadPolling && hasPolling) {
+      void logAction("local_agregado", updated);
+    }
     try {
       const response = await fetch(`${config.apiBasePath}/status`, {
         method: "PATCH",
@@ -806,7 +956,15 @@ export default function InfoFeb8OperatorDashboard({
         current.map((item) => (item.sourceId === activeRecord.sourceId ? previous : item)),
       );
     }
-  }, [activeRecord, config.apiBasePath, linksDraft, linksMode, triggerSavePulse, closeLinksModal]);
+  }, [
+    activeRecord,
+    config.apiBasePath,
+    linksDraft,
+    linksMode,
+    triggerSavePulse,
+    closeLinksModal,
+    logAction,
+  ]);
 
   const openCreateModal = React.useCallback(() => {
     setCreateDraft({
@@ -868,6 +1026,21 @@ export default function InfoFeb8OperatorDashboard({
         }),
       });
       if (!response.ok) throw new Error("No se pudo crear el contacto.");
+      const payload = (await response.json()) as { id?: string | null };
+      if (payload.id && config.operatorSlug) {
+        void fetch("/api/info/8-febrero/actions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "nuevo_contacto",
+            operatorSlug: config.operatorSlug,
+            sourceId: payload.id,
+            phone: nextPhone,
+            personName: nextName,
+          }),
+          keepalive: true,
+        });
+      }
       closeCreateModal();
       void fetchRecords({ silent: true });
     } catch (error) {
@@ -1171,10 +1344,10 @@ export default function InfoFeb8OperatorDashboard({
                           const isLocked = Boolean(
                             deleted || (assignedToId && !isAssignedToUser && !isAdmin),
                           );
-                          const canEdit = Boolean(isAdmin || isAssignedToUser);
-                          const canEditLinks = canEdit && !deleted;
-                          const canReply = canEdit && contacted && !deleted;
-                          const canContact = canEdit && !deleted;
+                           const canEdit = Boolean(isAdmin || isAssignedToUser);
+                           const canEditLinks = canEdit && !deleted;
+                           const canReply = canEdit && contacted && !deleted && isAssignedToUser;
+                           const canContact = canEdit && !deleted && isAssignedToUser;
                           const canDelete = deletingId === record.sourceId;
                           const assignedLabel = assignedToId
                             ? getAssignedLabel(status.assignedToName, status.assignedToEmail)
@@ -1267,10 +1440,24 @@ export default function InfoFeb8OperatorDashboard({
                                       />
                                       <span className="sr-only">Local de votacion</span>
                                     </button>
-                                    {assignedToId ? (
+                                     {assignedToId ? (
                                       <span className="inline-flex min-h-[38px] items-center justify-center rounded-full border border-[#0f2f4f]/15 bg-gradient-to-r from-[#fff1c2] via-white to-[#d6f5e3] px-4 text-center text-[10px] font-semibold uppercase tracking-[0.18em] text-[#0f2f4f] shadow-[0_8px_18px_rgba(15,47,79,0.12)]">
                                         {assignedLabel}
                                       </span>
+                                    ) : null}
+                                    {assignedToId && canEdit ? (
+                                      <button
+                                        type="button"
+                                        disabled={assigningId === record.sourceId}
+                                        onClick={() => releaseRecord(record)}
+                                        className={`min-h-[38px] rounded-full border px-4 text-[11px] font-semibold uppercase tracking-[0.2em] transition ${
+                                          assigningId === record.sourceId
+                                            ? "cursor-wait border-border/60 text-muted-foreground"
+                                            : "border-border/60 text-muted-foreground hover:border-[#163960]/50 hover:text-[#163960]"
+                                        }`}
+                                      >
+                                        Liberar
+                                      </button>
                                     ) : null}
                                     {showContactAction ? (
                                     <button

@@ -87,6 +87,16 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "No status update" }, { status: 400 });
   }
 
+  const wantsContacted = payload.contacted === true || payload.replied === true;
+  if (wantsContacted) {
+    if (!statusRow?.assignedToId || statusRow.assignedToId !== user.id) {
+      return NextResponse.json(
+        { error: "Open WhatsApp before updating status" },
+        { status: 409 },
+      );
+    }
+  }
+
   const contacted = Boolean(payload.contacted ?? statusRow?.contacted);
   const replied = Boolean(payload.replied ?? statusRow?.replied);
   const deleted = Boolean(payload.deleted ?? statusRow?.deleted);

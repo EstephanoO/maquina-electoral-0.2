@@ -49,6 +49,8 @@ export type MapHierarchySelection = {
   depCode?: string;
   provCode?: string;
   distCode?: string;
+  sector?: string;
+  subsector?: string;
   depName?: string;
   provName?: string;
   distName?: string;

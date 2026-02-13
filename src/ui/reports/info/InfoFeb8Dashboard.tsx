@@ -185,11 +185,87 @@ export default function InfoFeb8Dashboard() {
 
   React.useEffect(() => {
     if (typeof window === "undefined") return undefined;
-    const interval = window.setInterval(() => {
-      void fetchRecords({ silent: true });
-    }, 2000);
-    return () => window.clearInterval(interval);
-  }, [fetchRecords]);
+    const source = new EventSource("/api/info/8-febrero/stream");
+
+    const handleStatus = (event: MessageEvent) => {
+      try {
+        const payload = JSON.parse(event.data) as {
+          sourceId?: string;
+          phone?: string | null;
+          contacted?: boolean;
+          replied?: boolean;
+          deleted?: boolean;
+          updatedAt?: number;
+        };
+        const phone = payload.phone ? normalizePhone(payload.phone) : null;
+        if (!phone) return;
+        setStatusMap((current) => {
+          const previous = current[phone] ?? {};
+          return {
+            ...current,
+            [phone]: {
+              ...previous,
+              contacted: payload.contacted ?? previous.contacted,
+              replied: payload.replied ?? previous.replied,
+              updatedAt: payload.updatedAt ?? previous.updatedAt,
+            },
+          };
+        });
+      } catch {
+        // noop
+      }
+    };
+
+    const handleNewRecord = (event: MessageEvent) => {
+      try {
+        const payload = JSON.parse(event.data) as {
+          sourceId?: string;
+          recordedAt?: string | null;
+          interviewer?: string | null;
+          candidate?: string | null;
+          name?: string | null;
+          phone?: string | null;
+          latitude?: string | number | null;
+          longitude?: string | number | null;
+        };
+        if (!payload.sourceId || !payload.phone) return;
+        const timestamp = payload.recordedAt ?? "";
+        const interviewer = payload.interviewer ?? "";
+        if (!timestamp || !interviewer) return;
+        const record: InterviewRecord = {
+          sourceId: payload.sourceId,
+          timestamp,
+          interviewer,
+          supervisor: payload.candidate ?? "",
+          name: payload.name ?? "",
+          phone: payload.phone,
+          lat: payload.latitude !== null && payload.latitude !== undefined
+            ? String(payload.latitude)
+            : "",
+          lng: payload.longitude !== null && payload.longitude !== undefined
+            ? String(payload.longitude)
+            : "",
+        };
+        const phoneKey = normalizePhone(record.phone);
+        setRecords((current) => {
+          if (current.some((item) => item.sourceId === record.sourceId)) return current;
+          if (phoneKey && current.some((item) => normalizePhone(item.phone) === phoneKey)) {
+            return current;
+          }
+          return [record, ...current];
+        });
+      } catch {
+        // noop
+      }
+    };
+
+    source.addEventListener("status", handleStatus as EventListener);
+    source.addEventListener("new_record", handleNewRecord as EventListener);
+
+    return () => {
+      source.close();
+    };
+  }, []);
 
   React.useEffect(() => {
     return () => {

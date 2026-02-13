@@ -180,6 +180,11 @@ export const MapSection: React.FC<MapSectionProps> = ({
     geojsonFetcher,
     swrOptions,
   );
+  const { data: giovannaSubsectores } = useSWR(
+    isGiovanna ? "/geo/bisnieto_giovanna_v1.geojson" : null,
+    geojsonFetcher,
+    swrOptions,
+  );
   const { data: rocioDepartamentos } = useSWR(
     isRocio ? "/geo/abuelo_rocio.geojson" : null,
     geojsonFetcher,
@@ -400,6 +405,8 @@ export const MapSection: React.FC<MapSectionProps> = ({
         clientGeojson={activeSectorGeojson ?? activeGeojson}
         clientGeojsonMeta={activeMeta}
         clientGeojsonLayers={resolvedClientLayers}
+        clientGeojsonDetail={isGiovanna ? asFeatureCollection(giovannaSubsectores?.geojson) : null}
+        clientDetailLayerPlacement={isGiovanna ? "underlay" : "overlay"}
         clientFillColor={isGiovanna ? "rgba(239,68,68,0.3)" : undefined}
         clientLineColor={isGiovanna ? "rgba(239,68,68,0.9)" : undefined}
         clientLineHoverColor={isGiovanna ? "rgba(239,68,68,0.95)" : undefined}

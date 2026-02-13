@@ -11,6 +11,7 @@ export const runtime = "nodejs";
 type AssignPayload = {
   sourceId?: string;
   phone?: string | null;
+  release?: boolean;
 };
 
 export async function POST(request: Request) {
@@ -24,6 +25,7 @@ export async function POST(request: Request) {
   if (!sourceId) {
     return NextResponse.json({ error: "Missing sourceId" }, { status: 400 });
   }
+  const wantsRelease = Boolean(payload.release);
 
   const existing = await dbInfo
     .select({
@@ -40,14 +42,78 @@ export async function POST(request: Request) {
 
   const current = existing[0];
   if (!isAdmin && current?.assignedToId && current.assignedToId !== user.id) {
+    const assignedAt = current.assignedAt instanceof Date ? current.assignedAt.getTime() : null;
+    await notifyInfoFeb8StatusInfo({
+      type: "assignment",
+      sourceId,
+      phone: current.phone ?? null,
+      assignedToId: current.assignedToId,
+      assignedToName: current.assignedToName,
+      assignedToEmail: current.assignedToEmail,
+      assignedAt,
+      updatedAt: Date.now(),
+    });
     return NextResponse.json(
       {
         error: "Locked",
+        assignedToId: current.assignedToId,
         assignedToName: current.assignedToName,
         assignedToEmail: current.assignedToEmail,
       },
       { status: 409 },
     );
+  }
+
+  if (wantsRelease) {
+    if (current?.assignedToId && !isAdmin && current.assignedToId !== user.id) {
+      return NextResponse.json(
+        {
+          error: "Locked",
+          assignedToId: current.assignedToId,
+          assignedToName: current.assignedToName,
+          assignedToEmail: current.assignedToEmail,
+        },
+        { status: 409 },
+      );
+    }
+
+    if (current?.assignedToId) {
+      const updatedAt = new Date();
+      await dbInfo
+        .insert(infoFeb8Status)
+        .values({
+          sourceId,
+          phone: current.phone ?? payload.phone?.trim() ?? null,
+          assignedToId: null,
+          assignedToName: null,
+          assignedToEmail: null,
+          assignedAt: null,
+          updatedAt,
+        })
+        .onConflictDoUpdate({
+          target: infoFeb8Status.sourceId,
+          set: {
+            assignedToId: null,
+            assignedToName: null,
+            assignedToEmail: null,
+            assignedAt: null,
+            updatedAt,
+          },
+        });
+
+      await notifyInfoFeb8StatusInfo({
+        type: "assignment",
+        sourceId,
+        phone: current.phone ?? payload.phone?.trim() ?? null,
+        assignedToId: null,
+        assignedToName: null,
+        assignedToEmail: null,
+        assignedAt: null,
+        updatedAt: updatedAt.getTime(),
+      });
+    }
+
+    return NextResponse.json({ sourceId, released: true });
   }
 
   const assignedAt = current?.assignedAt ?? new Date();
