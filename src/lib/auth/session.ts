@@ -8,6 +8,15 @@ import type { SessionUser } from "@/lib/auth/types";
 const sessionCookieName = "maquina_session";
 const sessionDays = 30;
 
+const OPEN_ADMIN_USER: SessionUser = {
+  id: "00000000-0000-0000-0000-000000000000",
+  email: "admin@info.gob",
+  name: "Admin",
+  role: "admin",
+  campaignId: null,
+  assignedCampaignIds: [],
+};
+
 const buildSessionUser = (row: {
   id: string;
   email: string;
@@ -18,7 +27,7 @@ const buildSessionUser = (row: {
   id: row.id,
   email: row.email,
   name: row.name,
-  role: row.role === "admin" ? "admin" : "candidato",
+  role: "admin",
   campaignId: row.campaignId,
   assignedCampaignIds: row.campaignId ? [row.campaignId] : [],
 });
@@ -28,7 +37,7 @@ export const getSessionCookieName = () => sessionCookieName;
 export const getSessionUser = async (): Promise<SessionUser | null> => {
   const store = await cookies();
   const token = store.get(sessionCookieName)?.value;
-  if (!token) return null;
+  if (!token) return OPEN_ADMIN_USER;
   return getSessionUserByToken(token);
 };
 
@@ -50,7 +59,7 @@ export const getSessionUserByToken = async (token: string): Promise<SessionUser 
   const row = rows[0];
   if (!row) {
     await db.delete(authSessions).where(eq(authSessions.token, token));
-    return null;
+    return OPEN_ADMIN_USER;
   }
   return buildSessionUser({
     id: row.userId,

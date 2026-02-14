@@ -18,6 +18,19 @@ type StatusActionRow = {
   createdAt: Date | string | null;
 };
 
+type InfoStatusRow = {
+  sourceId: string | null;
+  phone: string | null;
+  contacted: boolean;
+  replied: boolean;
+  deleted: boolean;
+  assignedToId: string | null;
+  assignedToName: string | null;
+  assignedToEmail: string | null;
+  assignedAt: Date | string | null;
+  updatedAt: Date | string | null;
+};
+
 type WhatsappActionRow = {
   sourceId: string | null;
   phone: string | null;
@@ -69,20 +82,38 @@ export async function GET(request: Request) {
     : baseQuery
   ).orderBy(desc(forms.fecha));
 
-  const statuses = await dbInfo
-    .select({
-      sourceId: infoFeb8Status.sourceId,
-      phone: infoFeb8Status.phone,
-      contacted: infoFeb8Status.contacted,
-      replied: infoFeb8Status.replied,
-      deleted: infoFeb8Status.deleted,
-      assignedToId: infoFeb8Status.assignedToId,
-      assignedToName: infoFeb8Status.assignedToName,
-      assignedToEmail: infoFeb8Status.assignedToEmail,
-      assignedAt: infoFeb8Status.assignedAt,
-      updatedAt: infoFeb8Status.updatedAt,
-    })
-    .from(infoFeb8Status);
+  let statuses: InfoStatusRow[] = [];
+  try {
+    statuses = await dbInfo
+      .select({
+        sourceId: infoFeb8Status.sourceId,
+        phone: infoFeb8Status.phone,
+        contacted: infoFeb8Status.contacted,
+        replied: infoFeb8Status.replied,
+        deleted: infoFeb8Status.deleted,
+        assignedToId: infoFeb8Status.assignedToId,
+        assignedToName: infoFeb8Status.assignedToName,
+        assignedToEmail: infoFeb8Status.assignedToEmail,
+        assignedAt: infoFeb8Status.assignedAt,
+        updatedAt: infoFeb8Status.updatedAt,
+      })
+      .from(infoFeb8Status);
+  } catch {
+    statuses = await dbInfo
+      .select({
+        sourceId: sql<string | null>`NULL`,
+        phone: infoFeb8Status.phone,
+        contacted: infoFeb8Status.contacted,
+        replied: infoFeb8Status.replied,
+        deleted: sql<boolean>`false`,
+        assignedToId: sql<string | null>`NULL`,
+        assignedToName: sql<string | null>`NULL`,
+        assignedToEmail: sql<string | null>`NULL`,
+        assignedAt: sql<Date | string | null>`NULL`,
+        updatedAt: infoFeb8Status.updatedAt,
+      })
+      .from(infoFeb8Status);
+  }
 
   const statusActionValues = sql.join(
     ["no_hablado", "hablado", "contestado", "eliminado"].map((action) => sql`${action}`),
@@ -113,16 +144,30 @@ export async function GET(request: Request) {
     WHERE source_id IS NOT NULL AND action = 'whatsapp'
     ORDER BY source_id, created_at DESC
   `;
-  const statusActions = await dbInfo.execute(statusActionsQuery);
-  const whatsappActions = await dbInfo.execute(whatsappActionsQuery);
-  const statusActionRows = statusActions.rows as StatusActionRow[];
-  const whatsappActionRows = whatsappActions.rows as WhatsappActionRow[];
+  let statusActionRows: StatusActionRow[] = [];
+  let whatsappActionRows: WhatsappActionRow[] = [];
+  try {
+    const statusActions = await dbInfo.execute(statusActionsQuery);
+    const whatsappActions = await dbInfo.execute(whatsappActionsQuery);
+    statusActionRows = statusActions.rows as StatusActionRow[];
+    whatsappActionRows = whatsappActions.rows as WhatsappActionRow[];
+  } catch {
+    statusActionRows = [];
+    whatsappActionRows = [];
+  }
 
   const statusBySource = statuses.reduce((acc, status) => {
     if (!status.sourceId) return acc;
     acc[status.sourceId] = status;
     return acc;
-  }, {} as Record<string, (typeof statuses)[number]>);
+  }, {} as Record<string, InfoStatusRow>);
+
+  const statusByPhone = statuses.reduce((acc, status) => {
+    const phone = status.phone?.trim();
+    if (!phone) return acc;
+    acc[phone] = status;
+    return acc;
+  }, {} as Record<string, InfoStatusRow>);
 
   const statusActionBySource = statusActionRows.reduce((acc, row) => {
     if (!row.sourceId) return acc;
@@ -177,18 +222,30 @@ export async function GET(request: Request) {
     longitude: null,
   }));
 
+  const getStatusForRecord = (record: (typeof mapped)[number]) => {
+    return mergedStatusBySource[record.sourceId] ?? statusByPhone[record.phone ?? ""];
+  };
+
   const filteredRecords = isAdmin
     ? mapped
     : mapped.filter((record) => {
-        const status = mergedStatusBySource[record.sourceId];
+        const status = getStatusForRecord(record);
         if (!status?.assignedToId) return true;
         return status.assignedToId === user.id;
       });
 
   const visibleStatusIds = new Set(filteredRecords.map((record) => record.sourceId));
-  const filteredStatuses = Object.values(mergedStatusBySource).filter((status) =>
-    visibleStatusIds.has(status.sourceId),
-  );
+  const filteredStatuses = filteredRecords
+    .map((record) => {
+      const status = getStatusForRecord(record);
+      if (!status) return null;
+      return {
+        ...status,
+        sourceId: status.sourceId ?? record.sourceId,
+      };
+    })
+    .filter((status): status is InfoStatusRow & { sourceId: string } => Boolean(status))
+    .filter((status) => visibleStatusIds.has(status.sourceId));
 
   return NextResponse.json({ records: filteredRecords, statuses: filteredStatuses });
 }
