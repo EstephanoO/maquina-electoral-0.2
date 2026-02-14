@@ -3,10 +3,10 @@ import ws from "ws";
 
 neonConfig.webSocketConstructor = ws;
 
-const databaseUrl = process.env.DATABASE_URL3 ?? process.env.DATABASE_URL2;
+const databaseUrl = process.env.DATABASE_URL3;
 
 if (!databaseUrl) {
-  throw new Error("DATABASE_URL3 or DATABASE_URL2 is not set");
+  throw new Error("DATABASE_URL3 is not set");
 }
 
 type RealtimeInfoPayload =
