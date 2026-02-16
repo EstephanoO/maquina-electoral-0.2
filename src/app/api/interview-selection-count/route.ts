@@ -1,15 +1,12 @@
 import { NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
 import { db } from "@/db/connection";
-import {
-  CESAR_VASQUEZ_DISTRICT_COUNTS,
-  CESAR_VASQUEZ_TOTAL,
-} from "@/db/constants/cesar-vasquez-mock";
 
 const clientToCandidate: Record<string, string> = {
   rocio: "Rocio Porras",
   giovanna: "Giovanna Castagnino",
   guillermo: "Guillermo Aliaga",
+  "cesar-vasquez": "Cesar Vasquez",
 };
 
 const cacheHeaders = {
@@ -63,17 +60,6 @@ export async function GET(request: Request) {
   const distCode = normalizeCode(url.searchParams.get("dist"), 6);
   const resolvedCandidate =
     (clientParam ? clientToCandidate[clientParam] : null) ?? candidateParam;
-
-  if (clientParam === "cesar-vasquez") {
-    if (level === "departamento" && depCode === "15") {
-      return NextResponse.json({ count: CESAR_VASQUEZ_TOTAL }, { status: 200, headers: cacheHeaders });
-    }
-    if (level === "distrito" && distCode) {
-      const count = CESAR_VASQUEZ_DISTRICT_COUNTS[distCode] ?? 0;
-      return NextResponse.json({ count }, { status: 200, headers: cacheHeaders });
-    }
-    return NextResponse.json({ count: 0 }, { status: 200, headers: cacheHeaders });
-  }
 
   if (!level || !["departamento", "provincia", "distrito"].includes(level)) {
     return NextResponse.json({ error: "Invalid level" }, { status: 400 });

@@ -4,6 +4,7 @@ const explicitClientToCampaignId: Record<string, string> = {
   rocio: "cand-rocio",
   giovanna: "cand-giovanna",
   guillermo: "cand-guillermo",
+  "cesar-vasquez": "cand-cesar-vasquez",
 };
 
 export const resolveCampaignIdFromClient = (client: string | null) => {

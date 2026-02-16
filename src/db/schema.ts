@@ -237,6 +237,28 @@ export const infoFeb8ActionEvents = pgTable(
   }),
 );
 
+export const cesarVasquezRegistros = pgTable(
+  "cesar_vasquez_registros",
+  {
+    id: text("id").primaryKey(),
+    nombreEntrevistado: text("nombre_entrevistado").notNull(),
+    telefono: text("telefono").notNull().default(""),
+    zona: text("zona").notNull().default(""),
+    comentario: text("comentario").notNull().default(""),
+    candidato: text("candidato").notNull().default("Cesar Vasquez"),
+    agente: text("agente").notNull().default(""),
+    ubicacionUtm: jsonb("ubicacion_utm"),
+    latitude: doublePrecision("latitude"),
+    longitude: doublePrecision("longitude"),
+    fecha: timestamp("fecha", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    fechaIdx: index("cv_registros_fecha_idx").on(table.fecha),
+    agenteIdx: index("cv_registros_agente_idx").on(table.agente),
+  }),
+);
+
 export const operators = pgTable("operators", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
