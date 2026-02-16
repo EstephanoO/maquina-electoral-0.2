@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { desc } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { db } from "@/db/connection";
 import { cesarVasquezRegistros, territory } from "@/db/schema";
 
@@ -95,7 +95,7 @@ type FormPayload = {
 // ── CORS headers (mobile app) ───────────────────────────────────────
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type, x-api-key",
 };
 
@@ -226,6 +226,33 @@ export async function GET() {
     });
   } catch (err) {
     console.error("[cesar-vasquez/registros] GET error:", err);
+    return NextResponse.json(
+      { error: "Error interno del servidor" },
+      { status: 500, headers: corsHeaders },
+    );
+  }
+}
+
+// ── DELETE: eliminar registro ───────────────────────────────────────
+export async function DELETE(request: Request) {
+  try {
+    const url = new URL(request.url);
+    const id = url.searchParams.get("id");
+
+    if (!id) {
+      return NextResponse.json(
+        { error: "id es requerido (?id=xxx)" },
+        { status: 400, headers: corsHeaders },
+      );
+    }
+
+    // Eliminar de ambas tablas (misma PK)
+    await db.delete(cesarVasquezRegistros).where(eq(cesarVasquezRegistros.id, id));
+    await db.delete(territory).where(eq(territory.id, id));
+
+    return NextResponse.json({ ok: true }, { status: 200, headers: corsHeaders });
+  } catch (err) {
+    console.error("[cesar-vasquez/registros] DELETE error:", err);
     return NextResponse.json(
       { error: "Error interno del servidor" },
       { status: 500, headers: corsHeaders },

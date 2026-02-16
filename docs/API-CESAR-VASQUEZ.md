@@ -3,10 +3,8 @@
 ## Base URL
 
 ```
-https://goberna.vercel.app/api/cesar-vasquez/registros
+https://dashboard.grupogoberna.com/api/cesar-vasquez/registros
 ```
-
-> Reemplazar `goberna.vercel.app` con el dominio correcto de produccion si difiere.
 
 ---
 
@@ -179,7 +177,7 @@ type PostResponse = {
 ## Ejemplo con fetch (React Native / Expo)
 
 ```typescript
-const API_BASE_URL = 'https://goberna.vercel.app/api/cesar-vasquez';
+const API_BASE_URL = 'https://dashboard.grupogoberna.com/api/cesar-vasquez';
 
 // Crear registro
 const response = await fetch(`${API_BASE_URL}/registros`, {
@@ -233,5 +231,5 @@ En `lib/cesar-vasquez-api.ts`, cambiar:
 const API_BASE_URL = '__PENDIENTE_URL_API__';
 
 // DESPUES:
-const API_BASE_URL = 'https://goberna.vercel.app/api/cesar-vasquez';
+const API_BASE_URL = 'https://dashboard.grupogoberna.com/api/cesar-vasquez';
 ```
