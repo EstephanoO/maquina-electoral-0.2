@@ -57,13 +57,18 @@ export async function GET() {
 
   const statuses = await dbInfo
     .select({
+      sourceId: infoFeb8GiovannaRegistros.sourceId,
       phone: infoFeb8GiovannaStatus.phone,
       contacted: infoFeb8GiovannaStatus.contacted,
       replied: infoFeb8GiovannaStatus.replied,
       deleted: infoFeb8GiovannaStatus.deleted,
       updatedAt: infoFeb8GiovannaStatus.updatedAt,
     })
-    .from(infoFeb8GiovannaStatus);
+    .from(infoFeb8GiovannaStatus)
+    .leftJoin(
+      infoFeb8GiovannaRegistros,
+      eq(infoFeb8GiovannaStatus.phone, infoFeb8GiovannaRegistros.phone),
+    );
 
   const statusMap = statuses.reduce((acc, status) => {
     acc[status.phone] = status;
