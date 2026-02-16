@@ -2,13 +2,16 @@
 
 import * as React from "react";
 import { EventMapDashboard } from "@/dashboards/events/containers/EventMapDashboard";
-import {
-  CESAR_VASQUEZ_CONFIG_STORAGE_KEY,
-  CESAR_VASQUEZ_CONFIG_URL,
-  DEFAULT_CESAR_VASQUEZ_CONFIG,
-  normalizeCesarVasquezConfig,
-  type CesarVasquezConfig,
-} from "@/ui/reports/info/cesarVasquezConfig";
+
+const CESAR_VASQUEZ_CANDIDATE = {
+  candidateName: "Cesar Vasquez",
+  partyName: "Partido APP",
+  positionLabel: "SENADOR NACIONAL #3",
+  dateLabel: "11 Feb 2026",
+  logoSrc: "/Logoapp.png",
+  metaDataTotal: "300,000",
+  metaVotesTotal: "100,000",
+};
 
 const extractCandidateNumber = (label: string) => {
   const match = label.match(/#(\d+)/);
@@ -16,69 +19,31 @@ const extractCandidateNumber = (label: string) => {
 };
 
 export const CesarVasquezTierraDashboard = () => {
-  const [config, setConfig] = React.useState<CesarVasquezConfig>(
-    DEFAULT_CESAR_VASQUEZ_CONFIG,
-  );
-
-  React.useEffect(() => {
-    let active = true;
-    const loadConfig = async () => {
-      let nextConfig = DEFAULT_CESAR_VASQUEZ_CONFIG;
-      try {
-        const response = await fetch(CESAR_VASQUEZ_CONFIG_URL, { cache: "no-store" });
-        if (response.ok) {
-          const payload = (await response.json()) as Partial<CesarVasquezConfig>;
-          nextConfig = normalizeCesarVasquezConfig(payload, nextConfig);
-        }
-      } catch {
-        nextConfig = DEFAULT_CESAR_VASQUEZ_CONFIG;
-      }
-
-      if (typeof window !== "undefined") {
-        const stored = window.localStorage.getItem(CESAR_VASQUEZ_CONFIG_STORAGE_KEY);
-        if (stored) {
-          try {
-            const parsed = JSON.parse(stored) as Partial<CesarVasquezConfig>;
-            nextConfig = normalizeCesarVasquezConfig(parsed, nextConfig);
-          } catch {
-            window.localStorage.removeItem(CESAR_VASQUEZ_CONFIG_STORAGE_KEY);
-          }
-        }
-      }
-
-      if (!active) return;
-      setConfig(nextConfig);
-    };
-
-    void loadConfig();
-    return () => {
-      active = false;
-    };
-  }, []);
-
   return (
     <EventMapDashboard
-      eventTitle={config.candidateName}
-      candidateLabels={[config.candidateName]}
+      eventTitle={CESAR_VASQUEZ_CANDIDATE.candidateName}
+      candidateLabels={[CESAR_VASQUEZ_CANDIDATE.candidateName]}
       dataUrl="/api/interviews?client=cesar-vasquez"
       clientKey="cesar-vasquez"
-      dataGoal={config.metaDataTotal}
+      campaignId="cesar-vasquez"
+      dataGoal={300000}
+      votesGoal={100000}
       candidateProfile={{
-        name: config.candidateName,
-        party: config.partyName,
-        role: config.positionLabel,
-        number: extractCandidateNumber(config.positionLabel),
-        image: config.logoSrc,
+        name: CESAR_VASQUEZ_CANDIDATE.candidateName,
+        party: CESAR_VASQUEZ_CANDIDATE.partyName,
+        role: CESAR_VASQUEZ_CANDIDATE.positionLabel,
+        number: extractCandidateNumber(CESAR_VASQUEZ_CANDIDATE.positionLabel),
+        image: CESAR_VASQUEZ_CANDIDATE.logoSrc,
       }}
       contextNote={{
-        title: config.reportKicker,
-        description: config.reportTitle,
+        title: "Reporte diario",
+        description: "Registros Cesar Vasquez",
         details: [
-          `Fecha: ${config.dateLabel}`,
-          `Meta datos: ${config.metaDataCurrent} / ${config.metaDataTotal}`,
-          `Meta votos: ${config.metaVotesCurrent} / ${config.metaVotesTotal}`,
+          `Fecha: ${CESAR_VASQUEZ_CANDIDATE.dateLabel}`,
+          `Meta de votos: 0 / ${CESAR_VASQUEZ_CANDIDATE.metaVotesTotal}`,
         ],
       }}
+      hideMapLegend={true}
     />
   );
 };

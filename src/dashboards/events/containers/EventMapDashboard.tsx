@@ -62,7 +62,8 @@ type EventMapDashboardProps = {
     number: string;
     image: string;
   };
-  dataGoal?: string;
+  dataGoal?: string | number;
+  votesGoal?: number;
   hideMapLegend?: boolean;
 };
 
@@ -75,11 +76,13 @@ export const EventMapDashboard = ({
   contextNote,
   candidateProfile,
   dataGoal,
+  votesGoal,
   hideMapLegend = false,
 }: EventMapDashboardProps) => {
   const isRocio = clientKey === "rocio";
   const isGiovanna = clientKey === "giovanna";
   const isGuillermo = clientKey === "guillermo";
+  const isCesarVasquez = clientKey === "cesar-vasquez";
   const dataGoalOverride = isRocio ? 80000 : null;
   const [mapSelection, setMapSelection] = React.useState<MapHierarchySelection | null>(null);
   const [mapViewMode, setMapViewMode] = React.useState<"tracking" | "interview">(
@@ -420,11 +423,12 @@ export const EventMapDashboard = ({
 
   const totalObjectiveGoal = React.useMemo(() => {
     if (dataGoalOverride) return dataGoalOverride;
+    if (isCesarVasquez) return Number(dataGoal) || 0;
     return (objectiveSp.departamentos ?? []).reduce(
       (acc, item) => acc + (Number(item.meta_datos_minima) || 0),
       0,
     );
-  }, [dataGoalOverride]);
+  }, [dataGoalOverride, isCesarVasquez, dataGoal]);
 
   const interviewCountsByDepartment = React.useMemo(() => {
     const map = new Map<string, number>();
@@ -584,7 +588,7 @@ export const EventMapDashboard = ({
   );
 
   const totalLabel = total.toLocaleString("en-US");
-  const votesGoal = 20000;
+  const votesGoalValue = votesGoal ?? 20000;
   const selectionLabel = selectionTotal.toLocaleString("en-US");
   const goalNumeric = typeof resolvedDataGoal === "number" ? resolvedDataGoal : Number(resolvedDataGoal) || 0;
   const goalProgress = goalNumeric > 0 ? (selectionTotal / goalNumeric) * 100 : 0;
@@ -709,7 +713,7 @@ export const EventMapDashboard = ({
       metaDataProgressLabel={goalProgressLabel}
       metaDataProgress={goalProgress}
       metaVotesCountLabel="0"
-      metaVotesGoalLabel={votesGoal.toLocaleString("en-US")}
+      metaVotesGoalLabel={votesGoalValue.toLocaleString("en-US")}
       metaVotesProgressLabel="0.00%"
       metaVotesProgress={0}
       showMetaVotes={!isRocio}

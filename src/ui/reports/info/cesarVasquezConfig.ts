@@ -21,7 +21,7 @@ export const CESAR_VASQUEZ_CONFIG_STORAGE_KEY = "info:cesar-vasquez-config";
 
 export const DEFAULT_CESAR_VASQUEZ_CONFIG: CesarVasquezConfig = {
   brandName: "Goberna",
-  logoSrc: "/isotipo(2).jpg",
+  logoSrc: "/Logoapp.png",
   logoAlt: "Goberna",
   reportKicker: "Reporte diario",
   reportTitle: "Registros Cesar Vasquez",
@@ -30,9 +30,9 @@ export const DEFAULT_CESAR_VASQUEZ_CONFIG: CesarVasquezConfig = {
   positionLabel: "SENADOR NACIONAL #3",
   dateLabel: "11 Feb 2026",
   metaDataCurrent: "18",
-  metaDataTotal: "1,099,656",
+  metaDataTotal: "800,000",
   metaVotesCurrent: "0",
-  metaVotesTotal: "20,000",
+  metaVotesTotal: "200,000",
   messageTemplate:
     "Hola {nombre}, somos el equipo de Cesar Vasquez (APP). Gracias por tu tiempo. Queremos compartirte una breve actualizacion del trabajo territorial.",
 };

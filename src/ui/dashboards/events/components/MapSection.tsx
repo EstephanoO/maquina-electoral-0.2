@@ -73,6 +73,7 @@ export const MapSection: React.FC<MapSectionProps> = ({
   const [currentLevel, setCurrentLevel] = React.useState<GeoLevel>("departamento");
   const isGiovanna = campaignId === "cand-giovanna";
   const isRocio = campaignId === "cand-rocio";
+  const isCesarVasquez = campaignId === "cesar-vasquez";
   const [mapSelection, setMapSelection] = React.useState<MapHierarchySelection | null>(null);
   const shouldHighlightPoints = Boolean(hierarchyPoints && hierarchyPoints.length > 0);
   const getPointColor = React.useCallback((point: MapPoint) => {
@@ -200,6 +201,21 @@ export const MapSection: React.FC<MapSectionProps> = ({
     geojsonFetcher,
     swrOptions,
   );
+  const { data: cesarDepartamentos } = useSWR(
+    isCesarVasquez ? "/geo/abuelo_cesar.geojson" : null,
+    geojsonFetcher,
+    swrOptions,
+  );
+  const { data: cesarProvincias } = useSWR(
+    isCesarVasquez ? "/geo/padre_cesar.geojson" : null,
+    geojsonFetcher,
+    swrOptions,
+  );
+  const { data: cesarDistritos } = useSWR(
+    isCesarVasquez ? "/geo/hijo_cesar.geojson" : null,
+    geojsonFetcher,
+    swrOptions,
+  );
 
   const layerData = React.useMemo(() => {
     if (isGiovanna) {
@@ -207,6 +223,13 @@ export const MapSection: React.FC<MapSectionProps> = ({
         departamento: giovannaDepartamentos ?? null,
         provincia: giovannaProvincias ?? null,
         distrito: giovannaDistritos ?? null,
+      };
+    }
+    if (isCesarVasquez) {
+      return {
+        departamento: cesarDepartamentos ?? null,
+        provincia: cesarProvincias ?? null,
+        distrito: cesarDistritos ?? null,
       };
     }
     return {
@@ -221,6 +244,10 @@ export const MapSection: React.FC<MapSectionProps> = ({
     giovannaDistritos,
     giovannaProvincias,
     isGiovanna,
+    isCesarVasquez,
+    cesarDepartamentos,
+    cesarProvincias,
+    cesarDistritos,
     nextLayer,
     nextLayerData,
   ]);
@@ -258,18 +285,31 @@ export const MapSection: React.FC<MapSectionProps> = ({
   }, [asFeatureCollection, layerData]);
 
   const priorityLayers = React.useMemo(() => {
-    if (!isRocio) return null;
-    return {
-      departamento: asFeatureCollection(rocioDepartamentos?.geojson),
-      provincia: asFeatureCollection(rocioProvincias?.geojson),
-      distrito: asFeatureCollection(rocioDistritos?.geojson),
-    };
+    if (isRocio) {
+      return {
+        departamento: asFeatureCollection(rocioDepartamentos?.geojson),
+        provincia: asFeatureCollection(rocioProvincias?.geojson),
+        distrito: asFeatureCollection(rocioDistritos?.geojson),
+      };
+    }
+    if (isCesarVasquez) {
+      return {
+        departamento: asFeatureCollection(cesarDepartamentos?.geojson),
+        provincia: asFeatureCollection(cesarProvincias?.geojson),
+        distrito: asFeatureCollection(cesarDistritos?.geojson),
+      };
+    }
+    return null;
   }, [
     asFeatureCollection,
     isRocio,
+    isCesarVasquez,
     rocioDepartamentos?.geojson,
     rocioDistritos?.geojson,
     rocioProvincias?.geojson,
+    cesarDepartamentos?.geojson,
+    cesarProvincias?.geojson,
+    cesarDistritos?.geojson,
   ]);
 
   const resolvedClientLayers = React.useMemo(() => {
