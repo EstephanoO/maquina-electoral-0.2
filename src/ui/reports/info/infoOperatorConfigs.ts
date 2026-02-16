@@ -34,7 +34,7 @@ export const infoOperatorConfigs = {
     tableTitle: "Tabla consolidada",
     tableDescription: "Registros cargados desde el CSV compartido.",
     apiBasePath: "/api/info/8-febrero",
-    allowedInterviewers: ["agenda", "VCF Import"],
+    allowedInterviewers: ["agenda", "Contacto"],
     allowRecordsWithoutLinks: true,
   },
   giovanna: {
@@ -46,8 +46,8 @@ export const infoOperatorConfigs = {
     badgeDate: "08 Feb 2026",
     tableTitle: "Tabla consolidada",
     tableDescription: "Registros cargados desde el CSV compartido.",
-    apiBasePath: "/api/info/8-febrero",
-    supervisor: "Giovanna Castagnino",
+    apiBasePath: "/api/info/8-febrero/giovanna",
+    allowedInterviewers: ["Contacto"],
     allowRecordsWithoutLinks: true,
   },
   rocio: {
